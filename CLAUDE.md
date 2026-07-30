@@ -29,10 +29,12 @@ The app is **offline-first**: it must be fully usable with no network. All data 
 
 ### pnpm + Expo/Metro gotcha (read this)
 
-Metro historically does not resolve pnpm's isolated (symlinked) `node_modules` cleanly. If Metro
-throws module-resolution errors after install, add an `.npmrc` with `node-linker=hoisted` (or a
-targeted `public-hoist-pattern`) and reinstall. Verify current guidance via Context7 before
-scaffolding — do not hardcode setup steps from memory.
+Metro does not resolve pnpm's isolated (symlinked) `node_modules` cleanly, so this project uses a
+**hoisted** node-linker. IMPORTANT: pnpm 11 **ignores** `node-linker=hoisted` in `.npmrc` — set
+`nodeLinker: hoisted` in `pnpm-workspace.yaml` instead (both files are kept for safety). Verified
+empirically on Expo SDK 57 + pnpm 11.5.2: Metro bundles cleanly with the hoisted layout. Also note
+pnpm 10+ blocks dependency build (postinstall) scripts by default — run `pnpm approve-builds` when a
+dependency legitimately needs its build step (e.g. the Expo lint bootstrap).
 
 ## 3. Architecture — Feature-based Layered
 
