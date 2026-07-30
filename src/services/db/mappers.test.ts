@@ -1,0 +1,176 @@
+import { cents } from '@/types/money';
+
+import {
+  appSettingRowToDomain,
+  employeeInsertFromNew,
+  employeeRowToDomain,
+  employerInsertFromNew,
+  employerRowToDomain,
+  payrollRunInsertFromNew,
+  payrollRunRowToDomain,
+} from './mappers';
+import type { EmployeeRow, EmployerRow, PayrollRunRow } from './schema';
+
+describe('employerRowToDomain / employerInsertFromNew', () => {
+  const row: EmployerRow = {
+    id: 'employer-1',
+    name: 'Empleador Ejemplo',
+    nif: '00000000T',
+    address: 'Calle Falsa 123',
+    createdAt: 1_700_000_000_000,
+  };
+
+  it('maps a raw row to the Employer domain type unchanged (no money fields to brand)', () => {
+    expect(employerRowToDomain(row)).toEqual({
+      id: 'employer-1',
+      name: 'Empleador Ejemplo',
+      nif: '00000000T',
+      address: 'Calle Falsa 123',
+      createdAt: 1_700_000_000_000,
+    });
+  });
+
+  it('preserves null nif/address rather than coercing to undefined', () => {
+    const nullableRow: EmployerRow = { ...row, nif: null, address: null };
+    const domain = employerRowToDomain(nullableRow);
+    expect(domain.nif).toBeNull();
+    expect(domain.address).toBeNull();
+  });
+
+  it('builds an insert row from NewEmployer + generated id/createdAt', () => {
+    expect(employerInsertFromNew({ name: 'Empleador Ejemplo', nif: '00000000T' }, 'employer-1', 1_700_000_000_000)).toEqual({
+      id: 'employer-1',
+      name: 'Empleador Ejemplo',
+      nif: '00000000T',
+      address: null,
+      createdAt: 1_700_000_000_000,
+    });
+  });
+});
+
+describe('employeeRowToDomain / employeeInsertFromNew', () => {
+  const row: EmployeeRow = {
+    id: 'employee-1',
+    employerId: 'employer-1',
+    name: 'Empleada Ejemplo',
+    nif: '00000001T',
+    naf: '000000000001',
+    baseGrossCents: 123456,
+    active: true,
+  };
+
+  it('brands baseGrossCents as Cents on the way out of the DB', () => {
+    const domain = employeeRowToDomain(row);
+    expect(domain.baseGrossCents).toBe(cents(123456));
+  });
+
+  it('passes through non-money fields unchanged', () => {
+    const domain = employeeRowToDomain(row);
+    expect(domain).toMatchObject({
+      id: 'employee-1',
+      employerId: 'employer-1',
+      name: 'Empleada Ejemplo',
+      nif: '00000001T',
+      naf: '000000000001',
+      active: true,
+    });
+  });
+
+  it('builds an insert row unbranding Cents back to a plain integer', () => {
+    const insertRow = employeeInsertFromNew(
+      { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(123456) },
+      'employee-1',
+    );
+    expect(insertRow).toEqual({
+      id: 'employee-1',
+      employerId: 'employer-1',
+      name: 'Empleada Ejemplo',
+      nif: null,
+      naf: null,
+      baseGrossCents: 123456,
+      active: true,
+    });
+  });
+
+  it('defaults active to true and honors an explicit false', () => {
+    expect(
+      employeeInsertFromNew(
+        { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100), active: false },
+        'employee-1',
+      ).active,
+    ).toBe(false);
+  });
+});
+
+describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
+  const row: PayrollRunRow = {
+    id: 'run-1',
+    employeeId: 'employee-1',
+    periodYear: 2026,
+    periodMonth: 6,
+    grossCents: 150000,
+    ssDeductionCents: 9000,
+    netCents: 141000,
+    prorated: false,
+    createdAt: 1_700_000_000_000,
+  };
+
+  it('brands all three money fields as Cents', () => {
+    const domain = payrollRunRowToDomain(row);
+    expect(domain.grossCents).toBe(cents(150000));
+    expect(domain.ssDeductionCents).toBe(cents(9000));
+    expect(domain.netCents).toBe(cents(141000));
+  });
+
+  it('builds an insert row unbranding all three money fields', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+        prorated: true,
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow).toEqual({
+      id: 'run-1',
+      employeeId: 'employee-1',
+      periodYear: 2026,
+      periodMonth: 6,
+      grossCents: 150000,
+      ssDeductionCents: 9000,
+      netCents: 141000,
+      prorated: true,
+      createdAt: 1_700_000_000_000,
+    });
+  });
+
+  it('defaults prorated to false when omitted', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.prorated).toBe(false);
+  });
+});
+
+describe('appSettingRowToDomain', () => {
+  it('passes key/value through unchanged (no money fields)', () => {
+    expect(appSettingRowToDomain({ key: 'smoke', value: '2026-07-30T00:00:00.000Z' })).toEqual({
+      key: 'smoke',
+      value: '2026-07-30T00:00:00.000Z',
+    });
+  });
+});

@@ -7,8 +7,12 @@
  * a branded numeric type is not useful without its safe constructors — see the
  * doc comment at the top of `money.ts` for the full rationale.
  *
- * Repository interfaces (returning domain types, never ORM types) and the
- * `Employee`/`Employer`/`PayrollRun` domain models are added in a later slice.
+ * `domain.ts` declares the `Employer`/`Employee`/`PayrollRun`/`AppSetting`
+ * models; `repositories.ts` declares the repository interfaces that return
+ * them. Both are plain types with zero ORM dependency — the concrete Drizzle
+ * adapters implementing these interfaces live in `src/services/db/`.
  */
 
+export * from './domain';
 export * from './money';
+export * from './repositories';

@@ -535,3 +535,7 @@ web-build/
 # gentle ai
 /.atl
 
+# Local dev seed (Foundation slice) — real employer/employee data goes here at
+# runtime; NEVER commit it. See src/services/db/seed.local.ts and seed.example.ts.
+/src/services/db/seed.local.ts
+

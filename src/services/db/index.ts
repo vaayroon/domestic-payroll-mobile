@@ -8,9 +8,18 @@
  * repository interfaces in `src/types` instead, never on Drizzle types
  * directly (CLAUDE.md §3).
  *
- * Empty placeholder for the Foundation slice's Phase 2 batch — the schema,
- * migrations, DB client, mappers, and repository adapters are built in the
- * Persistence Layer phase (see `sdd/foundation/tasks`, Phase 3).
+ * This barrel is the module's public surface: it exports the DB
+ * client/migration bootstrap and the concrete `*RepositoryDrizzle` adapters.
+ * The only intended consumer is `core/RepositoryProvider`, which constructs
+ * these adapters once and exposes them to the rest of the app as their
+ * interfaces (`EmployerRepository`, `EmployeeRepository`, etc. from
+ * `src/types`) — never as these concrete classes.
  */
 
-export {};
+export { createDatabase, DATABASE_NAME, type AppDatabase } from './client';
+export { runMigrations } from './runMigrations';
+
+export { EmployerRepositoryDrizzle } from './EmployerRepositoryDrizzle';
+export { EmployeeRepositoryDrizzle } from './EmployeeRepositoryDrizzle';
+export { PayrollRunRepositoryDrizzle } from './PayrollRunRepositoryDrizzle';
+export { SettingsRepositoryDrizzle } from './SettingsRepositoryDrizzle';
