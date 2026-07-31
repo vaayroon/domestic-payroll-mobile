@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { randomUUID } from 'expo-crypto';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 
 import { RepositoryProvider, type Repositories } from '@/core';
