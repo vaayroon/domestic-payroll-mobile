@@ -94,6 +94,8 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       naf: input.naf ?? null,
       baseGrossCents: input.baseGrossCents,
       active: input.active ?? true,
+      altaDate: input.altaDate ?? null,
+      bajaDate: input.bajaDate ?? null,
     };
     this.rows.push(employee);
     return employee;
@@ -113,6 +115,8 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       ...(patch.naf !== undefined ? { naf: patch.naf } : {}),
       ...(patch.baseGrossCents !== undefined ? { baseGrossCents: patch.baseGrossCents } : {}),
       ...(patch.active !== undefined ? { active: patch.active } : {}),
+      ...(patch.altaDate !== undefined ? { altaDate: patch.altaDate } : {}),
+      ...(patch.bajaDate !== undefined ? { bajaDate: patch.bajaDate } : {}),
     };
     this.rows[index] = updated;
     return updated;

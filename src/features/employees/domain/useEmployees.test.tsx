@@ -7,11 +7,10 @@
 
 import { act, create } from 'react-test-renderer';
 
-import { RepositoryProvider, type Repositories } from '@/core';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import type { Employee, Employer, PayrollRunRepository, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
-import { CurrentEmployerProvider } from './currentEmployer';
 import { useEmployees, type UseEmployeesResult } from './useEmployees';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
 
@@ -85,6 +84,8 @@ describe('useEmployees', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const inactive: Employee = { ...active, id: 'employee-fake-inactive', active: false };
     const repository = new InMemoryEmployeeRepository([active, inactive]);
@@ -124,6 +125,8 @@ describe('useEmployees', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const harness = await renderUseEmployees(repository);

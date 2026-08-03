@@ -1,0 +1,59 @@
+/**
+ * Container screen: owns `usePayrollRunForm` + navigation, renders the
+ * presentational `PayrollRunForm`. Mirrors `EmployeeCreateScreen.tsx`.
+ */
+
+import { useRouter } from 'expo-router';
+
+import { usePayrollRunForm } from '../domain';
+import { PayrollRunForm } from './components/PayrollRunForm';
+
+export function PayrollRunCreateScreen() {
+  const router = useRouter();
+  const {
+    employees,
+    employeesLoading,
+    selectedEmployeeId,
+    selectEmployee,
+    periodYear,
+    periodMonth,
+    incrementMonth,
+    decrementMonth,
+    ssInput,
+    setSsInput,
+    extraPayMode,
+    setExtraPayMode,
+    preview,
+    saving,
+    error,
+    submit,
+  } = usePayrollRunForm();
+
+  const handleSubmit = async () => {
+    const success = await submit();
+    if (success) {
+      router.back();
+    }
+  };
+
+  return (
+    <PayrollRunForm
+      employees={employees}
+      employeesLoading={employeesLoading}
+      selectedEmployeeId={selectedEmployeeId}
+      onSelectEmployee={selectEmployee}
+      periodYear={periodYear}
+      periodMonth={periodMonth}
+      onIncrementMonth={incrementMonth}
+      onDecrementMonth={decrementMonth}
+      ssInput={ssInput}
+      onChangeSsInput={setSsInput}
+      extraPayMode={extraPayMode}
+      onChangeExtraPayMode={setExtraPayMode}
+      preview={preview}
+      saving={saving}
+      error={error}
+      onSubmit={() => void handleSubmit()}
+    />
+  );
+}

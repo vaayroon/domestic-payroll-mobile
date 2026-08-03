@@ -1,0 +1,249 @@
+/**
+ * Pure payroll calculation engine (CLAUDE.md §3, §5).
+ *
+ * NO I/O, NO `Date.now()`, NO other system-time read anywhere in this module.
+ * Every temporal value (period year/month, alta/baja dates) arrives as an
+ * explicit argument; the screen layer is responsible for supplying "today"
+ * when it needs one. This is what keeps `calculatePayrollRun` deterministic
+ * and unit-testable without a clock.
+ *
+ * Day-count rule (actual/actual): `daysInMonth(year, month)` returns the real
+ * number of days in that month (28-31), so proration ratios are always exact
+ * fractions of the calendar, with leap years handled automatically. All ISO
+ * date parsing goes through `Date.UTC` on the individual year/month/day parts
+ * -- never `new Date(str)` (which is local-timezone-dependent) and never a
+ * relative "now".
+ *
+ * Semester-accrual convention (see design ADR-1 / decision #674): the pagas
+ * extra (June and December) are legally accrued over a natural half-year --
+ * January 1 to June 30 for the June payment, July 1 to December 31 for the
+ * December payment -- rather than over the run month itself. `semesterBounds`
+ * and `daysWorkedInInterval` express that accrual window and the calendar-day
+ * overlap of the employment interval with it, independent of the run month's
+ * own day-count.
+ *
+ * Rounding discipline (money.ts §4): every amount is rounded at most once,
+ * via `multiplyByRatio`. `calculatePayrollRun` never re-rounds a value that
+ * already went through `multiplyByRatio`; `netCents` is an exact
+ * `subtractCents` of two already-rounded amounts.
+ */
+
+import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
+
+/** How the two annual pagas extra (bonus payments) are folded into a run. */
+export type ExtraPayMode = 'INCLUDE_IN_MONTH' | 'PRORATE' | 'EXCLUDE';
+
+/** Every value `calculatePayrollRun` needs -- nothing is read from a clock or a store. */
+export interface PayrollInput {
+  /** Employee's full-month base gross salary. */
+  readonly baseGrossCents: Cents;
+  /** Full-month Social Security deduction baseline; the engine prorates it (design ADR-3). */
+  readonly fullMonthSsCents: Cents;
+  /** Calendar year of the run, e.g. 2026. */
+  readonly periodYear: number;
+  /** Calendar month of the run, 1-12. */
+  readonly periodMonth: number;
+  /** ISO `'YYYY-MM-DD'` hire date, or `null` if employed since before the period. */
+  readonly altaDate: string | null;
+  /** ISO `'YYYY-MM-DD'` termination date, or `null` if still employed after the period. */
+  readonly bajaDate: string | null;
+  readonly extraPayMode: ExtraPayMode;
+}
+
+/** The run month resolved against the employment interval, in calendar days. */
+export interface EffectivePeriod {
+  /** First day of the month actually worked, 1..daysInMonth (clamped by alta). */
+  readonly startDay: number;
+  /** Last day of the month actually worked, 0..daysInMonth (clamped by baja; 0 = no overlap). */
+  readonly endDay: number;
+  /** Exact count of calendar days worked inside the period. */
+  readonly daysWorked: number;
+  /** Actual number of days in `periodMonth` (28-31). */
+  readonly daysInMonth: number;
+  /** Whether alta/baja clip the calendar month at all. */
+  readonly prorated: boolean;
+}
+
+/** The fully computed result of one payroll run. */
+export interface PayrollResult {
+  /** Prorated base gross plus any pagas extra component. */
+  readonly grossCents: Cents;
+  /** Prorated Social Security deduction. */
+  readonly ssDeductionCents: Cents;
+  /** `grossCents - ssDeductionCents`, exact (no further rounding). */
+  readonly netCents: Cents;
+  /** Derived from `EffectivePeriod.prorated` -- never an input. */
+  readonly prorated: boolean;
+  /** The pagas extra component included in `grossCents`, if any. */
+  readonly extraCents: Cents;
+  readonly daysWorked: number;
+  readonly daysInMonth: number;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Actual number of days in `month` (1-based) of `year`.
+ *
+ * `Date.UTC(year, month, 0)` is "the last day of the previous month" when fed
+ * a 1-based `month` value, which is exactly "the last day of `month`" here
+ * because `month` is already 1-based (so `month` in `Date.UTC` terms is the
+ * *next* month, 0-indexed). Leap years fall out automatically.
+ */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Parses an ISO `'YYYY-MM-DD'` string into a UTC-midnight epoch (ms). Assumes a valid, already-validated string. */
+function isoToUtcEpoch(iso: string): number {
+  const parts = iso.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  return Date.UTC(year, month - 1, day);
+}
+
+/**
+ * Resolves how much of calendar month `year`-`month` was actually worked,
+ * given an employment interval `[altaDate?..bajaDate?]`. `null` on either
+ * side means "unbounded" on that side (employed before/after the period).
+ */
+export function resolveEffectivePeriod(
+  year: number,
+  month: number,
+  alta: string | null,
+  baja: string | null,
+): EffectivePeriod {
+  const totalDays = daysInMonth(year, month);
+  const periodStartEpoch = Date.UTC(year, month - 1, 1);
+  const periodEndEpoch = Date.UTC(year, month - 1, totalDays);
+
+  const altaEpoch = alta === null ? null : isoToUtcEpoch(alta);
+  const bajaEpoch = baja === null ? null : isoToUtcEpoch(baja);
+
+  const effectiveStartEpoch = altaEpoch === null ? periodStartEpoch : Math.max(altaEpoch, periodStartEpoch);
+  const effectiveEndEpoch = bajaEpoch === null ? periodEndEpoch : Math.min(bajaEpoch, periodEndEpoch);
+
+  if (effectiveEndEpoch < effectiveStartEpoch) {
+    // No overlap at all (alta after period end, or baja before period start).
+    return { startDay: 1, endDay: 0, daysWorked: 0, daysInMonth: totalDays, prorated: true };
+  }
+
+  const startDay = Math.round((effectiveStartEpoch - periodStartEpoch) / DAY_MS) + 1;
+  const endDay = Math.round((effectiveEndEpoch - periodStartEpoch) / DAY_MS) + 1;
+  const daysWorked = endDay - startDay + 1;
+  const prorated = startDay > 1 || endDay < totalDays;
+
+  return { startDay, endDay, daysWorked, daysInMonth: totalDays, prorated };
+}
+
+/** Prorates `fullAmount` by `daysWorked / days`, rounded exactly once (money.ts §4). */
+export function proratedAmount(fullAmount: Cents, daysWorked: number, days: number): Cents {
+  return multiplyByRatio(fullAmount, daysWorked, days);
+}
+
+/**
+ * The natural half-year (semester) over which a given month's pagas extra
+ * accrues: months 1-6 accrue over H1 (Jan 1 - Jun 30), months 7-12 over H2
+ * (Jul 1 - Dec 31). December's end bound is deliberately `Dec 31`, not
+ * `Dec 30` -- H2 always has 184 calendar days (92 + 30 + 31 + 31), never 183.
+ */
+export function semesterBounds(year: number, month: number): { readonly startIso: string; readonly endIso: string; readonly which: 'H1' | 'H2' } {
+  if (month >= 1 && month <= 6) {
+    return { startIso: `${year}-01-01`, endIso: `${year}-06-30`, which: 'H1' };
+  }
+  return { startIso: `${year}-07-01`, endIso: `${year}-12-31`, which: 'H2' };
+}
+
+/**
+ * Calendar-day overlap of the employment interval `[altaDate?..bajaDate?]`
+ * with `[startIso..endIso]`, inclusive on both ends. `null` altaDate means
+ * "unbounded below" (employed since before `startIso`); `null` bajaDate
+ * means "unbounded above". Never negative; 0 when there is no overlap.
+ */
+export function daysWorkedInInterval(altaDate: string | null, bajaDate: string | null, startIso: string, endIso: string): number {
+  const startEpoch = isoToUtcEpoch(startIso);
+  const endEpoch = isoToUtcEpoch(endIso);
+
+  const altaEpoch = altaDate === null ? null : isoToUtcEpoch(altaDate);
+  const bajaEpoch = bajaDate === null ? null : isoToUtcEpoch(bajaDate);
+
+  const overlapStart = altaEpoch === null ? startEpoch : Math.max(altaEpoch, startEpoch);
+  const overlapEnd = bajaEpoch === null ? endEpoch : Math.min(bajaEpoch, endEpoch);
+
+  if (overlapEnd < overlapStart) {
+    return 0;
+  }
+  return Math.round((overlapEnd - overlapStart) / DAY_MS) + 1;
+}
+
+/**
+ * Computes the pagas extra component for one run, dispatching on
+ * `extraPayMode` (design ADR-1 / decision #674):
+ * - `EXCLUDE` -- always zero.
+ * - `PRORATE` -- each month accrues `baseGross/6`; in a partial month that
+ *   monthly accrual is further scaled by the run month's own day ratio, both
+ *   folded into a single `multiplyByRatio` call so there is only one
+ *   rounding point.
+ * - `INCLUDE_IN_MONTH` -- paid as a lump ONLY in June or December, prorated
+ *   by the fraction of the accrual semester actually worked (calendar-day
+ *   overlap), independent of the run month's own day-count. Any other month
+ *   yields zero.
+ */
+export function resolveExtraPayCents(input: PayrollInput): Cents {
+  const { baseGrossCents, periodYear, periodMonth, altaDate, bajaDate, extraPayMode } = input;
+
+  if (extraPayMode === 'EXCLUDE') {
+    return cents(0);
+  }
+
+  if (extraPayMode === 'PRORATE') {
+    const daysInRunMonth = daysInMonth(periodYear, periodMonth);
+    const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+    return multiplyByRatio(baseGrossCents, effective.daysWorked, 6 * daysInRunMonth);
+  }
+
+  // INCLUDE_IN_MONTH: lump only in the accrual-settlement months.
+  if (periodMonth !== 6 && periodMonth !== 12) {
+    return cents(0);
+  }
+
+  const { startIso, endIso } = semesterBounds(periodYear, periodMonth);
+  const semesterDaysWorked = daysWorkedInInterval(altaDate, bajaDate, startIso, endIso);
+  const semesterTotalDays = daysWorkedInInterval(null, null, startIso, endIso);
+  return multiplyByRatio(baseGrossCents, semesterDaysWorked, semesterTotalDays);
+}
+
+/**
+ * Thin orchestrator: resolves the effective run-month period, prorates base
+ * gross and the SS baseline by the identical day ratio, adds the pagas extra
+ * component, and derives the net via one exact subtraction.
+ *
+ * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
+ * when the run month has zero overlapping days, `grossCents`/`ssDeductionCents`
+ * safely resolve to zero (never `NaN`/throw) -- but the `INCLUDE_IN_MONTH`
+ * semester extra is NOT forced to zero, because it accrues independently of
+ * the run month's own day-count.
+ */
+export function calculatePayrollRun(input: PayrollInput): PayrollResult {
+  const { baseGrossCents, fullMonthSsCents, periodYear, periodMonth, altaDate, bajaDate } = input;
+
+  const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+
+  const proratedBaseCents = proratedAmount(baseGrossCents, effective.daysWorked, effective.daysInMonth);
+  const ssDeductionCents = proratedAmount(fullMonthSsCents, effective.daysWorked, effective.daysInMonth);
+  const extraCents = resolveExtraPayCents(input);
+
+  const grossCents = addCents(proratedBaseCents, extraCents);
+  const netCents = subtractCents(grossCents, ssDeductionCents);
+
+  return {
+    grossCents,
+    ssDeductionCents,
+    netCents,
+    prorated: effective.prorated,
+    extraCents,
+    daysWorked: effective.daysWorked,
+    daysInMonth: effective.daysInMonth,
+  };
+}

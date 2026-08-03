@@ -23,6 +23,8 @@ const FAKE_EMPLOYEE: Employee = {
   naf: null,
   baseGrossCents: cents(90050),
   active: true,
+  altaDate: null,
+  bajaDate: null,
 };
 
 async function renderItem(onEdit: (id: string) => void, onDeactivate: (id: string) => void): Promise<ReactTestRenderer> {

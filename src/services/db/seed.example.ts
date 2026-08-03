@@ -24,5 +24,7 @@ export const DEV_SEED: DevSeed = {
     naf: '281234567890',
     baseGrossCents: fromEuros(1200),
     active: true,
+    altaDate: null,
+    bajaDate: null,
   },
 };

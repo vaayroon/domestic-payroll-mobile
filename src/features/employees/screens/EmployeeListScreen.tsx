@@ -28,6 +28,7 @@ export function EmployeeListScreen() {
       onAdd={() => router.push('/employees/new')}
       onEdit={(id) => router.push(`/employees/${id}/edit`)}
       onDeactivate={(id) => void deactivate(id)}
+      onNewPayrollRun={() => router.push('/payroll/new')}
     />
   );
 }

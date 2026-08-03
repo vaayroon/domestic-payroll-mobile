@@ -47,6 +47,8 @@ export class EmployeeRepositoryDrizzle implements EmployeeRepository {
         ...(patch.naf !== undefined ? { naf: patch.naf } : {}),
         ...(patch.baseGrossCents !== undefined ? { baseGrossCents: patch.baseGrossCents } : {}),
         ...(patch.active !== undefined ? { active: patch.active } : {}),
+        ...(patch.altaDate !== undefined ? { altaDate: patch.altaDate } : {}),
+        ...(patch.bajaDate !== undefined ? { bajaDate: patch.bajaDate } : {}),
       })
       .where(eq(employees.id, id))
       .returning();

@@ -16,16 +16,30 @@ export interface EmployeeListViewProps {
   readonly onAdd: () => void;
   readonly onEdit: (id: string) => void;
   readonly onDeactivate: (id: string) => void;
+  readonly onNewPayrollRun: () => void;
 }
 
-export function EmployeeListView({ employees, loading, error, onAdd, onEdit, onDeactivate }: EmployeeListViewProps) {
+export function EmployeeListView({
+  employees,
+  loading,
+  error,
+  onAdd,
+  onEdit,
+  onDeactivate,
+  onNewPayrollRun,
+}: EmployeeListViewProps) {
   return (
     <View className="flex-1 bg-slate-900">
       <View className="flex-row items-center justify-between p-4">
         <Text className="text-xl font-bold text-white">Empleados</Text>
-        <Pressable testID="add-employee-button" onPress={onAdd}>
-          <Text className="font-semibold text-emerald-400">Añadir empleado</Text>
-        </Pressable>
+        <View className="flex-row gap-3">
+          <Pressable testID="new-payroll-run-button" onPress={onNewPayrollRun}>
+            <Text className="font-semibold text-emerald-400">Nueva nómina</Text>
+          </Pressable>
+          <Pressable testID="add-employee-button" onPress={onAdd}>
+            <Text className="font-semibold text-emerald-400">Añadir empleado</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error !== null ? (

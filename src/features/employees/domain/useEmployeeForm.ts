@@ -6,11 +6,10 @@
 
 import { useState } from 'react';
 
-import { useEmployeeRepository } from '@/core';
+import { useCurrentEmployerId, useEmployeeRepository } from '@/core';
 import type { Employee } from '@/types';
 import { toEuros } from '@/types/money';
 
-import { useCurrentEmployerId } from './currentEmployer';
 import { validateEmployeeForm, type EmployeeFormErrors, type EmployeeFormInput } from './validateEmployeeForm';
 
 export type EmployeeFormMode = { kind: 'create' } | { kind: 'edit'; employee: Employee };
@@ -26,13 +25,15 @@ export interface UseEmployeeFormResult {
 
 function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
   if (mode.kind === 'create') {
-    return { name: '', nif: '', naf: '', baseGross: '' };
+    return { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '' };
   }
   return {
     name: mode.employee.name,
     nif: mode.employee.nif ?? '',
     naf: mode.employee.naf ?? '',
     baseGross: String(toEuros(mode.employee.baseGrossCents)),
+    alta: mode.employee.altaDate ?? '',
+    baja: mode.employee.bajaDate ?? '',
   };
 }
 

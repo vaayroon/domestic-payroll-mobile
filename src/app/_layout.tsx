@@ -4,8 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 
-import { RepositoryProvider, type Repositories } from '@/core';
-import { CurrentEmployerProvider } from '@/features/employees/domain';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   createDatabase,
@@ -59,6 +58,10 @@ export default function RootLayout() {
               <Stack.Screen
                 name="employees/[id]/edit"
                 options={{ presentation: 'modal', title: 'Editar empleado' }}
+              />
+              <Stack.Screen
+                name="payroll/new"
+                options={{ presentation: 'modal', title: 'Nueva nómina' }}
               />
             </Stack>
           </ThemeProvider>

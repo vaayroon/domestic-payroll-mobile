@@ -34,6 +34,8 @@ export const employees = sqliteTable(
     naf: text('naf'),
     baseGrossCents: integer('base_gross_cents').notNull(),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    altaDate: text('alta_date'),
+    bajaDate: text('baja_date'),
   },
   (table) => [index('employees_employer_id_idx').on(table.employerId)],
 );

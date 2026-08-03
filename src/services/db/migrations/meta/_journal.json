@@ -8,6 +8,13 @@
       "when": 1785408813052,
       "tag": "0000_common_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785774515645,
+      "tag": "0001_fearless_legion",
+      "breakpoints": true
     }
   ]
 }

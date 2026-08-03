@@ -1,6 +1,12 @@
 /**
  * Employer bootstrap + current-employer resolution (design ADR-2).
  *
+ * Lives in `core/` (not a feature) because it is global state/context shared
+ * across features (CLAUDE.md §3): both `features/employees` and
+ * `features/payroll` need the current employer id, so this cannot be owned
+ * by either feature without recreating the cross-feature coupling this
+ * refactor removes.
+ *
  * Mounted once at the composition root (`src/app/_layout.tsx`), between
  * `<RepositoryProvider>` and `<Stack>`. On mount, idempotently ensures
  * exactly one `Employer` row exists (`EmployerRepository.list()[0] ??
@@ -16,8 +22,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
-import { useEmployerRepository } from '@/core';
 import type { NewEmployer } from '@/types';
+
+import { useEmployerRepository } from './RepositoryProvider';
 
 const BOOTSTRAP_EMPLOYER: NewEmployer = { name: 'Empleador' };
 
