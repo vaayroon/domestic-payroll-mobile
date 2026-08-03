@@ -20,6 +20,15 @@ const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGros
   not_positive: 'El salario bruto debe ser mayor que cero.',
 };
 
+const ALTA_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['alta']>, string> = {
+  invalid_date: 'Introduce una fecha válida (AAAA-MM-DD).',
+};
+
+const BAJA_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baja']>, string> = {
+  invalid_date: 'Introduce una fecha válida (AAAA-MM-DD).',
+  before_alta: 'La fecha de baja no puede ser anterior a la fecha de alta.',
+};
+
 export interface EmployeeFormProps {
   readonly values: EmployeeFormInput;
   readonly errors: EmployeeFormErrors;
@@ -85,6 +94,36 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
         />
         {errors.baseGross !== undefined ? (
           <Text className="mt-1 text-sm text-red-400">{BASE_GROSS_ERROR_MESSAGES[errors.baseGross]}</Text>
+        ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Fecha de alta (opcional)</Text>
+        <TextInput
+          testID="employee-form-alta"
+          className="rounded-md bg-slate-800 px-3 py-2 text-white"
+          value={values.alta}
+          onChangeText={(text) => onChangeField('alta', text)}
+          placeholder="AAAA-MM-DD"
+          placeholderTextColor="#94a3b8"
+        />
+        {errors.alta !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{ALTA_ERROR_MESSAGES[errors.alta]}</Text>
+        ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Fecha de baja (opcional)</Text>
+        <TextInput
+          testID="employee-form-baja"
+          className="rounded-md bg-slate-800 px-3 py-2 text-white"
+          value={values.baja}
+          onChangeText={(text) => onChangeField('baja', text)}
+          placeholder="AAAA-MM-DD"
+          placeholderTextColor="#94a3b8"
+        />
+        {errors.baja !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{BAJA_ERROR_MESSAGES[errors.baja]}</Text>
         ) : null}
       </View>
 

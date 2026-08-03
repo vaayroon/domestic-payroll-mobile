@@ -81,6 +81,8 @@ describe('useEmployee', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),
@@ -104,6 +106,8 @@ describe('useEmployee', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),

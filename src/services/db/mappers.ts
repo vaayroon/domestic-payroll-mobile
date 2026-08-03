@@ -65,6 +65,8 @@ export function employeeRowToDomain(row: EmployeeRow): Employee {
     naf: row.naf,
     baseGrossCents: cents(row.baseGrossCents),
     active: row.active,
+    altaDate: row.altaDate,
+    bajaDate: row.bajaDate,
   };
 }
 
@@ -77,6 +79,8 @@ export function employeeInsertFromNew(input: NewEmployee, id: string): EmployeeI
     naf: input.naf ?? null,
     baseGrossCents: unbrand(input.baseGrossCents),
     active: input.active ?? true,
+    altaDate: input.altaDate ?? null,
+    bajaDate: input.bajaDate ?? null,
   };
 }
 

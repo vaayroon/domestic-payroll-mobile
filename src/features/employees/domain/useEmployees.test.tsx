@@ -85,6 +85,8 @@ describe('useEmployees', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const inactive: Employee = { ...active, id: 'employee-fake-inactive', active: false };
     const repository = new InMemoryEmployeeRepository([active, inactive]);
@@ -124,6 +126,8 @@ describe('useEmployees', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const harness = await renderUseEmployees(repository);

@@ -57,6 +57,8 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     naf: '000000000001',
     baseGrossCents: 123456,
     active: true,
+    altaDate: null,
+    bajaDate: null,
   };
 
   it('brands baseGrossCents as Cents on the way out of the DB', () => {
@@ -89,6 +91,8 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
       naf: null,
       baseGrossCents: 123456,
       active: true,
+      altaDate: null,
+      bajaDate: null,
     });
   });
 
@@ -99,6 +103,42 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
         'employee-1',
       ).active,
     ).toBe(false);
+  });
+
+  it('round-trips null altaDate/bajaDate through employeeRowToDomain', () => {
+    const domain = employeeRowToDomain({ ...row, altaDate: null, bajaDate: null });
+    expect(domain.altaDate).toBeNull();
+    expect(domain.bajaDate).toBeNull();
+  });
+
+  it('round-trips present altaDate/bajaDate ISO strings through employeeRowToDomain unchanged', () => {
+    const domain = employeeRowToDomain({ ...row, altaDate: '2026-07-23', bajaDate: '2026-12-31' });
+    expect(domain.altaDate).toBe('2026-07-23');
+    expect(domain.bajaDate).toBe('2026-12-31');
+  });
+
+  it('employeeInsertFromNew defaults altaDate/bajaDate to null when omitted', () => {
+    const insertRow = employeeInsertFromNew(
+      { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100) },
+      'employee-1',
+    );
+    expect(insertRow.altaDate).toBeNull();
+    expect(insertRow.bajaDate).toBeNull();
+  });
+
+  it('employeeInsertFromNew passes through present altaDate/bajaDate unchanged', () => {
+    const insertRow = employeeInsertFromNew(
+      {
+        employerId: 'employer-1',
+        name: 'Empleada Ejemplo',
+        baseGrossCents: cents(100),
+        altaDate: '2026-07-23',
+        bajaDate: '2026-12-31',
+      },
+      'employee-1',
+    );
+    expect(insertRow.altaDate).toBe('2026-07-23');
+    expect(insertRow.bajaDate).toBe('2026-12-31');
   });
 });
 

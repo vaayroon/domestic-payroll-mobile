@@ -39,6 +39,8 @@ export interface Employee {
   readonly naf: string | null;
   readonly baseGrossCents: Cents;
   readonly active: boolean;
+  readonly altaDate: string | null;
+  readonly bajaDate: string | null;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -49,6 +51,8 @@ export interface NewEmployee {
   readonly naf?: string | null;
   readonly baseGrossCents: Cents;
   readonly active?: boolean;
+  readonly altaDate?: string | null;
+  readonly bajaDate?: string | null;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

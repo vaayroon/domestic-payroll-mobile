@@ -106,6 +106,8 @@ describe('useEmployeeForm', () => {
       nif: null,
       naf: null,
       baseGrossCents: cents(90000),
+      altaDate: null,
+      bajaDate: null,
     });
     expect(harness.current.errors).toEqual({});
   });
@@ -138,6 +140,8 @@ describe('useEmployeeForm', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
@@ -159,6 +163,48 @@ describe('useEmployeeForm', () => {
       nif: null,
       naf: null,
       baseGrossCents: cents(90000),
+      altaDate: null,
+      bajaDate: null,
+    });
+  });
+
+  it('seeds alta/baja from the employee on edit and includes them on submit', async () => {
+    const target: Employee = {
+      id: 'employee-fake-target',
+      employerId: FAKE_EMPLOYER.id,
+      name: 'Empleado Original',
+      nif: null,
+      naf: null,
+      baseGrossCents: cents(90000),
+      active: true,
+      altaDate: '2026-07-23',
+      bajaDate: null,
+    };
+    const repository = new InMemoryEmployeeRepository([target]);
+    const updateSpy = jest.spyOn(repository, 'update');
+    const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+    expect(harness.current.values.alta).toBe('2026-07-23');
+    expect(harness.current.values.baja).toBe('');
+
+    await act(async () => {
+      harness.current.setField('baja', '2026-12-31');
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(true);
+    expect(updateSpy).toHaveBeenCalledWith(target.id, {
+      employerId: FAKE_EMPLOYER.id,
+      name: 'Empleado Original',
+      nif: null,
+      naf: null,
+      baseGrossCents: cents(90000),
+      altaDate: '2026-07-23',
+      bajaDate: '2026-12-31',
     });
   });
 
@@ -171,6 +217,8 @@ describe('useEmployeeForm', () => {
       naf: null,
       baseGrossCents: cents(90000),
       active: true,
+      altaDate: null,
+      bajaDate: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');

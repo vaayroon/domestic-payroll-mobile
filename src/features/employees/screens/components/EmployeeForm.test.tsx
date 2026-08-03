@@ -14,7 +14,7 @@ async function renderForm(props: EmployeeFormProps): Promise<ReactTestRenderer> 
 }
 
 const baseProps: EmployeeFormProps = {
-  values: { name: '', nif: '', naf: '', baseGross: '' },
+  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '' },
   errors: {},
   onChangeField: () => {},
   onSubmit: () => {},
@@ -42,6 +42,34 @@ describe('EmployeeForm', () => {
 
     for (const [code, message] of cases) {
       const renderer = await renderForm({ ...baseProps, errors: { baseGross: code } });
+
+      const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+      expect(texts).toContainEqual(message);
+    }
+  });
+
+  it('renders the alta/baja date inputs with their current values', async () => {
+    const renderer = await renderForm({ ...baseProps, values: { ...baseProps.values, alta: '2026-07-23', baja: '2026-12-31' } });
+
+    expect(renderer.root.findByProps({ testID: 'employee-form-alta' }).props.value).toBe('2026-07-23');
+    expect(renderer.root.findByProps({ testID: 'employee-form-baja' }).props.value).toBe('2026-12-31');
+  });
+
+  it('maps the alta invalid_date error code to a Spanish message', async () => {
+    const renderer = await renderForm({ ...baseProps, errors: { alta: 'invalid_date' } });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('Introduce una fecha válida (AAAA-MM-DD).');
+  });
+
+  it('maps each baja error code to a Spanish message', async () => {
+    const cases: [NonNullable<EmployeeFormErrors['baja']>, string][] = [
+      ['invalid_date', 'Introduce una fecha válida (AAAA-MM-DD).'],
+      ['before_alta', 'La fecha de baja no puede ser anterior a la fecha de alta.'],
+    ];
+
+    for (const [code, message] of cases) {
+      const renderer = await renderForm({ ...baseProps, errors: { baja: code } });
 
       const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
       expect(texts).toContainEqual(message);
