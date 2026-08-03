@@ -4,7 +4,7 @@
  * imported outside `services/db/`; wired in through `core/RepositoryProvider`.
  */
 
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import type { Employer, EmployerRepository, NewEmployer } from '@/types';
 
@@ -20,7 +20,9 @@ export class EmployerRepositoryDrizzle implements EmployerRepository {
   ) {}
 
   async list(): Promise<Employer[]> {
-    const rows = await this.db.select().from(employers).all();
+    // Ordered so `list()[0]` is a deterministic "current employer" resolution
+    // (design ADR-2) even if more than one employer row ever exists.
+    const rows = await this.db.select().from(employers).orderBy(asc(employers.createdAt)).all();
     return rows.map(employerRowToDomain);
   }
 
