@@ -7,10 +7,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { useEmployeeRepository } from '@/core';
+import { useCurrentEmployerId, useEmployeeRepository } from '@/core';
 import type { Employee } from '@/types';
-
-import { useCurrentEmployerId } from './currentEmployer';
 
 export interface UseEmployeesResult {
   readonly employees: Employee[];

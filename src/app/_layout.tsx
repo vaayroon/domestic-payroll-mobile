@@ -4,8 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 
-import { RepositoryProvider, type Repositories } from '@/core';
-import { CurrentEmployerProvider } from '@/features/employees/domain';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   createDatabase,

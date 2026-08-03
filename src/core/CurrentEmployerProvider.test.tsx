@@ -9,16 +9,65 @@
 import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
-import { RepositoryProvider, type Repositories } from '@/core';
-import type { Employee, EmployeeRepository, Employer, PayrollRunRepository, SettingsRepository } from '@/types';
+import type {
+  Employee,
+  EmployeeRepository,
+  Employer,
+  EmployerRepository,
+  NewEmployer,
+  PayrollRunRepository,
+  SettingsRepository,
+} from '@/types';
 
-import { CurrentEmployerProvider, useCurrentEmployerId } from './currentEmployer';
-import { InMemoryEmployerRepository } from '../testing/fakes';
+import { CurrentEmployerProvider, useCurrentEmployerId } from './CurrentEmployerProvider';
+import { RepositoryProvider, type Repositories } from './RepositoryProvider';
 
 function notImplemented(method: string): () => never {
   return () => {
     throw new Error(`not implemented in this test fake: ${method}`);
   };
+}
+
+/**
+ * Minimal in-memory `EmployerRepository` fake local to this test. Not reused
+ * from `features/employees/testing/fakes` because `core/` must never depend
+ * on `features/*` (CLAUDE.md §3) — this file lives in `core/` alongside the
+ * component it tests, so it needs its own tiny fake.
+ */
+class InMemoryEmployerRepository implements EmployerRepository {
+  private readonly rows: Employer[];
+
+  constructor(seed: Employer[] = []) {
+    this.rows = [...seed];
+  }
+
+  async list(): Promise<Employer[]> {
+    return [...this.rows].sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  async getById(id: string): Promise<Employer | null> {
+    return this.rows.find((row) => row.id === id) ?? null;
+  }
+
+  async create(input: NewEmployer): Promise<Employer> {
+    const employer: Employer = {
+      id: 'employer-fake-seed',
+      name: input.name,
+      nif: input.nif ?? null,
+      address: input.address ?? null,
+      createdAt: Date.now(),
+    };
+    this.rows.push(employer);
+    return employer;
+  }
+
+  async update(): Promise<Employer> {
+    return notImplemented('EmployerRepository.update')();
+  }
+
+  async remove(): Promise<void> {
+    return notImplemented('EmployerRepository.remove')();
+  }
 }
 
 const fakeEmployeeRepository: EmployeeRepository = {

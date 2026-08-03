@@ -7,11 +7,10 @@
 
 import { act, create } from 'react-test-renderer';
 
-import { RepositoryProvider, type Repositories } from '@/core';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import type { Employee, Employer, PayrollRunRepository, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
-import { CurrentEmployerProvider } from './currentEmployer';
 import { useEmployees, type UseEmployeesResult } from './useEmployees';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
 

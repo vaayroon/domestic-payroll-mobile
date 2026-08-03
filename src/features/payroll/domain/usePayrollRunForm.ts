@@ -5,22 +5,20 @@
  * the pure `calculatePayrollRun` engine, and on submit guards against
  * duplicate periods (spec "Duplicate-Period Guard") before persisting.
  *
- * Reuses `useEmployees()` (already employer-scoped picker data) and the pure
- * `parseEuroInput` euro parser from the employees feature (design ADR-3 /
- * "Screen architecture" section) instead of re-implementing equivalent
- * logic. Neither import touches `drizzle-orm` -- the one boundary actually
- * enforced by `eslint.config.js`'s `no-restricted-imports` rule; both are
- * plain repository-interface/pure-function dependencies, consistent with
- * CLAUDE.md §3's "depend on abstractions" rule.
+ * Uses this feature's own `useActiveEmployees()` (payroll-owned employee
+ * picker data, see that file's doc comment) and the pure `parseEuroInput`
+ * euro parser from `@/core` -- resolving verify-report #678's WARNING by
+ * depending only on core abstractions, never on `@/features/employees/**`
+ * (CLAUDE.md §3's "depend on abstractions, never on other features" rule).
  */
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { usePayrollRunRepository } from '@/core';
-import { parseEuroInput, useEmployees } from '@/features/employees/domain';
+import { parseEuroInput, usePayrollRunRepository } from '@/core';
 import type { Employee } from '@/types';
 
 import { calculatePayrollRun, type ExtraPayMode, type PayrollResult } from './engine';
+import { useActiveEmployees } from './useActiveEmployees';
 
 export interface UsePayrollRunFormResult {
   readonly employees: Employee[];
@@ -56,7 +54,7 @@ function shiftMonth(year: number, month: number, delta: 1 | -1): { readonly year
 }
 
 export function usePayrollRunForm(): UsePayrollRunFormResult {
-  const { employees, loading: employeesLoading } = useEmployees();
+  const { employees, loading: employeesLoading } = useActiveEmployees();
   const payrollRunRepository = usePayrollRunRepository();
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);

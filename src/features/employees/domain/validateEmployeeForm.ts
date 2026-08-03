@@ -4,9 +4,8 @@
  * result is still a full, persistable `NewEmployee`.
  */
 
+import { parseEuroInput, type EuroParseError } from '@/core';
 import type { NewEmployee } from '@/types/domain';
-
-import { parseEuroInput, type EuroParseError } from './parseEuroInput';
 
 export interface EmployeeFormInput {
   readonly name: string;

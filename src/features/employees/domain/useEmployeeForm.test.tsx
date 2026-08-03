@@ -9,11 +9,10 @@
 
 import { act, create } from 'react-test-renderer';
 
-import { RepositoryProvider, type Repositories } from '@/core';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import type { Employee, Employer, PayrollRunRepository, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
-import { CurrentEmployerProvider } from './currentEmployer';
 import { useEmployeeForm, type EmployeeFormMode, type UseEmployeeFormResult } from './useEmployeeForm';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
 

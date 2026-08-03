@@ -5,15 +5,15 @@
  * the engine's exact computed fields, and a zero-run-days run with a
  * non-zero semester extra still previews correctly (spec "Zero-Days-Worked
  * Safety" / decision #674). Exercised against
- * `InMemoryEmployeeRepository`/`InMemoryEmployerRepository` (employees
- * feature) and `InMemoryPayrollRunRepository` (this feature) through the
- * same provider-injection pattern as `useEmployeeForm.test.tsx`.
+ * `InMemoryEmployeeRepository`/`InMemoryEmployerRepository` (reused from the
+ * employees feature's testing fakes -- test code only, never production
+ * code, see decision #679) and `InMemoryPayrollRunRepository` (this feature)
+ * through the same provider-injection pattern as `useEmployeeForm.test.tsx`.
  */
 
 import { act, create } from 'react-test-renderer';
 
-import { RepositoryProvider, type Repositories } from '@/core';
-import { CurrentEmployerProvider } from '@/features/employees/domain';
+import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
 import type { Employee, Employer, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';

@@ -6,11 +6,10 @@
 
 import { useState } from 'react';
 
-import { useEmployeeRepository } from '@/core';
+import { useCurrentEmployerId, useEmployeeRepository } from '@/core';
 import type { Employee } from '@/types';
 import { toEuros } from '@/types/money';
 
-import { useCurrentEmployerId } from './currentEmployer';
 import { validateEmployeeForm, type EmployeeFormErrors, type EmployeeFormInput } from './validateEmployeeForm';
 
 export type EmployeeFormMode = { kind: 'create' } | { kind: 'edit'; employee: Employee };
