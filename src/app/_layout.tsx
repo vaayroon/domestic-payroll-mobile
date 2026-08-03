@@ -60,6 +60,10 @@ export default function RootLayout() {
                 name="employees/[id]/edit"
                 options={{ presentation: 'modal', title: 'Editar empleado' }}
               />
+              <Stack.Screen
+                name="payroll/new"
+                options={{ presentation: 'modal', title: 'Nueva nómina' }}
+              />
             </Stack>
           </ThemeProvider>
         </CurrentEmployerProvider>

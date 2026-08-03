@@ -19,6 +19,7 @@ describe('EmployeeListView', () => {
       onAdd: () => {},
       onEdit: () => {},
       onDeactivate: () => {},
+      onNewPayrollRun: () => {},
     });
 
     const empty = renderer.root.findByProps({ testID: 'employee-list-empty' });
@@ -33,6 +34,7 @@ describe('EmployeeListView', () => {
       onAdd: () => {},
       onEdit: () => {},
       onDeactivate: () => {},
+      onNewPayrollRun: () => {},
     });
 
     expect(() => renderer.root.findByProps({ testID: 'employee-list-empty' })).toThrow();
@@ -47,9 +49,29 @@ describe('EmployeeListView', () => {
       onAdd: () => {},
       onEdit: () => {},
       onDeactivate: () => {},
+      onNewPayrollRun: () => {},
     });
 
     const error = renderer.root.findByProps({ testID: 'employee-list-error' });
     expect(error.props.children).toBe('boom');
+  });
+
+  it('fires onNewPayrollRun when the "Nueva nómina" button is pressed', async () => {
+    const onNewPayrollRun = jest.fn();
+    const renderer = await renderListView({
+      employees: [],
+      loading: false,
+      error: null,
+      onAdd: () => {},
+      onEdit: () => {},
+      onDeactivate: () => {},
+      onNewPayrollRun,
+    });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'new-payroll-run-button' }).props.onPress();
+    });
+
+    expect(onNewPayrollRun).toHaveBeenCalledTimes(1);
   });
 });
