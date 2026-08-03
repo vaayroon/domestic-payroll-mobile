@@ -23,10 +23,10 @@ export function EmployeeListItem({ employee, onEdit, onDeactivate }: EmployeeLis
         <Text className="text-sm text-slate-400">{EUR_FORMATTER.format(toEuros(employee.baseGrossCents))}</Text>
       </View>
       <View className="flex-row gap-3">
-        <Pressable onPress={() => onEdit(employee.id)}>
+        <Pressable testID="employee-list-item-edit" onPress={() => onEdit(employee.id)}>
           <Text className="font-semibold text-emerald-400">Editar</Text>
         </Pressable>
-        <Pressable onPress={() => onDeactivate(employee.id)}>
+        <Pressable testID="employee-list-item-deactivate" onPress={() => onDeactivate(employee.id)}>
           <Text className="font-semibold text-red-400">Eliminar</Text>
         </Pressable>
       </View>
