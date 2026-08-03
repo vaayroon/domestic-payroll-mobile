@@ -32,7 +32,7 @@ describe('EmployeeForm', () => {
   });
 
   it('maps each base gross error code to a Spanish message', async () => {
-    const cases: Array<[NonNullable<EmployeeFormErrors['baseGross']>, string]> = [
+    const cases: [NonNullable<EmployeeFormErrors['baseGross']>, string][] = [
       ['empty', 'Introduce el salario bruto.'],
       ['not_a_number', 'Introduce un número válido (ej. 900 o 900,50).'],
       ['negative', 'El importe no puede ser negativo.'],

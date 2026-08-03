@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 
 import { RepositoryProvider, type Repositories } from '@/core';
+import { CurrentEmployerProvider } from '@/features/employees/domain';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   createDatabase,
@@ -47,9 +48,21 @@ export default function RootLayout() {
   return (
     <SQLiteProvider databaseName={DATABASE_NAME} onInit={runMigrations}>
       <DatabaseRepositories>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack />
-        </ThemeProvider>
+        <CurrentEmployerProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="index" options={{ title: 'Empleados' }} />
+              <Stack.Screen
+                name="employees/new"
+                options={{ presentation: 'modal', title: 'Nuevo empleado' }}
+              />
+              <Stack.Screen
+                name="employees/[id]/edit"
+                options={{ presentation: 'modal', title: 'Editar empleado' }}
+              />
+            </Stack>
+          </ThemeProvider>
+        </CurrentEmployerProvider>
       </DatabaseRepositories>
     </SQLiteProvider>
   );
