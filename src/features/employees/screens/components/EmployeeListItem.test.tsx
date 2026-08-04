@@ -25,6 +25,7 @@ const FAKE_EMPLOYEE: Employee = {
   active: true,
   altaDate: null,
   bajaDate: null,
+  contractType: 'INDEFINIDO',
 };
 
 async function renderItem(

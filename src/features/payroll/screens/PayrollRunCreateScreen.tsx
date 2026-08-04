@@ -19,11 +19,10 @@ export function PayrollRunCreateScreen() {
     periodMonth,
     incrementMonth,
     decrementMonth,
-    ssInput,
-    setSsInput,
     extraPayMode,
     setExtraPayMode,
     preview,
+    ratesWarning,
     saving,
     error,
     submit,
@@ -46,11 +45,10 @@ export function PayrollRunCreateScreen() {
       periodMonth={periodMonth}
       onIncrementMonth={incrementMonth}
       onDecrementMonth={decrementMonth}
-      ssInput={ssInput}
-      onChangeSsInput={setSsInput}
       extraPayMode={extraPayMode}
       onChangeExtraPayMode={setExtraPayMode}
       preview={preview}
+      ratesWarning={ratesWarning}
       saving={saving}
       error={error}
       onSubmit={() => void handleSubmit()}

@@ -4,9 +4,15 @@
  * access, and no engine calls -- `usePayrollRunForm` computes everything and
  * this file only renders it, formatting EUR amounts via `formatEuros`
  * (design ADR-4) at the presentation boundary.
+ *
+ * SS is READ-ONLY here (spec "PayrollRun consumes computed SS, not manual
+ * entry"): there is no editable SS input -- the cuota is computed from the
+ * employee's base gross + contract type and shown only inside the preview.
+ * When the run period's year has no loaded SS rates, `ratesWarning` replaces
+ * the preview entirely.
  */
 
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import type { Employee } from '@/types';
 
@@ -29,11 +35,11 @@ export interface PayrollRunFormProps {
   readonly periodMonth: number;
   readonly onIncrementMonth: () => void;
   readonly onDecrementMonth: () => void;
-  readonly ssInput: string;
-  readonly onChangeSsInput: (value: string) => void;
   readonly extraPayMode: ExtraPayMode;
   readonly onChangeExtraPayMode: (mode: ExtraPayMode) => void;
   readonly preview: PayrollResult | null;
+  /** Spanish warning shown instead of the preview when the period year's SS rates are not loaded. */
+  readonly ratesWarning: string | null;
   readonly saving: boolean;
   readonly error: string | null;
   readonly onSubmit: () => void;
@@ -48,11 +54,10 @@ export function PayrollRunForm({
   periodMonth,
   onIncrementMonth,
   onDecrementMonth,
-  ssInput,
-  onChangeSsInput,
   extraPayMode,
   onChangeExtraPayMode,
   preview,
+  ratesWarning,
   saving,
   error,
   onSubmit,
@@ -104,19 +109,6 @@ export function PayrollRunForm({
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Cotización SS (mes completo)</Text>
-        <TextInput
-          testID="payroll-run-form-ss-input"
-          className="rounded-md bg-slate-800 px-3 py-2 text-white"
-          value={ssInput}
-          onChangeText={onChangeSsInput}
-          placeholder="100,00"
-          placeholderTextColor="#94a3b8"
-          keyboardType="decimal-pad"
-        />
-      </View>
-
-      <View>
         <Text className="mb-1 text-slate-300">Pagas extra</Text>
         <View className="gap-2">
           {(Object.keys(EXTRA_PAY_MODE_LABELS) as ExtraPayMode[]).map((mode) => {
@@ -138,9 +130,13 @@ export function PayrollRunForm({
       </View>
 
       <View testID="payroll-run-form-preview" className="gap-1 rounded-md bg-slate-800 p-3">
-        {preview === null ? (
+        {ratesWarning !== null ? (
+          <Text testID="payroll-run-form-rates-warning" className="text-sm text-amber-400">
+            {ratesWarning}
+          </Text>
+        ) : preview === null ? (
           <Text testID="payroll-run-form-preview-empty" className="text-slate-400">
-            Introduce la cotización SS para ver la vista previa.
+            Selecciona un empleado para ver la vista previa.
           </Text>
         ) : (
           <>

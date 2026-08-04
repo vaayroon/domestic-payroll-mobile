@@ -22,6 +22,7 @@ const FAKE_EMPLOYEE: Employee = {
   active: true,
   altaDate: null,
   bajaDate: null,
+  contractType: 'INDEFINIDO',
 };
 
 const FAKE_RUN: PayrollRun = {

@@ -36,6 +36,7 @@ export const employees = sqliteTable(
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     altaDate: text('alta_date'),
     bajaDate: text('baja_date'),
+    contractType: text('contract_type', { enum: ['INDEFINIDO', 'TEMPORAL'] }).notNull().default('INDEFINIDO'),
   },
   (table) => [index('employees_employer_id_idx').on(table.employerId)],
 );

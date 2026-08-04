@@ -91,6 +91,7 @@ describe('useActiveEmployees', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const inactive: Employee = { ...active, id: 'employee-fake-inactive', active: false };
     const repository = new InMemoryEmployeeRepository([active, inactive]);

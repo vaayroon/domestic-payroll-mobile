@@ -83,6 +83,7 @@ describe('useEmployee', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),
@@ -108,6 +109,7 @@ describe('useEmployee', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),

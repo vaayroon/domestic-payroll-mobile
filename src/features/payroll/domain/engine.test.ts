@@ -10,17 +10,21 @@ import {
   semesterBounds,
   type PayrollInput,
 } from './engine';
+import { SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
 
 // All amounts below are obviously-fake placeholders (CLAUDE.md §5) -- never
-// real salary figures.
+// real salary figures. `RATES_2026` itself is public BOE data, not PII.
+const RATES_2026: RatesConfig = SS_RATES_BY_YEAR[2026] as RatesConfig;
 const FAKE_BASE_GROSS = cents(90000); // 900,00 EUR
-const FAKE_FULL_SS = cents(10000); // 100,00 EUR
 const FAKE_BASE_GROSS_DIV6 = cents(120000); // 1200,00 EUR -- exactly divisible by 6
+// Design ADR proof number: retribución = 1221,00 x14/12 = 1424,50 -> tramo 8, uncapped.
+const FAKE_BASE_GROSS_SS_PROOF = cents(122100); // 1221,00 EUR
 
 function baseInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
   return {
     baseGrossCents: FAKE_BASE_GROSS,
-    fullMonthSsCents: FAKE_FULL_SS,
+    ratesConfig: RATES_2026,
+    contractType: 'INDEFINIDO',
     periodYear: 2026,
     periodMonth: 7,
     altaDate: null,
@@ -227,28 +231,79 @@ describe('resolveExtraPayCents', () => {
 });
 
 describe('calculatePayrollRun', () => {
-  it('full month, no proration: gross/ss pass through, net = gross - ss exactly', () => {
+  it('full month, no proration: SS is computed (not manually entered), net = gross - ss exactly', () => {
     const result = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: null, bajaDate: null }));
+    // retribución = 90000*14/12 = 105000 -> tramo 5 (877,01-1.061,00) -> base 97000; INDEFINIDO 6,40%.
+    const expectedSs = cents(6208);
     expect(result.grossCents).toBe(FAKE_BASE_GROSS);
-    expect(result.ssDeductionCents).toBe(FAKE_FULL_SS);
-    expect(result.netCents).toBe(cents(FAKE_BASE_GROSS - FAKE_FULL_SS));
+    expect(result.ssDeductionCents).toBe(expectedSs);
+    expect(result.netCents).toBe(cents(FAKE_BASE_GROSS - expectedSs));
     expect(result.prorated).toBe(false);
   });
 
-  it('mid-month alta prorates gross and SS independently by the identical ratio', () => {
-    const result = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: '2026-07-23' }));
-    const expectedGross = proratedAmount(FAKE_BASE_GROSS, 9, 31);
-    const expectedSs = proratedAmount(FAKE_FULL_SS, 9, 31);
-    expect(result.grossCents).toBe(expectedGross);
-    expect(result.ssDeductionCents).toBe(expectedSs);
-    expect(result.netCents).toBe(cents(expectedGross - expectedSs));
-    expect(result.prorated).toBe(true);
+  it('July partial month (design proof): salary /31 vs SS /30 use DIFFERENT divisors -> gross 354,48, SS 27,35, net 327,13', () => {
+    const result = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-07-23' }),
+    );
     expect(result.daysWorked).toBe(9);
     expect(result.daysInMonth).toBe(31);
+    expect(result.grossCents).toBe(cents(35448)); // 354,48 EUR: 1221,00 x 9/31
+    expect(result.ssDeductionCents).toBe(cents(2735)); // 27,35 EUR: 91,17 x 9/30 (base 1424,50, INDEFINIDO)
+    expect(result.netCents).toBe(cents(32713)); // 327,13 EUR
+    expect(result.prorated).toBe(true);
+  });
+
+  it('full-month SS is identical regardless of the calendar month length (30/30, never 31/30)', () => {
+    const july31 = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: null, bajaDate: null }),
+    );
+    const april30 = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 4, altaDate: null, bajaDate: null }),
+    );
+    expect(july31.ssDeductionCents).toBe(cents(9117)); // 91,17 EUR full-month INDEFINIDO cuota
+    expect(april30.ssDeductionCents).toBe(cents(9117));
+  });
+
+  it('full-month SS normalizes to /30 even for a 28-day February (not just 30/31-day months)', () => {
+    const february28 = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 2, periodYear: 2026, altaDate: null, bajaDate: null }),
+    );
+    expect(february28.daysInMonth).toBe(28);
+    expect(february28.prorated).toBe(false);
+    expect(february28.ssDeductionCents).toBe(cents(9117)); // identical to the 30/31-day full months
+  });
+
+  it('forwards contractType to computeWorkerSs: full-month TEMPORAL run computes 91,88, distinct from the INDEFINIDO 91,17', () => {
+    const result = calculatePayrollRun(
+      baseInput({
+        baseGrossCents: FAKE_BASE_GROSS_SS_PROOF,
+        contractType: 'TEMPORAL',
+        periodMonth: 7,
+        altaDate: null,
+        bajaDate: null,
+      }),
+    );
+    expect(result.ssDeductionCents).toBe(cents(9188)); // 91,88 EUR: TEMPORAL full-month cuota, 142450 x 645/10000
+    expect(result.ssDeductionCents).not.toBe(cents(9117)); // proves the engine forwards contractType, not hardcodes INDEFINIDO
+  });
+
+  it('SS cuota is independent of extraPayMode (base de cotización always includes prorated pagas)', () => {
+    const excluded = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, extraPayMode: 'EXCLUDE' }),
+    );
+    const prorated = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, extraPayMode: 'PRORATE' }),
+    );
+    const includedInMonth = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 6, extraPayMode: 'INCLUDE_IN_MONTH' }),
+    );
+    expect(excluded.ssDeductionCents).toBe(cents(9117));
+    expect(prorated.ssDeductionCents).toBe(cents(9117));
+    expect(includedInMonth.ssDeductionCents).toBe(cents(9117));
   });
 
   it('rounding boundary: 90000 x 9/31 rounds exactly once, no further rounding downstream', () => {
-    const result = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: '2026-07-23', fullMonthSsCents: cents(0) }));
+    const result = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: '2026-07-23' }));
     expect(result.grossCents).toBe(cents(26129));
   });
 

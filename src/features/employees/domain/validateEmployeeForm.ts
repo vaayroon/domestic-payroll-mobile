@@ -5,7 +5,7 @@
  */
 
 import { parseEuroInput, type EuroParseError } from '@/core';
-import type { NewEmployee } from '@/types/domain';
+import type { ContractType, NewEmployee } from '@/types/domain';
 
 export interface EmployeeFormInput {
   readonly name: string;
@@ -14,6 +14,8 @@ export interface EmployeeFormInput {
   readonly baseGross: string;
   readonly alta: string;
   readonly baja: string;
+  /** `''` means "not yet chosen" -- the form MUST require an explicit INDEFINIDO/TEMPORAL choice (spec "Employee.contractType"). */
+  readonly contractType: ContractType | '';
 }
 
 export interface EmployeeFormErrors {
@@ -21,6 +23,7 @@ export interface EmployeeFormErrors {
   baseGross?: EuroParseError | 'not_positive';
   alta?: 'invalid_date';
   baja?: 'invalid_date' | 'before_alta';
+  contractType?: 'required';
 }
 
 export type ValidateEmployeeResult = { ok: true; value: NewEmployee } | { ok: false; errors: EmployeeFormErrors };
@@ -99,11 +102,16 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.baja = 'before_alta';
   }
 
+  if (input.contractType === '') {
+    errors.contractType = 'required';
+  }
+
   if (
     errors.name !== undefined ||
     errors.baseGross !== undefined ||
     errors.alta !== undefined ||
-    errors.baja !== undefined
+    errors.baja !== undefined ||
+    errors.contractType !== undefined
   ) {
     return { ok: false, errors };
   }
@@ -117,6 +125,11 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
   const nif = input.nif.trim();
   const naf = input.naf.trim();
 
+  // Re-narrow: `errors.contractType` being unset guarantees a real choice was made.
+  if (input.contractType === '') {
+    return { ok: false, errors };
+  }
+
   return {
     ok: true,
     value: {
@@ -127,6 +140,7 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
       baseGrossCents: parsedBaseGross.value,
       altaDate,
       bajaDate,
+      contractType: input.contractType,
     },
   };
 }

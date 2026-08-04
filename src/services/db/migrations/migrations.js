@@ -4,13 +4,15 @@ import journal from './meta/_journal.json';
 import m0000 from './0000_common_ronan.sql';
 import m0001 from './0001_fearless_legion.sql';
 import m0002 from './0002_certain_valeria_richards.sql';
+import m0003 from './0003_flashy_speed_demon.sql';
 
   export default {
     journal,
     migrations: {
       m0000,
 m0001,
-m0002
+m0002,
+m0003
     }
   }
   

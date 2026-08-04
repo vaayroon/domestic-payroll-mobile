@@ -29,6 +29,7 @@ const FAKE_EMPLOYEE: Employee = {
   active: true,
   altaDate: null,
   bajaDate: null,
+  contractType: 'INDEFINIDO',
 };
 
 const baseProps: PayrollRunFormProps = {
@@ -40,11 +41,10 @@ const baseProps: PayrollRunFormProps = {
   periodMonth: 6,
   onIncrementMonth: () => {},
   onDecrementMonth: () => {},
-  ssInput: '',
-  onChangeSsInput: () => {},
   extraPayMode: 'EXCLUDE',
   onChangeExtraPayMode: () => {},
   preview: null,
+  ratesWarning: null,
   saving: false,
   error: null,
   onSubmit: () => {},
@@ -55,6 +55,19 @@ describe('PayrollRunForm', () => {
     const renderer = await renderForm(baseProps);
 
     expect(renderer.root.findByProps({ testID: 'payroll-run-form-preview-empty' })).toBeTruthy();
+  });
+
+  it('shows the year_not_loaded rates warning instead of the preview or the empty placeholder', async () => {
+    const renderer = await renderForm({
+      ...baseProps,
+      ratesWarning: 'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
+    });
+
+    const warning = renderer.root.findByProps({ testID: 'payroll-run-form-rates-warning' });
+    expect(warning.props.children).toBe(
+      'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
+    );
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-form-preview-empty' })).toThrow();
   });
 
   it('formats the preview amounts in Spanish EUR (design ADR-4)', async () => {

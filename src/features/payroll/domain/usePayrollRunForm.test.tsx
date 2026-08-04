@@ -1,14 +1,19 @@
 /**
- * Render test for `usePayrollRunForm` (spec "Payroll Run Screen" + tasks
- * 10.1): live preview recomputes on input change, the duplicate-period guard
- * blocks `create()` with a clear Spanish message, the happy path persists
- * the engine's exact computed fields, and a zero-run-days run with a
- * non-zero semester extra still previews correctly (spec "Zero-Days-Worked
- * Safety" / decision #674). Exercised against
+ * Render test for `usePayrollRunForm` (spec "Payroll Run Screen" + spec
+ * "PayrollRun consumes computed SS, not manual entry"): the SS preview is
+ * COMPUTED automatically (no manual SS input exists anymore), the
+ * duplicate-period guard blocks `create()` with a clear Spanish message, the
+ * happy path persists the engine's exact computed fields, and a zero-run-days
+ * run with a non-zero semester extra still previews correctly (spec
+ * "Zero-Days-Worked Safety" / decision #674). Exercised against
  * `InMemoryEmployeeRepository`/`InMemoryEmployerRepository` (reused from the
  * employees feature's testing fakes -- test code only, never production
  * code, see decision #679) and `InMemoryPayrollRunRepository` (this feature)
  * through the same provider-injection pattern as `useEmployeeForm.test.tsx`.
+ *
+ * SS math reference (base gross 900,00 EUR, INDEFINIDO, full month): retribución
+ * = 900,00 x14/12 = 1.050,00 -> tramo 5 (877,01-1.061,00) -> base 970,00;
+ * cuota = 970,00 x 6,40% = 62,08 EUR (6208 cents). Net = 900,00 - 62,08 = 837,92.
  */
 
 import { act, create } from 'react-test-renderer';
@@ -34,6 +39,7 @@ const FAKE_EMPLOYEE: Employee = {
   active: true,
   altaDate: null,
   bajaDate: null,
+  contractType: 'INDEFINIDO',
 };
 
 function notImplemented(method: string): () => never {
@@ -87,38 +93,22 @@ async function renderUsePayrollRunForm(employees: Employee[], payrollRunReposito
 }
 
 describe('usePayrollRunForm', () => {
-  it('auto-selects the first employee and recomputes the preview as inputs change', async () => {
+  it('auto-selects the first employee and computes the SS preview automatically (no manual SS input)', async () => {
     const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], new InMemoryPayrollRunRepository());
 
     expect(harness.current.selectedEmployeeId).toBe(FAKE_EMPLOYEE.id);
-    expect(harness.current.preview).toBeNull(); // no SS input yet
-
-    await act(async () => {
-      harness.current.setSsInput('100');
-    });
-
+    expect(harness.current.ratesWarning).toBeNull();
     expect(harness.current.preview).not.toBeNull();
     expect(harness.current.preview?.grossCents).toBe(cents(90000));
-    expect(harness.current.preview?.ssDeductionCents).toBe(cents(10000));
-    expect(harness.current.preview?.netCents).toBe(cents(80000));
+    expect(harness.current.preview?.ssDeductionCents).toBe(cents(6208));
+    expect(harness.current.preview?.netCents).toBe(cents(83792));
     expect(harness.current.preview?.prorated).toBe(false);
-
-    await act(async () => {
-      harness.current.setSsInput('150');
-    });
-
-    expect(harness.current.preview?.ssDeductionCents).toBe(cents(15000));
-    expect(harness.current.preview?.netCents).toBe(cents(75000));
   });
 
   it('persists the engine-computed fields exactly on submit when no duplicate exists', async () => {
     const payrollRunRepository = new InMemoryPayrollRunRepository();
     const createSpy = jest.spyOn(payrollRunRepository, 'create');
     const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], payrollRunRepository);
-
-    await act(async () => {
-      harness.current.setSsInput('100');
-    });
 
     let success = false;
     await act(async () => {
@@ -131,8 +121,8 @@ describe('usePayrollRunForm', () => {
       periodYear: harness.current.periodYear,
       periodMonth: harness.current.periodMonth,
       grossCents: cents(90000),
-      ssDeductionCents: cents(10000),
-      netCents: cents(80000),
+      ssDeductionCents: cents(6208),
+      netCents: cents(83792),
       prorated: false,
       extraCents: harness.current.preview?.extraCents,
       daysWorked: harness.current.preview?.daysWorked,
@@ -166,10 +156,6 @@ describe('usePayrollRunForm', () => {
     const createSpy = jest.spyOn(payrollRunRepository, 'create');
     const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], payrollRunRepository);
 
-    await act(async () => {
-      harness.current.setSsInput('100');
-    });
-
     let success = true;
     await act(async () => {
       success = await harness.current.submit();
@@ -193,7 +179,6 @@ describe('usePayrollRunForm', () => {
 
     await act(async () => {
       harness.current.setExtraPayMode('INCLUDE_IN_MONTH');
-      harness.current.setSsInput('100');
     });
 
     // Force the run period to June 2026 regardless of "today".
@@ -213,5 +198,31 @@ describe('usePayrollRunForm', () => {
     expect(harness.current.preview?.ssDeductionCents).toBe(cents(0));
     expect(harness.current.preview?.netCents).toBe(cents(44254));
     expect(harness.current.preview?.prorated).toBe(true);
+  });
+
+  it('year_not_loaded: preview stays null and a Spanish warning is set; submit refuses to persist (design ADR-2)', async () => {
+    const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], new InMemoryPayrollRunRepository());
+
+    // Force the run period into 2027, a year with no loaded RatesConfig.
+    while (harness.current.periodYear !== 2027) {
+      await act(async () => {
+        harness.current.incrementMonth();
+      });
+    }
+
+    expect(harness.current.preview).toBeNull();
+    expect(harness.current.ratesWarning).toBe(
+      'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
+    );
+
+    let success = true;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(false);
+    expect(harness.current.error).toBe(
+      'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
+    );
   });
 });

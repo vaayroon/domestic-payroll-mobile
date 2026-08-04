@@ -107,6 +107,7 @@ describe('useEmployeeForm', () => {
       baseGrossCents: cents(90000),
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     });
     expect(harness.current.errors).toEqual({});
   });
@@ -141,6 +142,7 @@ describe('useEmployeeForm', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
@@ -164,6 +166,7 @@ describe('useEmployeeForm', () => {
       baseGrossCents: cents(90000),
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     });
   });
 
@@ -178,6 +181,7 @@ describe('useEmployeeForm', () => {
       active: true,
       altaDate: '2026-07-23',
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
@@ -204,6 +208,7 @@ describe('useEmployeeForm', () => {
       baseGrossCents: cents(90000),
       altaDate: '2026-07-23',
       bajaDate: '2026-12-31',
+      contractType: 'INDEFINIDO',
     });
   });
 
@@ -218,6 +223,7 @@ describe('useEmployeeForm', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');

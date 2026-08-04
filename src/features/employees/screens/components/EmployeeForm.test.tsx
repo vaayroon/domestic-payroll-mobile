@@ -14,7 +14,7 @@ async function renderForm(props: EmployeeFormProps): Promise<ReactTestRenderer> 
 }
 
 const baseProps: EmployeeFormProps = {
-  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '' },
+  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', contractType: 'INDEFINIDO' },
   errors: {},
   onChangeField: () => {},
   onSubmit: () => {},
@@ -74,6 +74,31 @@ describe('EmployeeForm', () => {
       const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
       expect(texts).toContainEqual(message);
     }
+  });
+
+  it('maps the contractType required error code to a Spanish message', async () => {
+    const renderer = await renderForm({ ...baseProps, errors: { contractType: 'required' } });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('Selecciona el tipo de contrato.');
+  });
+
+  it('highlights the selected contractType option', async () => {
+    const renderer = await renderForm({ ...baseProps, values: { ...baseProps.values, contractType: 'TEMPORAL' } });
+
+    const temporal = renderer.root.findByProps({ testID: 'employee-form-contract-type-TEMPORAL' });
+    expect(temporal.props.onPress).toBeInstanceOf(Function);
+  });
+
+  it('fires onChangeField with the pressed contractType option', async () => {
+    const onChangeField = jest.fn();
+    const renderer = await renderForm({ ...baseProps, onChangeField });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'employee-form-contract-type-TEMPORAL' }).props.onPress();
+    });
+
+    expect(onChangeField).toHaveBeenCalledWith('contractType', 'TEMPORAL');
   });
 
   it('fires onSubmit when the submit button is pressed', async () => {

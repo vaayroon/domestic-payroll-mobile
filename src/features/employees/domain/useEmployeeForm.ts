@@ -17,7 +17,7 @@ export type EmployeeFormMode = { kind: 'create' } | { kind: 'edit'; employee: Em
 export interface UseEmployeeFormResult {
   readonly values: EmployeeFormInput;
   readonly errors: EmployeeFormErrors;
-  readonly setField: (field: keyof EmployeeFormInput, value: string) => void;
+  readonly setField: <K extends keyof EmployeeFormInput>(field: K, value: EmployeeFormInput[K]) => void;
   readonly submit: () => Promise<boolean>;
   readonly saving: boolean;
   readonly saveError: string | null;
@@ -25,7 +25,11 @@ export interface UseEmployeeFormResult {
 
 function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
   if (mode.kind === 'create') {
-    return { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '' };
+    // `contractType` defaults to `'INDEFINIDO'` (design: the common case), but
+    // is still an explicit value the user can change -- never `''` on create,
+    // since spec "New employee requires contractType" only guards against a
+    // user actively clearing the field, not the initial default.
+    return { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', contractType: 'INDEFINIDO' };
   }
   return {
     name: mode.employee.name,
@@ -34,6 +38,7 @@ function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
     baseGross: String(toEuros(mode.employee.baseGrossCents)),
     alta: mode.employee.altaDate ?? '',
     baja: mode.employee.bajaDate ?? '',
+    contractType: mode.employee.contractType,
   };
 }
 
@@ -46,7 +51,7 @@ export function useEmployeeForm(mode: EmployeeFormMode): UseEmployeeFormResult {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const setField = (field: keyof EmployeeFormInput, value: string) => {
+  const setField = <K extends keyof EmployeeFormInput>(field: K, value: EmployeeFormInput[K]) => {
     setValues((current) => ({ ...current, [field]: value }));
   };
 
