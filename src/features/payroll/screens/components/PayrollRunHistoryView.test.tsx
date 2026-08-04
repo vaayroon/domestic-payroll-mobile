@@ -41,6 +41,12 @@ const baseProps: PayrollRunHistoryViewProps = {
   generateError: null,
   lastUri: null,
   onGenerate: () => {},
+  onOpen: () => {},
+  onSend: () => {},
+  sharingAvailable: true,
+  mailAvailable: true,
+  dispatchStatus: 'idle',
+  dispatchError: null,
 };
 
 async function renderView(props: PayrollRunHistoryViewProps): Promise<ReactTestRenderer> {
@@ -99,10 +105,126 @@ describe('PayrollRunHistoryView', () => {
     expect(errorNode.props.children).toBe('no se pudo generar');
   });
 
-  it('shows the success banner with the generated file uri', async () => {
+  it('shows the success banner once a receipt was generated', async () => {
     const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: 'file:///fake/recibo-1.pdf' });
 
     const success = renderer.root.findByProps({ testID: 'payroll-run-history-success' });
-    expect(success.props.children).toBe('Recibo generado: file:///fake/recibo-1.pdf');
+    expect(success.props.children).toBe('Recibo generado.');
+  });
+
+  it('does not show the open/send actions when no receipt was generated yet', async () => {
+    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: null });
+
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-open' })).toThrow();
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-send' })).toThrow();
+  });
+
+  it('shows the open/send actions once lastUri is set, both enabled', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      sharingAvailable: true,
+      mailAvailable: true,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(false);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(false);
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-mail-unavailable' })).toThrow();
+  });
+
+  it('fires onOpen when "Abrir recibo" is pressed', async () => {
+    const onOpen = jest.fn();
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      onOpen,
+    });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.onPress();
+    });
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onSend when "Enviar por correo" is pressed', async () => {
+    const onSend = jest.fn();
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      onSend,
+    });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.onPress();
+    });
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables "Enviar por correo" and shows the Spanish hint when mail is unavailable', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      mailAvailable: false,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(true);
+    const hint = renderer.root.findByProps({ testID: 'payroll-run-history-mail-unavailable' });
+    expect(hint.props.children).toBe('No hay ninguna app de correo configurada en este dispositivo.');
+    // "Abrir recibo" remains the escape hatch (decision: disable-and-explain, not share-sheet fallback).
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(false);
+  });
+
+  it('disables "Abrir recibo" when sharing is unavailable', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      sharingAvailable: false,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(true);
+  });
+
+  it('shows the Spanish sent confirmation when dispatchStatus is "sent"', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      dispatchStatus: 'sent',
+    });
+
+    const sent = renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-sent' });
+    expect(sent.props.children).toBe('Recibo enviado.');
+  });
+
+  it('shows the Spanish failure message when dispatchStatus is "failed"', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      dispatchStatus: 'failed',
+      dispatchError: 'No se pudo enviar el recibo.',
+    });
+
+    const failed = renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-failed' });
+    expect(failed.props.children).toBe('No se pudo enviar el recibo.');
+  });
+
+  it('renders nothing extra when dispatchStatus is "cancelled" (neutral)', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      dispatchStatus: 'cancelled',
+    });
+
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-sent' })).toThrow();
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-failed' })).toThrow();
   });
 });

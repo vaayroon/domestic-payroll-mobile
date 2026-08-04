@@ -28,6 +28,10 @@ module.exports = defineConfig([
               group: ['expo-print', 'expo-print/*'],
               message: 'expo-print is only allowed inside src/services/pdf/. Depend on the ReceiptPdfGenerator interface in src/types instead.',
             },
+            {
+              group: ['expo-sharing', 'expo-sharing/*', 'expo-mail-composer', 'expo-mail-composer/*'],
+              message: 'expo-sharing/expo-mail-composer are only allowed inside src/services/mail/. Depend on the PdfSharer/MailSender interfaces in src/types instead.',
+            },
           ],
         },
       ],
@@ -41,6 +45,12 @@ module.exports = defineConfig([
   },
   {
     files: ['src/services/pdf/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    files: ['src/services/mail/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },
