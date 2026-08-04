@@ -9,4 +9,5 @@
 
 export * from './RepositoryProvider';
 export * from './CurrentEmployerProvider';
+export * from './PdfServiceProvider';
 export * from './parseEuroInput';
