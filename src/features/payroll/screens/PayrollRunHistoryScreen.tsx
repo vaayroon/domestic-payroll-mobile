@@ -1,14 +1,16 @@
 /**
  * Container screen: owns `usePayrollRunHistory` + `useReceiptGenerator` +
- * navigation-focus refresh, renders the presentational
- * `PayrollRunHistoryView`. Mirrors `EmployeeListScreen.tsx`/
+ * `useReceiptDispatch` + navigation-focus refresh, renders the
+ * presentational `PayrollRunHistoryView`. Mirrors `EmployeeListScreen.tsx`/
  * `PayrollRunCreateScreen.tsx`'s container/presentational split.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 
-import { usePayrollRunHistory, useReceiptGenerator } from '../domain';
+import type { PayrollRun } from '@/types';
+
+import { usePayrollRunHistory, useReceiptDispatch, useReceiptGenerator } from '../domain';
 import { PayrollRunHistoryView } from './components/PayrollRunHistoryView';
 
 export interface PayrollRunHistoryScreenProps {
@@ -18,6 +20,8 @@ export interface PayrollRunHistoryScreenProps {
 export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenProps) {
   const { runs, loading, error, refresh } = usePayrollRunHistory(employeeId);
   const { generate, generating, error: generateError, lastUri } = useReceiptGenerator();
+  const [lastRun, setLastRun] = useState<PayrollRun | null>(null);
+  const dispatch = useReceiptDispatch(lastRun, lastUri);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,7 +37,16 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
       generating={generating}
       generateError={generateError}
       lastUri={lastUri}
-      onGenerate={(run) => void generate(run)}
+      onGenerate={(run) => {
+        setLastRun(run);
+        void generate(run);
+      }}
+      onOpen={() => void dispatch.openReceipt()}
+      onSend={() => void dispatch.sendReceiptByMail()}
+      sharingAvailable={dispatch.sharingAvailable}
+      mailAvailable={dispatch.mailAvailable}
+      dispatchStatus={dispatch.status}
+      dispatchError={dispatch.error}
     />
   );
 }

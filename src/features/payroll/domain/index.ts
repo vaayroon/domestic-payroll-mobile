@@ -7,3 +7,4 @@ export * from './useActiveEmployees';
 export * from './usePayrollRunForm';
 export * from './usePayrollRunHistory';
 export * from './useReceiptGenerator';
+export * from './useReceiptDispatch';

@@ -1,18 +1,23 @@
 /**
  * Presentational (props-only) list/loading/error/empty view for the
- * per-employee payroll run history (design ADR-5). Each row shows período
- * (`formatSpanishMonthYear`) + líquido a percibir (`formatEuros`); selecting
- * a row's "Generar recibo" action fires `onGenerate`, and a success banner
- * surfaces the resulting file `uri` once `lastUri` is set. Mirrors
- * `EmployeeListView.tsx`'s structure.
+ * per-employee payroll run history (design ADR-5/ADR-9). Each row shows
+ * período (`formatSpanishMonthYear`) + líquido a percibir (`formatEuros`);
+ * selecting a row's "Generar recibo" action fires `onGenerate`. Once
+ * `lastUri` is set, the success banner exposes two actions: "Abrir recibo"
+ * (disabled when `!sharingAvailable`) and "Enviar por correo" (disabled with
+ * a Spanish hint when `!mailAvailable` -- disable-and-explain, not a silent
+ * share-sheet fallback). Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import type { PayrollRun } from '@/types';
 
+import type { DispatchStatus } from '../../domain';
 import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
+
+const MAIL_UNAVAILABLE_HINT = 'No hay ninguna app de correo configurada en este dispositivo.';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
@@ -22,6 +27,12 @@ export interface PayrollRunHistoryViewProps {
   readonly generateError: string | null;
   readonly lastUri: string | null;
   readonly onGenerate: (run: PayrollRun) => void;
+  readonly onOpen: () => void;
+  readonly onSend: () => void;
+  readonly sharingAvailable: boolean;
+  readonly mailAvailable: boolean;
+  readonly dispatchStatus: DispatchStatus;
+  readonly dispatchError: string | null;
 }
 
 export function PayrollRunHistoryView({
@@ -32,6 +43,12 @@ export function PayrollRunHistoryView({
   generateError,
   lastUri,
   onGenerate,
+  onOpen,
+  onSend,
+  sharingAvailable,
+  mailAvailable,
+  dispatchStatus,
+  dispatchError,
 }: PayrollRunHistoryViewProps) {
   return (
     <View className="flex-1 bg-slate-900">
@@ -52,9 +69,38 @@ export function PayrollRunHistoryView({
       ) : null}
 
       {lastUri !== null ? (
-        <Text testID="payroll-run-history-success" className="px-4 text-emerald-400">
-          {`Recibo generado: ${lastUri}`}
-        </Text>
+        <View className="px-4 pb-2">
+          <Text testID="payroll-run-history-success" className="text-emerald-400">
+            Recibo generado.
+          </Text>
+          <View className="mt-2 flex-row gap-4">
+            <Pressable testID="payroll-run-history-open" disabled={!sharingAvailable} onPress={onOpen}>
+              <Text className={`font-semibold ${sharingAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
+                Abrir recibo
+              </Text>
+            </Pressable>
+            <Pressable testID="payroll-run-history-send" disabled={!mailAvailable} onPress={onSend}>
+              <Text className={`font-semibold ${mailAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
+                Enviar por correo
+              </Text>
+            </Pressable>
+          </View>
+          {!mailAvailable ? (
+            <Text testID="payroll-run-history-mail-unavailable" className="mt-1 text-slate-400">
+              {MAIL_UNAVAILABLE_HINT}
+            </Text>
+          ) : null}
+          {dispatchStatus === 'sent' ? (
+            <Text testID="payroll-run-history-dispatch-sent" className="mt-1 text-emerald-400">
+              Recibo enviado.
+            </Text>
+          ) : null}
+          {dispatchStatus === 'failed' && dispatchError !== null ? (
+            <Text testID="payroll-run-history-dispatch-failed" className="mt-1 text-red-400">
+              {dispatchError}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
 
       {loading ? (

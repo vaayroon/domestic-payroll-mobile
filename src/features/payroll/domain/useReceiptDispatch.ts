@@ -1,0 +1,112 @@
+/**
+ * Receipt-dispatch flow hook (design ADR-8): open/share a just-generated
+ * receipt PDF via `PdfSharer`, or send it by email via `MailSender` using
+ * the Spanish subject/body from `buildReceiptMailContent`. Sibling of
+ * `useReceiptGenerator` -- that hook stays untouched; this one owns its own
+ * `useEmployeeRepository().getById` lookup the same way.
+ *
+ * `run`/`uri` are nullable because the hook is called unconditionally at the
+ * container top-level (React hook rules) while the banner that exposes the
+ * actions only renders once a receipt was generated this session.
+ */
+
+import { useEffect, useState } from 'react';
+
+import { useEmployeeRepository, useMailSender, usePdfSharer } from '@/core';
+import type { PayrollRun } from '@/types';
+
+import { buildReceiptMailContent } from '../receipt';
+
+export type DispatchStatus = 'idle' | 'sharing' | 'sending' | 'sent' | 'cancelled' | 'failed';
+
+export interface UseReceiptDispatchResult {
+  readonly openReceipt: () => Promise<void>;
+  readonly sendReceiptByMail: () => Promise<void>;
+  readonly sharingAvailable: boolean;
+  readonly mailAvailable: boolean;
+  readonly status: DispatchStatus;
+  readonly error: string | null;
+}
+
+const SHARE_DIALOG_TITLE = 'Compartir recibo';
+
+export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): UseReceiptDispatchResult {
+  const employeeRepository = useEmployeeRepository();
+  const pdfSharer = usePdfSharer();
+  const mailSender = useMailSender();
+
+  const [sharingAvailable, setSharingAvailable] = useState(false);
+  const [mailAvailable, setMailAvailable] = useState(false);
+  const [status, setStatus] = useState<DispatchStatus>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void pdfSharer.isAvailable().then((available) => {
+      if (!cancelled) {
+        setSharingAvailable(available);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfSharer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void mailSender.isAvailable().then((available) => {
+      if (!cancelled) {
+        setMailAvailable(available);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mailSender]);
+
+  const openReceipt = async (): Promise<void> => {
+    if (uri === null) {
+      return;
+    }
+    setStatus('sharing');
+    setError(null);
+    try {
+      await pdfSharer.share(uri, { dialogTitle: SHARE_DIALOG_TITLE });
+      setStatus('idle');
+    } catch {
+      setStatus('failed');
+      setError('No se pudo abrir el recibo.');
+    }
+  };
+
+  const sendReceiptByMail = async (): Promise<void> => {
+    if (run === null || uri === null) {
+      return;
+    }
+    setStatus('sending');
+    setError(null);
+    try {
+      const employee = await employeeRepository.getById(run.employeeId);
+      if (employee === null) {
+        throw new Error('No se encontró el empleado de esta nómina.');
+      }
+      const { subject, body } = buildReceiptMailContent(run, employee);
+      const result = await mailSender.send({ subject, body, attachmentUris: [uri] });
+      switch (result) {
+        case 'sent':
+        case 'saved':
+          setStatus('sent');
+          break;
+        case 'cancelled':
+        case 'undetermined':
+          setStatus('cancelled');
+          break;
+      }
+    } catch {
+      setStatus('failed');
+      setError('No se pudo enviar el recibo.');
+    }
+  };
+
+  return { openReceipt, sendReceiptByMail, sharingAvailable, mailAvailable, status, error };
+}
