@@ -69,6 +69,10 @@ export default function RootLayout() {
                   name="payroll/new"
                   options={{ presentation: 'modal', title: 'Nueva nómina' }}
                 />
+                <Stack.Screen
+                  name="payroll/history/[employeeId]"
+                  options={{ title: 'Historial de nóminas' }}
+                />
               </Stack>
             </ThemeProvider>
           </PdfServiceProvider>
