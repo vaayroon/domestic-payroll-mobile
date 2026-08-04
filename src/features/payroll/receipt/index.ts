@@ -3,3 +3,4 @@
 export * from './ReceiptViewModel';
 export * from './buildReceiptViewModel';
 export * from './buildReceiptHtml';
+export * from './buildReceiptMailContent';
