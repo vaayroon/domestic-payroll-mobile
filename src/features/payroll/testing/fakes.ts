@@ -58,6 +58,9 @@ export class InMemoryPayrollRunRepository implements PayrollRunRepository {
       ssDeductionCents: input.ssDeductionCents,
       netCents: input.netCents,
       prorated: input.prorated ?? false,
+      extraCents: input.extraCents,
+      daysWorked: input.daysWorked,
+      daysInMonth: input.daysInMonth,
       createdAt: Date.now(),
     };
     this.rows.push(payrollRun);

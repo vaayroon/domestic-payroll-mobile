@@ -15,6 +15,13 @@
       "when": 1785774515645,
       "tag": "0001_fearless_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785829349001,
+      "tag": "0002_certain_valeria_richards",
+      "breakpoints": true
     }
   ]
 }

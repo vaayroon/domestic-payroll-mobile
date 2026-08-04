@@ -134,6 +134,9 @@ describe('usePayrollRunForm', () => {
       ssDeductionCents: cents(10000),
       netCents: cents(80000),
       prorated: false,
+      extraCents: harness.current.preview?.extraCents,
+      daysWorked: harness.current.preview?.daysWorked,
+      daysInMonth: harness.current.preview?.daysInMonth,
     });
     expect(harness.current.error).toBeNull();
   });
@@ -154,6 +157,9 @@ describe('usePayrollRunForm', () => {
         ssDeductionCents: cents(10000),
         netCents: cents(80000),
         prorated: false,
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
         createdAt: 0,
       },
     ]);
