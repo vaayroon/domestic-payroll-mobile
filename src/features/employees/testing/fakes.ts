@@ -96,6 +96,7 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       active: input.active ?? true,
       altaDate: input.altaDate ?? null,
       bajaDate: input.bajaDate ?? null,
+      contractType: input.contractType ?? 'INDEFINIDO',
     };
     this.rows.push(employee);
     return employee;
@@ -117,6 +118,7 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       ...(patch.active !== undefined ? { active: patch.active } : {}),
       ...(patch.altaDate !== undefined ? { altaDate: patch.altaDate } : {}),
       ...(patch.bajaDate !== undefined ? { bajaDate: patch.bajaDate } : {}),
+      ...(patch.contractType !== undefined ? { contractType: patch.contractType } : {}),
     };
     this.rows[index] = updated;
     return updated;
