@@ -12,7 +12,9 @@ module.exports = defineConfig([
   {
     // Drizzle is an infrastructure detail of the persistence layer. Keep it
     // fully contained inside services/db/ so features/core only ever depend
-    // on the hand-written repository interfaces in src/types.
+    // on the hand-written repository interfaces in src/types. Same rationale
+    // for expo-print: it is only allowed inside services/pdf/, sealed behind
+    // the ReceiptPdfGenerator interface (design ADR-2).
     rules: {
       'no-restricted-imports': [
         'error',
@@ -22,6 +24,10 @@ module.exports = defineConfig([
               group: ['drizzle-orm', 'drizzle-orm/*'],
               message: 'Drizzle is only allowed inside src/services/db/. Depend on the repository interfaces in src/types instead.',
             },
+            {
+              group: ['expo-print', 'expo-print/*'],
+              message: 'expo-print is only allowed inside src/services/pdf/. Depend on the ReceiptPdfGenerator interface in src/types instead.',
+            },
           ],
         },
       ],
@@ -29,6 +35,12 @@ module.exports = defineConfig([
   },
   {
     files: ['src/services/db/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    files: ['src/services/pdf/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },

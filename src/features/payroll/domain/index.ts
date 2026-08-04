@@ -5,3 +5,5 @@
 export * from './engine';
 export * from './useActiveEmployees';
 export * from './usePayrollRunForm';
+export * from './usePayrollRunHistory';
+export * from './useReceiptGenerator';

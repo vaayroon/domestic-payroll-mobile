@@ -11,6 +11,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import type { Employee } from '@/types';
 
 import type { ExtraPayMode, PayrollResult } from '../../domain';
+import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
 
 const EXTRA_PAY_MODE_LABELS: Record<ExtraPayMode, string> = {
@@ -18,21 +19,6 @@ const EXTRA_PAY_MODE_LABELS: Record<ExtraPayMode, string> = {
   PRORATE: 'Prorratear cada mes',
   EXCLUDE: 'Excluir',
 };
-
-const MONTH_NAMES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
 
 export interface PayrollRunFormProps {
   readonly employees: Employee[];
@@ -109,7 +95,7 @@ export function PayrollRunForm({
             <Text className="text-lg font-semibold text-emerald-400">{'<'}</Text>
           </Pressable>
           <Text testID="payroll-run-form-period-label" className="text-white">
-            {MONTH_NAMES[periodMonth - 1]} de {periodYear}
+            {formatSpanishMonthYear(periodYear, periodMonth)}
           </Text>
           <Pressable testID="payroll-run-form-period-next" onPress={onIncrementMonth}>
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>

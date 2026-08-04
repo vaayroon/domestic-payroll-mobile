@@ -98,6 +98,9 @@ export function payrollRunRowToDomain(row: PayrollRunRow): PayrollRun {
     ssDeductionCents: cents(row.ssDeductionCents),
     netCents: cents(row.netCents),
     prorated: row.prorated,
+    extraCents: cents(row.extraCents),
+    daysWorked: row.daysWorked,
+    daysInMonth: row.daysInMonth,
     createdAt: row.createdAt,
   };
 }
@@ -112,6 +115,9 @@ export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, create
     ssDeductionCents: unbrand(input.ssDeductionCents),
     netCents: unbrand(input.netCents),
     prorated: input.prorated ?? false,
+    extraCents: unbrand(input.extraCents),
+    daysWorked: input.daysWorked,
+    daysInMonth: input.daysInMonth,
     createdAt,
   };
 }

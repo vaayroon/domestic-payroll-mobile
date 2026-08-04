@@ -1,8 +1,7 @@
 /**
  * services/pdf — PDF engine (expo-print), generates the official
- * "Recibo Individual de Salarios" receipt.
- *
- * Empty placeholder — implemented in a later slice.
+ * "Recibo Individual de Salarios" receipt. Sealed behind the
+ * `ReceiptPdfGenerator` interface in `src/types` (CLAUDE.md §3).
  */
 
-export {};
+export * from './ExpoPrintReceiptGenerator';

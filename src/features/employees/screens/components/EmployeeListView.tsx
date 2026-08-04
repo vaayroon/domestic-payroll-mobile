@@ -17,6 +17,7 @@ export interface EmployeeListViewProps {
   readonly onEdit: (id: string) => void;
   readonly onDeactivate: (id: string) => void;
   readonly onNewPayrollRun: () => void;
+  readonly onViewHistory: (id: string) => void;
 }
 
 export function EmployeeListView({
@@ -27,6 +28,7 @@ export function EmployeeListView({
   onEdit,
   onDeactivate,
   onNewPayrollRun,
+  onViewHistory,
 }: EmployeeListViewProps) {
   return (
     <View className="flex-1 bg-slate-900">
@@ -60,7 +62,9 @@ export function EmployeeListView({
         <FlatList
           data={employees}
           keyExtractor={(employee) => employee.id}
-          renderItem={({ item }) => <EmployeeListItem employee={item} onEdit={onEdit} onDeactivate={onDeactivate} />}
+          renderItem={({ item }) => (
+            <EmployeeListItem employee={item} onEdit={onEdit} onDeactivate={onDeactivate} onViewHistory={onViewHistory} />
+          )}
         />
       )}
     </View>

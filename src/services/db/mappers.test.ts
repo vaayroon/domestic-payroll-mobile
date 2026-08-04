@@ -152,17 +152,27 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     ssDeductionCents: 9000,
     netCents: 141000,
     prorated: false,
+    extraCents: 30000,
+    daysWorked: 20,
+    daysInMonth: 30,
     createdAt: 1_700_000_000_000,
   };
 
-  it('brands all three money fields as Cents', () => {
+  it('brands all four money fields as Cents', () => {
     const domain = payrollRunRowToDomain(row);
     expect(domain.grossCents).toBe(cents(150000));
     expect(domain.ssDeductionCents).toBe(cents(9000));
     expect(domain.netCents).toBe(cents(141000));
+    expect(domain.extraCents).toBe(cents(30000));
   });
 
-  it('builds an insert row unbranding all three money fields', () => {
+  it('round-trips daysWorked/daysInMonth unchanged (no rounding/branding, plain integers)', () => {
+    const domain = payrollRunRowToDomain(row);
+    expect(domain.daysWorked).toBe(20);
+    expect(domain.daysInMonth).toBe(30);
+  });
+
+  it('builds an insert row unbranding all four money fields', () => {
     const insertRow = payrollRunInsertFromNew(
       {
         employeeId: 'employee-1',
@@ -172,6 +182,9 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
         ssDeductionCents: cents(9000),
         netCents: cents(141000),
         prorated: true,
+        extraCents: cents(30000),
+        daysWorked: 20,
+        daysInMonth: 30,
       },
       'run-1',
       1_700_000_000_000,
@@ -185,6 +198,9 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
       ssDeductionCents: 9000,
       netCents: 141000,
       prorated: true,
+      extraCents: 30000,
+      daysWorked: 20,
+      daysInMonth: 30,
       createdAt: 1_700_000_000_000,
     });
   });
@@ -198,6 +214,9 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
         grossCents: cents(150000),
         ssDeductionCents: cents(9000),
         netCents: cents(141000),
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
       },
       'run-1',
       1_700_000_000_000,

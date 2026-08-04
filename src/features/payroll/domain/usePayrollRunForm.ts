@@ -140,6 +140,9 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
         ssDeductionCents: result.ssDeductionCents,
         netCents: result.netCents,
         prorated: result.prorated,
+        extraCents: result.extraCents,
+        daysWorked: result.daysWorked,
+        daysInMonth: result.daysInMonth,
       });
       return true;
     } catch (caught) {

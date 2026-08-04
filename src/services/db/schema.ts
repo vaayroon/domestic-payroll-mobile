@@ -54,6 +54,9 @@ export const payrollRuns = sqliteTable(
     ssDeductionCents: integer('ss_deduction_cents').notNull(),
     netCents: integer('net_cents').notNull(),
     prorated: integer('prorated', { mode: 'boolean' }).notNull().default(false),
+    extraCents: integer('extra_cents').notNull().default(0),
+    daysWorked: integer('days_worked').notNull().default(0),
+    daysInMonth: integer('days_in_month').notNull().default(0),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [

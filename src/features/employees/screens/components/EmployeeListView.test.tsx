@@ -1,6 +1,22 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
+import type { Employee } from '@/types';
+import { cents } from '@/types/money';
+
 import { EmployeeListView, type EmployeeListViewProps } from './EmployeeListView';
+
+// Obviously-fake placeholder identifier/name only (CLAUDE.md §6).
+const FAKE_EMPLOYEE: Employee = {
+  id: 'employee-fake-1',
+  employerId: 'employer-fake-1',
+  name: 'Empleada de Prueba',
+  nif: null,
+  naf: null,
+  baseGrossCents: cents(90000),
+  active: true,
+  altaDate: null,
+  bajaDate: null,
+};
 
 async function renderListView(props: EmployeeListViewProps): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
@@ -20,6 +36,7 @@ describe('EmployeeListView', () => {
       onEdit: () => {},
       onDeactivate: () => {},
       onNewPayrollRun: () => {},
+      onViewHistory: () => {},
     });
 
     const empty = renderer.root.findByProps({ testID: 'employee-list-empty' });
@@ -35,6 +52,7 @@ describe('EmployeeListView', () => {
       onEdit: () => {},
       onDeactivate: () => {},
       onNewPayrollRun: () => {},
+      onViewHistory: () => {},
     });
 
     expect(() => renderer.root.findByProps({ testID: 'employee-list-empty' })).toThrow();
@@ -50,6 +68,7 @@ describe('EmployeeListView', () => {
       onEdit: () => {},
       onDeactivate: () => {},
       onNewPayrollRun: () => {},
+      onViewHistory: () => {},
     });
 
     const error = renderer.root.findByProps({ testID: 'employee-list-error' });
@@ -66,6 +85,7 @@ describe('EmployeeListView', () => {
       onEdit: () => {},
       onDeactivate: () => {},
       onNewPayrollRun,
+      onViewHistory: () => {},
     });
 
     await act(async () => {
@@ -73,5 +93,25 @@ describe('EmployeeListView', () => {
     });
 
     expect(onNewPayrollRun).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onViewHistory with the employee id when "Historial" is pressed', async () => {
+    const onViewHistory = jest.fn();
+    const renderer = await renderListView({
+      employees: [FAKE_EMPLOYEE],
+      loading: false,
+      error: null,
+      onAdd: () => {},
+      onEdit: () => {},
+      onDeactivate: () => {},
+      onNewPayrollRun: () => {},
+      onViewHistory,
+    });
+
+    act(() => {
+      renderer.root.findByProps({ testID: 'employee-list-item-history' }).props.onPress();
+    });
+
+    expect(onViewHistory).toHaveBeenCalledWith(FAKE_EMPLOYEE.id);
   });
 });

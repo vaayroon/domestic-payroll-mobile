@@ -13,9 +13,10 @@ export interface EmployeeListItemProps {
   readonly employee: Employee;
   readonly onEdit: (id: string) => void;
   readonly onDeactivate: (id: string) => void;
+  readonly onViewHistory: (id: string) => void;
 }
 
-export function EmployeeListItem({ employee, onEdit, onDeactivate }: EmployeeListItemProps) {
+export function EmployeeListItem({ employee, onEdit, onDeactivate, onViewHistory }: EmployeeListItemProps) {
   return (
     <View className="flex-row items-center justify-between border-b border-slate-700 px-4 py-3">
       <View className="flex-1">
@@ -23,6 +24,9 @@ export function EmployeeListItem({ employee, onEdit, onDeactivate }: EmployeeLis
         <Text className="text-sm text-slate-400">{EUR_FORMATTER.format(toEuros(employee.baseGrossCents))}</Text>
       </View>
       <View className="flex-row gap-3">
+        <Pressable testID="employee-list-item-history" onPress={() => onViewHistory(employee.id)}>
+          <Text className="font-semibold text-emerald-400">Historial</Text>
+        </Pressable>
         <Pressable testID="employee-list-item-edit" onPress={() => onEdit(employee.id)}>
           <Text className="font-semibold text-emerald-400">Editar</Text>
         </Pressable>

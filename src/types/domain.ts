@@ -65,6 +65,9 @@ export interface PayrollRun {
   readonly ssDeductionCents: Cents;
   readonly netCents: Cents;
   readonly prorated: boolean;
+  readonly extraCents: Cents;
+  readonly daysWorked: number;
+  readonly daysInMonth: number;
   readonly createdAt: number;
 }
 
@@ -77,6 +80,9 @@ export interface NewPayrollRun {
   readonly ssDeductionCents: Cents;
   readonly netCents: Cents;
   readonly prorated?: boolean;
+  readonly extraCents: Cents;
+  readonly daysWorked: number;
+  readonly daysInMonth: number;
 }
 
 /** A single free-form app-level setting, stored as a string value (e.g. the smoke-screen round-trip key). */

@@ -27,10 +27,16 @@ const FAKE_EMPLOYEE: Employee = {
   bajaDate: null,
 };
 
-async function renderItem(onEdit: (id: string) => void, onDeactivate: (id: string) => void): Promise<ReactTestRenderer> {
+async function renderItem(
+  onEdit: (id: string) => void,
+  onDeactivate: (id: string) => void,
+  onViewHistory: (id: string) => void = () => {},
+): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
-    renderer = create(<EmployeeListItem employee={FAKE_EMPLOYEE} onEdit={onEdit} onDeactivate={onDeactivate} />);
+    renderer = create(
+      <EmployeeListItem employee={FAKE_EMPLOYEE} onEdit={onEdit} onDeactivate={onDeactivate} onViewHistory={onViewHistory} />,
+    );
   });
   return renderer;
 }
@@ -64,5 +70,16 @@ describe('EmployeeListItem', () => {
     });
 
     expect(onDeactivate).toHaveBeenCalledWith(FAKE_EMPLOYEE.id);
+  });
+
+  it('fires onViewHistory with the employee id when "Historial" is pressed', async () => {
+    const onViewHistory = jest.fn();
+    const renderer = await renderItem(() => {}, () => {}, onViewHistory);
+
+    act(() => {
+      renderer.root.findByProps({ testID: 'employee-list-item-history' }).props.onPress();
+    });
+
+    expect(onViewHistory).toHaveBeenCalledWith(FAKE_EMPLOYEE.id);
   });
 });
