@@ -26,9 +26,20 @@
  * via `multiplyByRatio`. `calculatePayrollRun` never re-rounds a value that
  * already went through `multiplyByRatio`; `netCents` is an exact
  * `subtractCents` of two already-rounded amounts.
+ *
+ * SS decoupled proration (design ADR-4 / spec "ss-contribution"): the worker
+ * SS cuota is no longer a manually-entered `fullMonthSsCents` prorated by the
+ * SAME `daysWorked/daysInMonth` ratio as salary -- it is COMPUTED by
+ * `computeWorkerSs` (see `ssContribution.ts`) from the employee's base gross,
+ * the run's injected `RatesConfig`, and `contractType`, and prorated by its
+ * OWN `daysWorked/SS_DIVISOR` (always /30, per TGSS mechanics) ratio. Salary
+ * proration keeps the real calendar day count (`daysInMonth`, 28-31); these
+ * two divisors must never be conflated.
  */
 
 import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
+
+import { computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
 
 /** How the two annual pagas extra (bonus payments) are folded into a run. */
 export type ExtraPayMode = 'INCLUDE_IN_MONTH' | 'PRORATE' | 'EXCLUDE';
@@ -37,8 +48,10 @@ export type ExtraPayMode = 'INCLUDE_IN_MONTH' | 'PRORATE' | 'EXCLUDE';
 export interface PayrollInput {
   /** Employee's full-month base gross salary. */
   readonly baseGrossCents: Cents;
-  /** Full-month Social Security deduction baseline; the engine prorates it (design ADR-3). */
-  readonly fullMonthSsCents: Cents;
+  /** The run period year's resolved SS rates/tramo table (design ADR-2: `year_not_loaded` is handled at the form-hook boundary, never here). */
+  readonly ratesConfig: RatesConfig;
+  /** Selects the worker's desempleo rate (6,40% INDEFINIDO / 6,45% TEMPORAL). */
+  readonly contractType: ContractType;
   /** Calendar year of the run, e.g. 2026. */
   readonly periodYear: number;
   /** Calendar month of the run, 1-12. */
@@ -216,8 +229,21 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
 
 /**
  * Thin orchestrator: resolves the effective run-month period, prorates base
- * gross and the SS baseline by the identical day ratio, adds the pagas extra
- * component, and derives the net via one exact subtraction.
+ * gross by the real calendar-day ratio, computes the worker SS cuota via its
+ * own /30 ratio, adds the pagas extra component, and derives the net via one
+ * exact subtraction.
+ *
+ * SS days-worked normalization (spec "SS proration decoupled from salary
+ * proration", both scenarios): when the run month is fully worked
+ * (`effective.prorated === false`), the SS days-worked figure is normalized
+ * to `SS_DIVISOR` (30) itself -- NOT the real `daysInMonth` (28-31) -- so a
+ * full month in a 31-day month never overshoots a 31/30 ratio (spec "Full
+ * month: divisor is 30/30 -> full-month cuota unchanged", any month length).
+ * Only a GENUINELY partial period (`prorated === true`) uses the real
+ * calendar `daysWorked` count as the SS numerator, exactly as salary does
+ * (spec "Partial July" worked example: 9 días feeds BOTH the salary /31 and
+ * the SS /30 ratios with the identical numerator, only the denominator
+ * differs).
  *
  * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
  * when the run month has zero overlapping days, `grossCents`/`ssDeductionCents`
@@ -226,12 +252,14 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * the run month's own day-count.
  */
 export function calculatePayrollRun(input: PayrollInput): PayrollResult {
-  const { baseGrossCents, fullMonthSsCents, periodYear, periodMonth, altaDate, bajaDate } = input;
+  const { baseGrossCents, ratesConfig, contractType, periodYear, periodMonth, altaDate, bajaDate } = input;
 
   const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
 
   const proratedBaseCents = proratedAmount(baseGrossCents, effective.daysWorked, effective.daysInMonth);
-  const ssDeductionCents = proratedAmount(fullMonthSsCents, effective.daysWorked, effective.daysInMonth);
+  const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;
+  const ssDeductionCents = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType)
+    .proratedWorkerSsCents;
   const extraCents = resolveExtraPayCents(input);
 
   const grossCents = addCents(proratedBaseCents, extraCents);
