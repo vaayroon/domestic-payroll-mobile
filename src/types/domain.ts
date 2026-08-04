@@ -14,6 +14,16 @@
 
 import type { Cents } from './money';
 
+/**
+ * How an employee's employment is classified under the Régimen Especial de
+ * Empleados de Hogar -- selects the worker's desempleo (unemployment)
+ * contribution rate (6,40% INDEFINIDO / 6,45% TEMPORAL). Declared here (not
+ * in `features/payroll/domain/ssContribution.ts`) so `types/` stays
+ * dependency-free (CLAUDE.md §3): `ssContribution.ts` imports this type from
+ * `@/types` rather than the other way around.
+ */
+export type ContractType = 'INDEFINIDO' | 'TEMPORAL';
+
 /** The private household employer using the app (the account holder). */
 export interface Employer {
   readonly id: string;
@@ -41,6 +51,7 @@ export interface Employee {
   readonly active: boolean;
   readonly altaDate: string | null;
   readonly bajaDate: string | null;
+  readonly contractType: ContractType;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -53,6 +64,8 @@ export interface NewEmployee {
   readonly active?: boolean;
   readonly altaDate?: string | null;
   readonly bajaDate?: string | null;
+  /** Defaults to `'INDEFINIDO'` when omitted (matches the DB column's default; see `mappers.ts`). */
+  readonly contractType?: ContractType;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

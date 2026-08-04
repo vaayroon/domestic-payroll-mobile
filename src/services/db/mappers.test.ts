@@ -59,6 +59,7 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     active: true,
     altaDate: null,
     bajaDate: null,
+    contractType: 'INDEFINIDO',
   };
 
   it('brands baseGrossCents as Cents on the way out of the DB', () => {
@@ -93,7 +94,17 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
       active: true,
       altaDate: null,
       bajaDate: null,
+      contractType: 'INDEFINIDO',
     });
+  });
+
+  it('defaults contractType to INDEFINIDO and honors an explicit TEMPORAL', () => {
+    expect(
+      employeeInsertFromNew(
+        { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100), contractType: 'TEMPORAL' },
+        'employee-1',
+      ).contractType,
+    ).toBe('TEMPORAL');
   });
 
   it('defaults active to true and honors an explicit false', () => {

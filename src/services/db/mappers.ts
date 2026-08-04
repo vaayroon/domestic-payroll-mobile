@@ -67,6 +67,7 @@ export function employeeRowToDomain(row: EmployeeRow): Employee {
     active: row.active,
     altaDate: row.altaDate,
     bajaDate: row.bajaDate,
+    contractType: row.contractType,
   };
 }
 
@@ -81,6 +82,7 @@ export function employeeInsertFromNew(input: NewEmployee, id: string): EmployeeI
     active: input.active ?? true,
     altaDate: input.altaDate ?? null,
     bajaDate: input.bajaDate ?? null,
+    contractType: input.contractType ?? 'INDEFINIDO',
   };
 }
 
