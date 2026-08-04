@@ -1,23 +1,32 @@
 /**
  * Form-state hook backing the payroll run creation screen (design "Screen
- * architecture"): owns employee selection, the run period, the full-month SS
- * baseline input, and the pagas-extra mode; derives a live preview through
- * the pure `calculatePayrollRun` engine, and on submit guards against
- * duplicate periods (spec "Duplicate-Period Guard") before persisting.
+ * architecture"): owns employee selection, the run period, and the
+ * pagas-extra mode; derives a live, READ-ONLY SS preview through the pure
+ * `calculatePayrollRun` engine (SS is COMPUTED from the employee's base
+ * gross + contract type, never manually entered -- spec "PayrollRun consumes
+ * computed SS, not manual entry"), and on submit guards against duplicate
+ * periods (spec "Duplicate-Period Guard") before persisting.
+ *
+ * Year-not-loaded boundary (design ADR-2): `resolveRatesConfig` is called
+ * HERE, at the form-hook boundary -- never inside the pure engine. When the
+ * run period's year has no loaded `RatesConfig`, `preview` stays `null` and
+ * `ratesWarning` carries the Spanish message; `submit()` refuses to compute
+ * or persist anything for that period.
  *
  * Uses this feature's own `useActiveEmployees()` (payroll-owned employee
- * picker data, see that file's doc comment) and the pure `parseEuroInput`
- * euro parser from `@/core` -- resolving verify-report #678's WARNING by
- * depending only on core abstractions, never on `@/features/employees/**`
- * (CLAUDE.md §3's "depend on abstractions, never on other features" rule).
+ * picker data, see that file's doc comment) -- resolving verify-report
+ * #678's WARNING by depending only on core abstractions, never on
+ * `@/features/employees/**` (CLAUDE.md §3's "depend on abstractions, never
+ * on other features" rule).
  */
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { parseEuroInput, usePayrollRunRepository } from '@/core';
+import { usePayrollRunRepository } from '@/core';
 import type { Employee } from '@/types';
 
 import { calculatePayrollRun, type ExtraPayMode, type PayrollResult } from './engine';
+import { resolveRatesConfig } from './ssContribution';
 import { useActiveEmployees } from './useActiveEmployees';
 
 export interface UsePayrollRunFormResult {
@@ -29,15 +38,18 @@ export interface UsePayrollRunFormResult {
   readonly periodMonth: number;
   readonly incrementMonth: () => void;
   readonly decrementMonth: () => void;
-  readonly ssInput: string;
-  readonly setSsInput: (value: string) => void;
   readonly extraPayMode: ExtraPayMode;
   readonly setExtraPayMode: (mode: ExtraPayMode) => void;
   readonly preview: PayrollResult | null;
+  /** Spanish warning to show instead of a preview when the period year's SS rates are not loaded. */
+  readonly ratesWarning: string | null;
   readonly saving: boolean;
   readonly error: string | null;
   readonly submit: () => Promise<boolean>;
 }
+
+const RATES_NOT_LOADED_MESSAGE =
+  'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.';
 
 /** UI-only default for a brand-new form; NOT read by the pure engine itself (CLAUDE.md §3/§5 purity applies to `calculatePayrollRun`, not to this screen-level default). */
 function currentPeriod(): { readonly year: number; readonly month: number } {
@@ -60,7 +72,6 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [periodYear, setPeriodYear] = useState<number>(() => currentPeriod().year);
   const [periodMonth, setPeriodMonth] = useState<number>(() => currentPeriod().month);
-  const [ssInput, setSsInput] = useState('');
   const [extraPayMode, setExtraPayMode] = useState<ExtraPayMode>('EXCLUDE');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,24 +90,24 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
     [employees, selectedEmployeeId],
   );
 
+  const ratesResult = useMemo(() => resolveRatesConfig(periodYear), [periodYear]);
+  const ratesWarning = ratesResult.ok ? null : RATES_NOT_LOADED_MESSAGE;
+
   const preview = useMemo<PayrollResult | null>(() => {
-    if (selectedEmployee === null) {
-      return null;
-    }
-    const parsedSs = parseEuroInput(ssInput);
-    if (!parsedSs.ok) {
+    if (selectedEmployee === null || !ratesResult.ok) {
       return null;
     }
     return calculatePayrollRun({
       baseGrossCents: selectedEmployee.baseGrossCents,
-      fullMonthSsCents: parsedSs.value,
+      ratesConfig: ratesResult.config,
+      contractType: selectedEmployee.contractType,
       periodYear,
       periodMonth,
       altaDate: selectedEmployee.altaDate,
       bajaDate: selectedEmployee.bajaDate,
       extraPayMode,
     });
-  }, [selectedEmployee, ssInput, periodYear, periodMonth, extraPayMode]);
+  }, [selectedEmployee, ratesResult, periodYear, periodMonth, extraPayMode]);
 
   const submit = async (): Promise<boolean> => {
     if (selectedEmployee === null) {
@@ -104,9 +115,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
       return false;
     }
 
-    const parsedSs = parseEuroInput(ssInput);
-    if (!parsedSs.ok) {
-      setError('Introduce un importe de cotización SS válido.');
+    if (!ratesResult.ok) {
+      setError(RATES_NOT_LOADED_MESSAGE);
       return false;
     }
 
@@ -124,7 +134,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
 
       const result = calculatePayrollRun({
         baseGrossCents: selectedEmployee.baseGrossCents,
-        fullMonthSsCents: parsedSs.value,
+        ratesConfig: ratesResult.config,
+        contractType: selectedEmployee.contractType,
         periodYear,
         periodMonth,
         altaDate: selectedEmployee.altaDate,
@@ -170,11 +181,10 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
       setPeriodYear(next.year);
       setPeriodMonth(next.month);
     },
-    ssInput,
-    setSsInput,
     extraPayMode,
     setExtraPayMode,
     preview,
+    ratesWarning,
     saving,
     error,
     submit,

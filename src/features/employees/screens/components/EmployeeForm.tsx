@@ -29,6 +29,15 @@ const BAJA_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baja']>, strin
   before_alta: 'La fecha de baja no puede ser anterior a la fecha de alta.',
 };
 
+const CONTRACT_TYPE_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['contractType']>, string> = {
+  required: 'Selecciona el tipo de contrato.',
+};
+
+const CONTRACT_TYPE_LABELS: Record<'INDEFINIDO' | 'TEMPORAL', string> = {
+  INDEFINIDO: 'Indefinido',
+  TEMPORAL: 'Temporal',
+};
+
 export interface EmployeeFormProps {
   readonly values: EmployeeFormInput;
   readonly errors: EmployeeFormErrors;
@@ -124,6 +133,30 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
         />
         {errors.baja !== undefined ? (
           <Text className="mt-1 text-sm text-red-400">{BAJA_ERROR_MESSAGES[errors.baja]}</Text>
+        ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Tipo de contrato</Text>
+        <View className="flex-row gap-2">
+          {(Object.keys(CONTRACT_TYPE_LABELS) as (keyof typeof CONTRACT_TYPE_LABELS)[]).map((contractType) => {
+            const selected = values.contractType === contractType;
+            return (
+              <Pressable
+                key={contractType}
+                testID={`employee-form-contract-type-${contractType}`}
+                onPress={() => onChangeField('contractType', contractType)}
+                className={`rounded-md px-3 py-2 ${selected ? 'bg-emerald-800' : 'bg-slate-800'}`}
+              >
+                <Text className={selected ? 'font-semibold text-emerald-300' : 'text-white'}>
+                  {CONTRACT_TYPE_LABELS[contractType]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {errors.contractType !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{CONTRACT_TYPE_ERROR_MESSAGES[errors.contractType]}</Text>
         ) : null}
       </View>
 

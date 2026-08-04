@@ -8,7 +8,7 @@ const FAKE_EMPLOYER_ID = 'employer-fake-1';
 describe('validateEmployeeForm', () => {
   it('accepts a valid form with NIF/NAF blank', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -22,13 +22,43 @@ describe('validateEmployeeForm', () => {
         baseGrossCents: cents(90000),
         altaDate: null,
         bajaDate: null,
+        contractType: 'INDEFINIDO',
       },
     });
   });
 
+  it('accepts a valid form with contractType TEMPORAL', () => {
+    const result = validateEmployeeForm(
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'TEMPORAL' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.contractType).toBe('TEMPORAL');
+    }
+  });
+
+  it('rejects a blank contractType as required', () => {
+    const result = validateEmployeeForm(
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: '' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { contractType: 'required' } });
+  });
+
   it('trims NIF/NAF and keeps them when present', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: ' 00000000T ', naf: ' 000000000000 ', baseGross: '900', alta: '', baja: '' },
+      {
+        name: 'Empleado de Prueba',
+        nif: ' 00000000T ',
+        naf: ' 000000000000 ',
+        baseGross: '900',
+        alta: '',
+        baja: '',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
@@ -41,7 +71,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an empty name', () => {
     const result = validateEmployeeForm(
-      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '' },
+      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -50,7 +80,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a zero base gross as not_positive', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -59,7 +89,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an invalid base gross and forwards the parse error', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -68,7 +98,7 @@ describe('validateEmployeeForm', () => {
 
   it('reports both errors when name and base gross are both invalid', () => {
     const result = validateEmployeeForm(
-      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '' },
+      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -77,7 +107,15 @@ describe('validateEmployeeForm', () => {
 
   it('accepts a valid alta/baja ordering (baja after alta)', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '2026-07-23', baja: '2026-12-31' },
+      {
+        name: 'Empleado de Prueba',
+        nif: '',
+        naf: '',
+        baseGross: '900',
+        alta: '2026-07-23',
+        baja: '2026-12-31',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
@@ -91,13 +129,22 @@ describe('validateEmployeeForm', () => {
         baseGrossCents: cents(90000),
         altaDate: '2026-07-23',
         bajaDate: '2026-12-31',
+        contractType: 'INDEFINIDO',
       },
     });
   });
 
   it('accepts baja equal to alta (same-day employment)', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '2026-07-23', baja: '2026-07-23' },
+      {
+        name: 'Empleado de Prueba',
+        nif: '',
+        naf: '',
+        baseGross: '900',
+        alta: '2026-07-23',
+        baja: '2026-07-23',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
@@ -106,7 +153,15 @@ describe('validateEmployeeForm', () => {
 
   it('rejects baja before alta with before_alta', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '2026-12-31', baja: '2026-07-23' },
+      {
+        name: 'Empleado de Prueba',
+        nif: '',
+        naf: '',
+        baseGross: '900',
+        alta: '2026-12-31',
+        baja: '2026-07-23',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
@@ -115,7 +170,7 @@ describe('validateEmployeeForm', () => {
 
   it('accepts both alta and baja absent', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -128,7 +183,15 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a malformed alta date as invalid_date', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '23-07-2026', baja: '' },
+      {
+        name: 'Empleado de Prueba',
+        nif: '',
+        naf: '',
+        baseGross: '900',
+        alta: '23-07-2026',
+        baja: '',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
@@ -137,7 +200,15 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a calendar-invalid baja date as invalid_date', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '2026-02-30' },
+      {
+        name: 'Empleado de Prueba',
+        nif: '',
+        naf: '',
+        baseGross: '900',
+        alta: '',
+        baja: '2026-02-30',
+        contractType: 'INDEFINIDO',
+      },
       FAKE_EMPLOYER_ID,
     );
 
