@@ -21,10 +21,14 @@
  * no provincia-range check is applied (province codes run 01-52 plus special
  * codes ≥53, so a hard cap risks false rejections too).
  *
- * TODO(recibo-oficial slice): implement the TGSS control-digit checksum once
- * the exact weight vector + remainder-10/11 handling is authoritatively
- * verified, and re-validate/re-derive golden vectors at that time. Only then
- * does CCC get rendered on the receipt (design ADR-2).
+ * RE-VERIFICATION OUTCOME (recibo-oficial slice, design ADR-2/B1): the CCC
+ * checksum was re-investigated when the receipt gained a CCC line -- NO
+ * authoritative TGSS control-digit spec was found this time either, so the
+ * checksum is DEFERRED AGAIN. Structural-only validation (`\d{11,12}`) ships
+ * unchanged. The receipt now DOES render the CCC value (see
+ * `features/payroll/receipt/buildReceiptViewModel.ts`), but strictly as a
+ * plain stored value -- no checksum badge, no "verified" claim is ever
+ * rendered alongside it.
  */
 
 const CCC_SEPARATOR_PATTERN = /[\s/-]/g;
