@@ -6,6 +6,7 @@ import {
   daysWorkedInInterval,
   proratedAmount,
   resolveEffectivePeriod,
+  resolveEffectivePeriodFromRange,
   resolveExtraPayCents,
   semesterBounds,
   type PayrollInput,
@@ -104,6 +105,82 @@ describe('resolveEffectivePeriod', () => {
     const result = resolveEffectivePeriod(2026, 7, null, '2026-06-30');
     expect(result.daysWorked).toBe(0);
     expect(result.endDay).toBe(0);
+  });
+});
+
+describe('resolveEffectivePeriodFromRange', () => {
+  it('full range covering the whole month => full month, not prorated', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-01', '2026-06-30');
+    expect(result.daysWorked).toBe(30);
+    expect(result.daysInMonth).toBe(30);
+    expect(result.prorated).toBe(false);
+  });
+
+  it('partial start only (open end) => clips at the start', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-10', null);
+    expect(result.startDay).toBe(10);
+    expect(result.endDay).toBe(30);
+    expect(result.daysWorked).toBe(21);
+    expect(result.prorated).toBe(true);
+  });
+
+  it('partial end only (open start) => clips at the end', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, null, '2026-06-20');
+    expect(result.startDay).toBe(1);
+    expect(result.endDay).toBe(20);
+    expect(result.daysWorked).toBe(20);
+    expect(result.prorated).toBe(true);
+  });
+
+  it('mid-month-only range clips both ends (spec Scenario 6): daysWorked=11, daysInMonth=30', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-10', '2026-06-20');
+    expect(result.daysWorked).toBe(11);
+    expect(result.daysInMonth).toBe(30);
+    expect(result.prorated).toBe(true);
+  });
+
+  it('single-day range (spec Scenario 7): daysWorked=1', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-15', '2026-06-15');
+    expect(result.daysWorked).toBe(1);
+  });
+
+  it('range fully outside the target month (spec Scenario 8): daysWorked=0, no throw', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-05-01', '2026-05-31');
+    expect(result.daysWorked).toBe(0);
+    expect(result.endDay).toBe(0);
+  });
+
+  it('inverted range (start > end) degrades to zero-overlap, matching the alta/baja no-overlap shape', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-20', '2026-06-10');
+    expect(result).toEqual({ startDay: 1, endDay: 0, daysWorked: 0, daysInMonth: 30, prorated: true });
+  });
+
+  it('null start and present end => same as partial-end-only', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, null, '2026-06-20');
+    expect(result.daysWorked).toBe(20);
+  });
+
+  it('present start and null end => same as partial-start-only', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-06-10', null);
+    expect(result.daysWorked).toBe(21);
+  });
+
+  it('both null => full month, not prorated (falls back to unbounded, same shape as resolveEffectivePeriod)', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, null, null);
+    expect(result.daysWorked).toBe(30);
+    expect(result.prorated).toBe(false);
+  });
+
+  it('range wider than the month clips to the full month, prorated:false', () => {
+    const result = resolveEffectivePeriodFromRange(2026, 6, '2026-01-01', '2026-12-31');
+    expect(result.daysWorked).toBe(30);
+    expect(result.prorated).toBe(false);
+  });
+
+  it('produces identical results to resolveEffectivePeriod for the same bounds (shared helper, no drift)', () => {
+    const viaAltaBaja = resolveEffectivePeriod(2026, 6, '2026-06-10', '2026-06-20');
+    const viaRange = resolveEffectivePeriodFromRange(2026, 6, '2026-06-10', '2026-06-20');
+    expect(viaRange).toEqual(viaAltaBaja);
   });
 });
 
@@ -357,6 +434,55 @@ describe('calculatePayrollRun', () => {
       const semesterDaysWorked = daysWorkedInInterval('2026-02-01', '2026-04-30', startIso, endIso);
       const semesterTotalDays = daysWorkedInInterval(null, null, startIso, endIso);
       expect(result.extraCents).toBe(proratedAmount(FAKE_BASE_GROSS, semesterDaysWorked, semesterTotalDays));
+    });
+  });
+
+  describe('period-range derivation (design D1)', () => {
+    it('derives the effective period from the explicit range when supplied, ignoring alta/baja for the run-month days', () => {
+      const result = calculatePayrollRun(
+        baseInput({
+          periodMonth: 6,
+          altaDate: '2026-01-01',
+          bajaDate: null,
+          periodStartDate: '2026-06-10',
+          periodEndDate: '2026-06-20',
+        }),
+      );
+      expect(result.daysWorked).toBe(11);
+      expect(result.daysInMonth).toBe(30);
+      expect(result.prorated).toBe(true);
+    });
+
+    it('falls back to alta/baja when both range fields are null/absent (no derivation call attempted, no crash)', () => {
+      const withRange = calculatePayrollRun(
+        baseInput({ periodMonth: 7, altaDate: '2026-07-23', bajaDate: null, periodStartDate: null, periodEndDate: null }),
+      );
+      const withoutRangeField = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: '2026-07-23', bajaDate: null }));
+      expect(withRange).toEqual(withoutRangeField);
+      expect(withRange.daysWorked).toBe(9);
+    });
+
+    it('a range with only periodStartDate set is enough to trigger range-based derivation', () => {
+      const result = calculatePayrollRun(
+        baseInput({ periodMonth: 6, altaDate: null, bajaDate: null, periodStartDate: '2026-06-15', periodEndDate: null }),
+      );
+      expect(result.daysWorked).toBe(16);
+    });
+
+    it('June semester extra pay still derives from alta/baja regardless of the persisted range', () => {
+      const result = calculatePayrollRun(
+        baseInput({
+          periodMonth: 6,
+          extraPayMode: 'INCLUDE_IN_MONTH',
+          altaDate: null,
+          bajaDate: null,
+          periodStartDate: '2026-06-10',
+          periodEndDate: '2026-06-20',
+        }),
+      );
+      // Extra pay accrues over the full H1 semester (alta/baja both null => fully worked),
+      // independent of the narrower run-month range used for salary/SS proration.
+      expect(result.extraCents).toBe(FAKE_BASE_GROSS);
     });
   });
 

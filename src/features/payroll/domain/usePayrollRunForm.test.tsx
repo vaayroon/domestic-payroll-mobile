@@ -127,6 +127,8 @@ describe('usePayrollRunForm', () => {
       extraCents: harness.current.preview?.extraCents,
       daysWorked: harness.current.preview?.daysWorked,
       daysInMonth: harness.current.preview?.daysInMonth,
+      periodStartDate: harness.current.periodStartDate,
+      periodEndDate: harness.current.periodEndDate,
     });
     expect(harness.current.error).toBeNull();
   });
@@ -200,6 +202,81 @@ describe('usePayrollRunForm', () => {
     expect(harness.current.preview?.ssDeductionCents).toBe(cents(0));
     expect(harness.current.preview?.netCents).toBe(cents(44254));
     expect(harness.current.preview?.prorated).toBe(true);
+  });
+
+  describe('period-range prefill (spec Scenarios 3, 4, 5)', () => {
+    it('prefills the full month when altaDate/bajaDate are both null (Scenario 3)', async () => {
+      const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], new InMemoryPayrollRunRepository());
+      const { periodYear, periodMonth } = harness.current;
+      const totalDays = new Date(Date.UTC(periodYear, periodMonth, 0)).getUTCDate();
+      const pad = (n: number) => String(n).padStart(2, '0');
+
+      expect(harness.current.periodStartDate).toBe(`${periodYear}-${pad(periodMonth)}-01`);
+      expect(harness.current.periodEndDate).toBe(`${periodYear}-${pad(periodMonth)}-${pad(totalDays)}`);
+    });
+
+    it('prefills from a mid-month altaDate, clipped to the selected month (Scenario 4)', async () => {
+      const employeeMidMonthAlta: Employee = { ...FAKE_EMPLOYEE, altaDate: '2026-06-10' };
+      const harness = await renderUsePayrollRunForm([employeeMidMonthAlta], new InMemoryPayrollRunRepository());
+
+      while (harness.current.periodMonth !== 6 || harness.current.periodYear !== 2026) {
+        const goingUp = harness.current.periodYear < 2026 || (harness.current.periodYear === 2026 && harness.current.periodMonth < 6);
+        await act(async () => {
+          if (goingUp) {
+            harness.current.incrementMonth();
+          } else {
+            harness.current.decrementMonth();
+          }
+        });
+      }
+
+      expect(harness.current.periodStartDate).toBe('2026-06-10');
+      expect(harness.current.periodEndDate).toBe('2026-06-30');
+    });
+
+    it('prefills up to a mid-month bajaDate, clipped to the selected month (Scenario 5)', async () => {
+      const employeeMidMonthBaja: Employee = { ...FAKE_EMPLOYEE, bajaDate: '2026-06-20' };
+      const harness = await renderUsePayrollRunForm([employeeMidMonthBaja], new InMemoryPayrollRunRepository());
+
+      while (harness.current.periodMonth !== 6 || harness.current.periodYear !== 2026) {
+        const goingUp = harness.current.periodYear < 2026 || (harness.current.periodYear === 2026 && harness.current.periodMonth < 6);
+        await act(async () => {
+          if (goingUp) {
+            harness.current.incrementMonth();
+          } else {
+            harness.current.decrementMonth();
+          }
+        });
+      }
+
+      expect(harness.current.periodStartDate).toBe('2026-06-01');
+      expect(harness.current.periodEndDate).toBe('2026-06-20');
+    });
+  });
+
+  describe('range validation (spec Scenario 9)', () => {
+    it('rejects start > end: preview becomes null, rangeError is set, and submit is blocked without ever computing a run', async () => {
+      const payrollRunRepository = new InMemoryPayrollRunRepository();
+      const createSpy = jest.spyOn(payrollRunRepository, 'create');
+      const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], payrollRunRepository);
+
+      await act(async () => {
+        harness.current.setPeriodStartDate('2026-06-20');
+        harness.current.setPeriodEndDate('2026-06-10');
+      });
+
+      expect(harness.current.rangeError).toBe('La fecha de inicio no puede ser posterior a la fecha de fin.');
+      expect(harness.current.preview).toBeNull();
+
+      let success = true;
+      await act(async () => {
+        success = await harness.current.submit();
+      });
+
+      expect(success).toBe(false);
+      expect(createSpy).not.toHaveBeenCalled();
+      expect(harness.current.error).toBe('La fecha de inicio no puede ser posterior a la fecha de fin.');
+    });
   });
 
   it('year_not_loaded: preview stays null and a Spanish warning is set; submit refuses to persist (design ADR-2)', async () => {

@@ -12,7 +12,7 @@
  * the preview entirely.
  */
 
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import type { Employee } from '@/types';
 
@@ -37,6 +37,13 @@ export interface PayrollRunFormProps {
   readonly onDecrementMonth: () => void;
   readonly extraPayMode: ExtraPayMode;
   readonly onChangeExtraPayMode: (mode: ExtraPayMode) => void;
+  /** Editable per-run period date range (ISO `'YYYY-MM-DD'`), prefilled from alta/baja clipped to the selected month. */
+  readonly periodStartDate: string | null;
+  readonly onChangePeriodStartDate: (date: string | null) => void;
+  readonly periodEndDate: string | null;
+  readonly onChangePeriodEndDate: (date: string | null) => void;
+  /** Spanish validation error when the start date is after the end date. */
+  readonly rangeError: string | null;
   readonly preview: PayrollResult | null;
   /** Spanish warning shown instead of the preview when the period year's SS rates are not loaded. */
   readonly ratesWarning: string | null;
@@ -56,6 +63,11 @@ export function PayrollRunForm({
   onDecrementMonth,
   extraPayMode,
   onChangeExtraPayMode,
+  periodStartDate,
+  onChangePeriodStartDate,
+  periodEndDate,
+  onChangePeriodEndDate,
+  rangeError,
   preview,
   ratesWarning,
   saving,
@@ -106,6 +118,39 @@ export function PayrollRunForm({
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Rango de días trabajados</Text>
+        <View className="flex-row gap-2">
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-slate-400">Desde</Text>
+            <TextInput
+              testID="payroll-run-form-period-start"
+              className="rounded-md bg-slate-800 px-3 py-2 text-white"
+              value={periodStartDate ?? ''}
+              onChangeText={(text) => onChangePeriodStartDate(text.length > 0 ? text : null)}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="mb-1 text-xs text-slate-400">Hasta</Text>
+            <TextInput
+              testID="payroll-run-form-period-end"
+              className="rounded-md bg-slate-800 px-3 py-2 text-white"
+              value={periodEndDate ?? ''}
+              onChangeText={(text) => onChangePeriodEndDate(text.length > 0 ? text : null)}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+        </View>
+        {rangeError !== null ? (
+          <Text testID="payroll-run-form-range-error" className="mt-1 text-sm text-red-400">
+            {rangeError}
+          </Text>
+        ) : null}
       </View>
 
       <View>

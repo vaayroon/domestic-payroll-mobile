@@ -25,7 +25,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePayrollRunRepository } from '@/core';
 import type { Employee } from '@/types';
 
-import { calculatePayrollRun, type ExtraPayMode, type PayrollResult } from './engine';
+import { calculatePayrollRun, resolveEffectivePeriod, type ExtraPayMode, type PayrollResult } from './engine';
 import { resolveRatesConfig } from './ssContribution';
 import { useActiveEmployees } from './useActiveEmployees';
 
@@ -40,6 +40,19 @@ export interface UsePayrollRunFormResult {
   readonly decrementMonth: () => void;
   readonly extraPayMode: ExtraPayMode;
   readonly setExtraPayMode: (mode: ExtraPayMode) => void;
+  /**
+   * Editable per-run period date range (ISO `'YYYY-MM-DD'`), prefilled from
+   * the selected employee's `altaDate`/`bajaDate` clipped to the selected
+   * month (spec "Range prefill from alta/baja clipped to month", Scenarios
+   * 3/4/5). `null` when there is no overlap to prefill or no employee
+   * selected yet -- the user may still fill both fields in manually.
+   */
+  readonly periodStartDate: string | null;
+  readonly setPeriodStartDate: (date: string | null) => void;
+  readonly periodEndDate: string | null;
+  readonly setPeriodEndDate: (date: string | null) => void;
+  /** Spanish validation error when `periodStartDate > periodEndDate` (spec Scenario 9); `null` when the range is valid or incomplete. */
+  readonly rangeError: string | null;
   readonly preview: PayrollResult | null;
   /** Spanish warning to show instead of a preview when the period year's SS rates are not loaded. */
   readonly ratesWarning: string | null;
@@ -65,6 +78,13 @@ function shiftMonth(year: number, month: number, delta: 1 | -1): { readonly year
   return { year: year + yearOffset, month: normalizedMonth + 1 };
 }
 
+/** Formats a 1-based calendar day within `year`-`month` as an ISO `'YYYY-MM-DD'` string. UI-formatting only, not engine logic. */
+function isoForDay(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+const RANGE_INVALID_MESSAGE = 'La fecha de inicio no puede ser posterior a la fecha de fin.';
+
 export function usePayrollRunForm(): UsePayrollRunFormResult {
   const { employees, loading: employeesLoading } = useActiveEmployees();
   const payrollRunRepository = usePayrollRunRepository();
@@ -73,6 +93,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
   const [periodYear, setPeriodYear] = useState<number>(() => currentPeriod().year);
   const [periodMonth, setPeriodMonth] = useState<number>(() => currentPeriod().month);
   const [extraPayMode, setExtraPayMode] = useState<ExtraPayMode>('EXCLUDE');
+  const [periodStartDate, setPeriodStartDate] = useState<string | null>(null);
+  const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,11 +112,38 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
     [employees, selectedEmployeeId],
   );
 
+  // Range prefill (spec "Range prefill from alta/baja clipped to month",
+  // Scenarios 3/4/5): re-derived at the hook boundary from the pure
+  // `resolveEffectivePeriod`, then ISO-ified for the editable inputs.
+  // Re-prefills whenever the employee or the selected period changes; the
+  // user is free to edit the range afterwards, before submitting.
+  useEffect(() => {
+    if (selectedEmployee === null) {
+      setPeriodStartDate(null);
+      setPeriodEndDate(null);
+      return;
+    }
+    const effective = resolveEffectivePeriod(periodYear, periodMonth, selectedEmployee.altaDate, selectedEmployee.bajaDate);
+    if (effective.daysWorked === 0) {
+      setPeriodStartDate(null);
+      setPeriodEndDate(null);
+      return;
+    }
+    setPeriodStartDate(isoForDay(periodYear, periodMonth, effective.startDay));
+    setPeriodEndDate(isoForDay(periodYear, periodMonth, effective.endDay));
+  }, [selectedEmployee, periodYear, periodMonth]);
+
+  // Invalid-range guard (spec Scenario 9): rejected here, BEFORE it ever
+  // reaches `calculatePayrollRun`/`resolveEffectivePeriodFromRange` -- an
+  // invalid range must never be passed to the derivation function.
+  const rangeInvalid = periodStartDate !== null && periodEndDate !== null && periodStartDate > periodEndDate;
+  const rangeError = rangeInvalid ? RANGE_INVALID_MESSAGE : null;
+
   const ratesResult = useMemo(() => resolveRatesConfig(periodYear), [periodYear]);
   const ratesWarning = ratesResult.ok ? null : RATES_NOT_LOADED_MESSAGE;
 
   const preview = useMemo<PayrollResult | null>(() => {
-    if (selectedEmployee === null || !ratesResult.ok) {
+    if (selectedEmployee === null || !ratesResult.ok || rangeInvalid) {
       return null;
     }
     return calculatePayrollRun({
@@ -106,8 +155,10 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
       altaDate: selectedEmployee.altaDate,
       bajaDate: selectedEmployee.bajaDate,
       extraPayMode,
+      periodStartDate,
+      periodEndDate,
     });
-  }, [selectedEmployee, ratesResult, periodYear, periodMonth, extraPayMode]);
+  }, [selectedEmployee, ratesResult, periodYear, periodMonth, extraPayMode, periodStartDate, periodEndDate, rangeInvalid]);
 
   const submit = async (): Promise<boolean> => {
     if (selectedEmployee === null) {
@@ -117,6 +168,11 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
 
     if (!ratesResult.ok) {
       setError(RATES_NOT_LOADED_MESSAGE);
+      return false;
+    }
+
+    if (rangeInvalid) {
+      setError(RANGE_INVALID_MESSAGE);
       return false;
     }
 
@@ -141,6 +197,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
         altaDate: selectedEmployee.altaDate,
         bajaDate: selectedEmployee.bajaDate,
         extraPayMode,
+        periodStartDate,
+        periodEndDate,
       });
 
       await payrollRunRepository.create({
@@ -154,6 +212,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
         extraCents: result.extraCents,
         daysWorked: result.daysWorked,
         daysInMonth: result.daysInMonth,
+        periodStartDate,
+        periodEndDate,
       });
       return true;
     } catch (caught) {
@@ -183,6 +243,11 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
     },
     extraPayMode,
     setExtraPayMode,
+    periodStartDate,
+    setPeriodStartDate,
+    periodEndDate,
+    setPeriodEndDate,
+    rangeError,
     preview,
     ratesWarning,
     saving,

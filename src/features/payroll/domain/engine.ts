@@ -61,6 +61,17 @@ export interface PayrollInput {
   /** ISO `'YYYY-MM-DD'` termination date, or `null` if still employed after the period. */
   readonly bajaDate: string | null;
   readonly extraPayMode: ExtraPayMode;
+  /**
+   * Optional per-run period date range (ISO `'YYYY-MM-DD'`), edited/confirmed
+   * on the run form. When either bound is present, it SUPPLEMENTS (never
+   * replaces) `altaDate`/`bajaDate` for the run-month's effective-period
+   * derivation only -- `resolveExtraPayCents`'s semester accrual keeps using
+   * `altaDate`/`bajaDate` regardless, since a per-month range cannot express a
+   * 6-month accrual window. `null`/absent on both falls back to
+   * `resolveEffectivePeriod(altaDate, bajaDate)`.
+   */
+  readonly periodStartDate?: string | null;
+  readonly periodEndDate?: string | null;
 }
 
 /** The run month resolved against the employment interval, in calendar days. */
@@ -117,28 +128,35 @@ function isoToUtcEpoch(iso: string): number {
 }
 
 /**
- * Resolves how much of calendar month `year`-`month` was actually worked,
- * given an employment interval `[altaDate?..bajaDate?]`. `null` on either
- * side means "unbounded" on that side (employed before/after the period).
+ * Shared clip-to-month math: resolves how much of calendar month
+ * `year`-`month` overlaps interval `[startIso?..endIso?]`. `null` on either
+ * side means "unbounded" on that side. This is the SINGLE source of the
+ * interval∩month day-count logic -- `resolveEffectivePeriod` (alta/baja) and
+ * `resolveEffectivePeriodFromRange` (persisted period range) both delegate
+ * here rather than duplicating it. An inverted interval (`startIso` after
+ * `endIso`) degrades gracefully to the same "no overlap" result as an
+ * interval that falls entirely outside the month -- callers that must reject
+ * an inverted range as a validation error (e.g. the run form, spec Scenario
+ * 9) do so BEFORE calling this function; this function itself never throws.
  */
-export function resolveEffectivePeriod(
+function clipIntervalToMonth(
   year: number,
   month: number,
-  alta: string | null,
-  baja: string | null,
+  startIso: string | null,
+  endIso: string | null,
 ): EffectivePeriod {
   const totalDays = daysInMonth(year, month);
   const periodStartEpoch = Date.UTC(year, month - 1, 1);
   const periodEndEpoch = Date.UTC(year, month - 1, totalDays);
 
-  const altaEpoch = alta === null ? null : isoToUtcEpoch(alta);
-  const bajaEpoch = baja === null ? null : isoToUtcEpoch(baja);
+  const startEpoch = startIso === null ? null : isoToUtcEpoch(startIso);
+  const endEpoch = endIso === null ? null : isoToUtcEpoch(endIso);
 
-  const effectiveStartEpoch = altaEpoch === null ? periodStartEpoch : Math.max(altaEpoch, periodStartEpoch);
-  const effectiveEndEpoch = bajaEpoch === null ? periodEndEpoch : Math.min(bajaEpoch, periodEndEpoch);
+  const effectiveStartEpoch = startEpoch === null ? periodStartEpoch : Math.max(startEpoch, periodStartEpoch);
+  const effectiveEndEpoch = endEpoch === null ? periodEndEpoch : Math.min(endEpoch, periodEndEpoch);
 
   if (effectiveEndEpoch < effectiveStartEpoch) {
-    // No overlap at all (alta after period end, or baja before period start).
+    // No overlap at all (interval after period end, before period start, or inverted).
     return { startDay: 1, endDay: 0, daysWorked: 0, daysInMonth: totalDays, prorated: true };
   }
 
@@ -148,6 +166,40 @@ export function resolveEffectivePeriod(
   const prorated = startDay > 1 || endDay < totalDays;
 
   return { startDay, endDay, daysWorked, daysInMonth: totalDays, prorated };
+}
+
+/**
+ * Resolves how much of calendar month `year`-`month` was actually worked,
+ * given an employment interval `[altaDate?..bajaDate?]`. `null` on either
+ * side means "unbounded" on that side (employed before/after the period).
+ * Thin delegate over `clipIntervalToMonth` -- kept as its own named export
+ * since alta/baja remain the canonical employee-fact prefill source.
+ */
+export function resolveEffectivePeriod(
+  year: number,
+  month: number,
+  alta: string | null,
+  baja: string | null,
+): EffectivePeriod {
+  return clipIntervalToMonth(year, month, alta, baja);
+}
+
+/**
+ * Resolves how much of calendar month `year`-`month` overlaps a persisted
+ * per-run `[periodStartDate?..periodEndDate?]` range (spec
+ * "payroll-run-period-range", design D1). Delegates to the SAME
+ * `clipIntervalToMonth` helper as `resolveEffectivePeriod` -- no duplicated
+ * day-count logic. Callers (e.g. `calculatePayrollRun`) choose between this
+ * and `resolveEffectivePeriod` based on whether a range was supplied; both
+ * remain pure with no clock reads.
+ */
+export function resolveEffectivePeriodFromRange(
+  year: number,
+  month: number,
+  periodStartDate: string | null,
+  periodEndDate: string | null,
+): EffectivePeriod {
+  return clipIntervalToMonth(year, month, periodStartDate, periodEndDate);
 }
 
 /** Prorates `fullAmount` by `daysWorked / days`, rounded exactly once (money.ts §4). */
@@ -252,9 +304,12 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * the run month's own day-count.
  */
 export function calculatePayrollRun(input: PayrollInput): PayrollResult {
-  const { baseGrossCents, ratesConfig, contractType, periodYear, periodMonth, altaDate, bajaDate } = input;
+  const { baseGrossCents, ratesConfig, contractType, periodYear, periodMonth, altaDate, bajaDate, periodStartDate, periodEndDate } = input;
 
-  const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+  const hasExplicitRange = (periodStartDate ?? periodEndDate ?? null) !== null;
+  const effective = hasExplicitRange
+    ? resolveEffectivePeriodFromRange(periodYear, periodMonth, periodStartDate ?? null, periodEndDate ?? null)
+    : resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
 
   const proratedBaseCents = proratedAmount(baseGrossCents, effective.daysWorked, effective.daysInMonth);
   const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;

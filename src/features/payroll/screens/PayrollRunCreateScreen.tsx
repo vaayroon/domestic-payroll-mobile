@@ -21,6 +21,11 @@ export function PayrollRunCreateScreen() {
     decrementMonth,
     extraPayMode,
     setExtraPayMode,
+    periodStartDate,
+    setPeriodStartDate,
+    periodEndDate,
+    setPeriodEndDate,
+    rangeError,
     preview,
     ratesWarning,
     saving,
@@ -47,6 +52,11 @@ export function PayrollRunCreateScreen() {
       onDecrementMonth={decrementMonth}
       extraPayMode={extraPayMode}
       onChangeExtraPayMode={setExtraPayMode}
+      periodStartDate={periodStartDate}
+      onChangePeriodStartDate={setPeriodStartDate}
+      periodEndDate={periodEndDate}
+      onChangePeriodEndDate={setPeriodEndDate}
+      rangeError={rangeError}
       preview={preview}
       ratesWarning={ratesWarning}
       saving={saving}
