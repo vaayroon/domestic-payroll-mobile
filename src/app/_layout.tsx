@@ -8,7 +8,9 @@ import { Text } from 'react-native';
 import {
   CurrentEmployerProvider,
   MailServiceProvider,
+  NotifyServiceProvider,
   PdfServiceProvider,
+  ReminderProvider,
   RepositoryProvider,
   type Repositories,
 } from '@/core';
@@ -23,6 +25,7 @@ import {
   SettingsRepositoryDrizzle,
 } from '@/services/db';
 import { ExpoMailSender, ExpoSharingPdfSharer } from '@/services/mail';
+import { ExpoNotificationScheduler } from '@/services/notify';
 import { ExpoPrintReceiptGenerator } from '@/services/pdf';
 
 import '@/global.css';
@@ -40,6 +43,7 @@ import '@/global.css';
 const pdfGenerator = new ExpoPrintReceiptGenerator();
 const pdfSharer = new ExpoSharingPdfSharer();
 const mailSender = new ExpoMailSender();
+const notificationScheduler = new ExpoNotificationScheduler();
 
 function DatabaseRepositories({ children }: { children: ReactNode }) {
   const connection = useSQLiteContext();
@@ -66,41 +70,49 @@ export default function RootLayout() {
         <CurrentEmployerProvider>
           <PdfServiceProvider generator={pdfGenerator}>
             <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
-              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                <Stack>
-                  <Stack.Screen
-                    name="index"
-                    options={{
-                      title: 'Empleados',
-                      headerRight: () => (
-                        <Link href="/settings/employer" testID="header-settings-link">
-                          <Text className="text-emerald-400">Ajustes</Text>
-                        </Link>
-                      ),
-                    }}
-                  />
-                  <Stack.Screen
-                    name="employees/new"
-                    options={{ presentation: 'modal', title: 'Nuevo empleado' }}
-                  />
-                  <Stack.Screen
-                    name="employees/[id]/edit"
-                    options={{ presentation: 'modal', title: 'Editar empleado' }}
-                  />
-                  <Stack.Screen
-                    name="payroll/new"
-                    options={{ presentation: 'modal', title: 'Nueva nómina' }}
-                  />
-                  <Stack.Screen
-                    name="payroll/history/[employeeId]"
-                    options={{ title: 'Historial de nóminas' }}
-                  />
-                  <Stack.Screen
-                    name="settings/employer"
-                    options={{ presentation: 'modal', title: 'Datos del empleador' }}
-                  />
-                </Stack>
-              </ThemeProvider>
+              <NotifyServiceProvider scheduler={notificationScheduler}>
+                <ReminderProvider>
+                  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                    <Stack>
+                      <Stack.Screen
+                        name="index"
+                        options={{
+                          title: 'Empleados',
+                          headerRight: () => (
+                            <Link href="/settings/employer" testID="header-settings-link">
+                              <Text className="text-emerald-400">Ajustes</Text>
+                            </Link>
+                          ),
+                        }}
+                      />
+                      <Stack.Screen
+                        name="employees/new"
+                        options={{ presentation: 'modal', title: 'Nuevo empleado' }}
+                      />
+                      <Stack.Screen
+                        name="employees/[id]/edit"
+                        options={{ presentation: 'modal', title: 'Editar empleado' }}
+                      />
+                      <Stack.Screen
+                        name="payroll/new"
+                        options={{ presentation: 'modal', title: 'Nueva nómina' }}
+                      />
+                      <Stack.Screen
+                        name="payroll/history/[employeeId]"
+                        options={{ title: 'Historial de nóminas' }}
+                      />
+                      <Stack.Screen
+                        name="settings/employer"
+                        options={{ presentation: 'modal', title: 'Datos del empleador' }}
+                      />
+                      <Stack.Screen
+                        name="settings/reminder"
+                        options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
+                      />
+                    </Stack>
+                  </ThemeProvider>
+                </ReminderProvider>
+              </NotifyServiceProvider>
             </MailServiceProvider>
           </PdfServiceProvider>
         </CurrentEmployerProvider>

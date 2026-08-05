@@ -34,3 +34,40 @@ export interface MailSender {
     readonly attachmentUris: readonly string[];
   }): Promise<MailSendResult>;
 }
+
+/** Mirrors `expo-notifications`' own permission status values 1:1 as a domain union (never the library's own type), design ADR D1. */
+export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
+
+/**
+ * Schedules/cancels the single monthly payroll-reminder local notification.
+ * One cohesive interface rather than split permission/channel/schedule
+ * interfaces (design D1): the only consumer, `reconcileReminder`, always
+ * needs every method together, and there is exactly one adapter (unlike
+ * `PdfSharer`/`MailSender`, which are genuinely different OS subsystems).
+ * `scheduleReminder` always cancels-then-schedules under a FIXED,
+ * well-known identifier, so rescheduling is idempotent without persisting or
+ * querying any id.
+ */
+export interface NotificationScheduler {
+  /** Reads the current permission state without prompting the user. */
+  getPermissionStatus(): Promise<NotificationPermissionStatus>;
+  /** Prompts the OS permission dialog (Android 13+ `POST_NOTIFICATIONS`). */
+  requestPermission(): Promise<NotificationPermissionStatus>;
+  /** Idempotently ensures the Android notification channel exists. */
+  ensureChannel(): Promise<void>;
+  /** Cancels any existing reminder, then schedules a new one for `fireDate`. Returns the notification identifier. */
+  scheduleReminder(fireDate: Date): Promise<string>;
+  /** Cancels the reminder if one is scheduled; a no-op otherwise. */
+  cancelReminder(): Promise<void>;
+  /**
+   * Resolves `true` exactly once if the app was woken/cold-started by a
+   * default-action tap on the reminder, consuming it so a later call never
+   * reports the same tap again (spec TN-3, device-QA-verified). Deliberately
+   * a plain async method rather than wrapping `expo-notifications`'
+   * `useLastNotificationResponse` REACT HOOK, so this whole interface stays
+   * hook-free, plain-async, and fakeable in unit tests.
+   */
+  consumeStartupTap(): Promise<boolean>;
+  /** Registers a listener for default-action taps received while the app is already running (foreground/background, spec TN-1). Returns an unsubscribe function. */
+  onTap(listener: () => void): () => void;
+}

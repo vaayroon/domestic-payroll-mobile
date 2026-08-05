@@ -11,4 +11,6 @@ export * from './RepositoryProvider';
 export * from './CurrentEmployerProvider';
 export * from './PdfServiceProvider';
 export * from './MailServiceProvider';
+export * from './NotifyServiceProvider';
+export * from './ReminderProvider';
 export * from './parseEuroInput';
