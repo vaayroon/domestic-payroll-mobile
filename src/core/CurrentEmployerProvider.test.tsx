@@ -55,6 +55,7 @@ class InMemoryEmployerRepository implements EmployerRepository {
       name: input.name,
       nif: input.nif ?? null,
       address: input.address ?? null,
+      ccc: input.ccc ?? null,
       createdAt: Date.now(),
     };
     this.rows.push(employer);
@@ -142,6 +143,7 @@ describe('CurrentEmployerProvider', () => {
       name: 'Empleador',
       nif: null,
       address: null,
+      ccc: null,
       createdAt: 0,
     };
 
