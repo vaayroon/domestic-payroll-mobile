@@ -20,8 +20,11 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   cancelled = false;
   /** Number of times `scheduleReminder` was called. */
   scheduleCallCount = 0;
+  /** Controls what the next `consumeStartupTap()` call resolves to; auto-resets to `false` after being consumed once, mirroring the real adapter. */
+  startupTapPending = false;
 
   private nextId = 0;
+  private tapListeners: (() => void)[] = [];
 
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
     return this.permissionStatus;
@@ -46,5 +49,25 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   async cancelReminder(): Promise<void> {
     this.cancelled = true;
     this.lastFireDate = null;
+  }
+
+  async consumeStartupTap(): Promise<boolean> {
+    const pending = this.startupTapPending;
+    this.startupTapPending = false;
+    return pending;
+  }
+
+  onTap(listener: () => void): () => void {
+    this.tapListeners.push(listener);
+    return () => {
+      this.tapListeners = this.tapListeners.filter((registered) => registered !== listener);
+    };
+  }
+
+  /** Test helper: simulates a live (foreground/background) default-action tap, notifying every registered `onTap` listener. */
+  simulateTap(): void {
+    for (const listener of this.tapListeners) {
+      listener();
+    }
   }
 }

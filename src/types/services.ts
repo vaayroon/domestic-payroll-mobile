@@ -59,4 +59,15 @@ export interface NotificationScheduler {
   scheduleReminder(fireDate: Date): Promise<string>;
   /** Cancels the reminder if one is scheduled; a no-op otherwise. */
   cancelReminder(): Promise<void>;
+  /**
+   * Resolves `true` exactly once if the app was woken/cold-started by a
+   * default-action tap on the reminder, consuming it so a later call never
+   * reports the same tap again (spec TN-3, device-QA-verified). Deliberately
+   * a plain async method rather than wrapping `expo-notifications`'
+   * `useLastNotificationResponse` REACT HOOK, so this whole interface stays
+   * hook-free, plain-async, and fakeable in unit tests.
+   */
+  consumeStartupTap(): Promise<boolean>;
+  /** Registers a listener for default-action taps received while the app is already running (foreground/background, spec TN-1). Returns an unsubscribe function. */
+  onTap(listener: () => void): () => void;
 }

@@ -1,8 +1,7 @@
 /**
  * services/notify — local notifications (expo-notifications), the monthly
- * reminder to run payroll.
- *
- * Empty placeholder — implemented in a later slice.
+ * reminder to run payroll. Sealed behind the `NotificationScheduler`
+ * interface in `src/types` (CLAUDE.md §3).
  */
 
-export {};
+export * from './ExpoNotificationScheduler';
