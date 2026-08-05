@@ -30,6 +30,13 @@ export interface Employer {
   readonly name: string;
   readonly nif: string | null;
   readonly address: string | null;
+  /**
+   * Código Cuenta de Cotización (Nº S.S.), digits-only normalized. Persisted
+   * but NOT rendered on the receipt this slice — see
+   * `features/employer/domain/validateCcc.ts` for the structural-only
+   * validation currently shipped (control-digit checksum deferred).
+   */
+  readonly ccc: string | null;
   readonly createdAt: number;
 }
 
@@ -38,6 +45,7 @@ export interface NewEmployer {
   readonly name: string;
   readonly nif?: string | null;
   readonly address?: string | null;
+  readonly ccc?: string | null;
 }
 
 /** A household employee under the Régimen Especial de Empleados de Hogar. */

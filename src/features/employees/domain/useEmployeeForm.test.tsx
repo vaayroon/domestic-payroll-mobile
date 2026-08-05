@@ -10,14 +10,12 @@
 import { act, create } from 'react-test-renderer';
 
 import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
-import type { Employee, Employer, PayrollRunRepository, SettingsRepository } from '@/types';
+import type { Employee, PayrollRunRepository, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
 import { useEmployeeForm, type EmployeeFormMode, type UseEmployeeFormResult } from './useEmployeeForm';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
-
-// Obviously-fake placeholder identifiers/names only (CLAUDE.md §6).
-const FAKE_EMPLOYER: Employer = { id: 'employer-fake-seed', name: 'Empleador', nif: null, address: null, createdAt: 0 };
+import { FAKE_EMPLOYER } from '../testing/fixtures';
 
 function notImplemented(method: string): () => never {
   return () => {

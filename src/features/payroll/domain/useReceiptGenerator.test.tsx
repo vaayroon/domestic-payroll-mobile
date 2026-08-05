@@ -12,15 +12,15 @@ import { act, create } from 'react-test-renderer';
 
 import { CurrentEmployerProvider, PdfServiceProvider, RepositoryProvider, type Repositories } from '@/core';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
-import type { Employee, Employer, PayrollRun, SettingsRepository } from '@/types';
+import type { Employee, PayrollRun, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
 import { useReceiptGenerator, type UseReceiptGeneratorResult } from './useReceiptGenerator';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
+import { FAKE_EMPLOYER } from '@/features/employees/testing/fixtures';
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYER: Employer = { id: 'employer-fake-seed', name: 'Empleador de Prueba', nif: null, address: null, createdAt: 0 };
 
 const FAKE_EMPLOYEE: Employee = {
   id: 'employee-fake-1',

@@ -1,10 +1,15 @@
+import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED } from '@/features/employees/testing/fixtures';
 import type { Employee, Employer, PayrollRun } from '@/types';
 import { cents } from '@/types/money';
 
 import { buildReceiptViewModel } from './buildReceiptViewModel';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
+// Overrides the shared fixture's null defaults with real values so the
+// "renders '—' only for null fields" tests below have a meaningful non-null
+// baseline to null out.
 const FAKE_EMPLOYER: Employer = {
+  ...FAKE_EMPLOYER_SEED,
   id: 'employer-fake-1',
   name: 'Empleador de Prueba',
   nif: '00000000T',

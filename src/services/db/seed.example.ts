@@ -17,6 +17,7 @@ export const DEV_SEED: DevSeed = {
     name: 'Empleador Ejemplo',
     nif: '00000000T',
     address: 'Calle Falsa 123, 28080 Madrid',
+    ccc: '28000000000',
   },
   employee: {
     name: 'Empleada Ejemplo',

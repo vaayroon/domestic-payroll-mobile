@@ -20,14 +20,14 @@ import { act, create } from 'react-test-renderer';
 
 import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
-import type { Employee, Employer, SettingsRepository } from '@/types';
+import { FAKE_EMPLOYER } from '@/features/employees/testing/fixtures';
+import type { Employee, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
 import { usePayrollRunForm, type UsePayrollRunFormResult } from './usePayrollRunForm';
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYER: Employer = { id: 'employer-fake-seed', name: 'Empleador', nif: null, address: null, createdAt: 0 };
 
 const FAKE_EMPLOYEE: Employee = {
   id: 'employee-fake-1',
