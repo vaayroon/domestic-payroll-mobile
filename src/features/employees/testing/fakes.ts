@@ -40,6 +40,7 @@ export class InMemoryEmployerRepository implements EmployerRepository {
       name: input.name,
       nif: input.nif ?? null,
       address: input.address ?? null,
+      ccc: input.ccc ?? null,
       createdAt: Date.now(),
     };
     this.rows.push(employer);
@@ -57,6 +58,7 @@ export class InMemoryEmployerRepository implements EmployerRepository {
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.nif !== undefined ? { nif: patch.nif } : {}),
       ...(patch.address !== undefined ? { address: patch.address } : {}),
+      ...(patch.ccc !== undefined ? { ccc: patch.ccc } : {}),
     };
     this.rows[index] = updated;
     return updated;
