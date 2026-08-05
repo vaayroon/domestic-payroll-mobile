@@ -1,8 +1,9 @@
 import { useMemo, type ReactNode } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { randomUUID } from 'expo-crypto';
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
+import { Text } from 'react-native';
 
 import {
   CurrentEmployerProvider,
@@ -67,7 +68,17 @@ export default function RootLayout() {
             <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
               <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
                 <Stack>
-                  <Stack.Screen name="index" options={{ title: 'Empleados' }} />
+                  <Stack.Screen
+                    name="index"
+                    options={{
+                      title: 'Empleados',
+                      headerRight: () => (
+                        <Link href="/settings/employer" testID="header-settings-link">
+                          <Text className="text-emerald-400">Ajustes</Text>
+                        </Link>
+                      ),
+                    }}
+                  />
                   <Stack.Screen
                     name="employees/new"
                     options={{ presentation: 'modal', title: 'Nuevo empleado' }}
@@ -83,6 +94,10 @@ export default function RootLayout() {
                   <Stack.Screen
                     name="payroll/history/[employeeId]"
                     options={{ title: 'Historial de nóminas' }}
+                  />
+                  <Stack.Screen
+                    name="settings/employer"
+                    options={{ presentation: 'modal', title: 'Datos del empleador' }}
                   />
                 </Stack>
               </ThemeProvider>
