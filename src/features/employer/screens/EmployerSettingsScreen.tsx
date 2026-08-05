@@ -5,7 +5,7 @@
  * emits codes only, never UI copy (mirrors `EmployeeForm.tsx`).
  */
 
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import type { EmployerFormErrors, EmployerFormInput } from '../domain';
@@ -144,6 +144,10 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
           {saving ? 'Guardando…' : 'Guardar cambios'}
         </Text>
       </Pressable>
+
+      <Link href="/settings/reminder" testID="employer-form-reminder-link" className="text-center">
+        <Text className="text-emerald-400">Recordatorio mensual</Text>
+      </Link>
     </View>
   );
 }

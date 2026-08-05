@@ -105,6 +105,10 @@ export default function RootLayout() {
                         name="settings/employer"
                         options={{ presentation: 'modal', title: 'Datos del empleador' }}
                       />
+                      <Stack.Screen
+                        name="settings/reminder"
+                        options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
+                      />
                     </Stack>
                   </ThemeProvider>
                 </ReminderProvider>
