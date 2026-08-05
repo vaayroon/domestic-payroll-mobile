@@ -117,7 +117,7 @@ describe('EmployerSettingsScreen', () => {
     });
 
     const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
-    expect(texts).toContainEqual('El nº de cuenta de cotización debe tener 11 dígitos.');
+    expect(texts).toContainEqual('El nº de cuenta de cotización debe tener 11 o 12 dígitos.');
   });
 
   it('saves valid edits through the repository', async () => {

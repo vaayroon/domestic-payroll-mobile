@@ -21,7 +21,7 @@ const NIF_ERROR_MESSAGES: Record<NonNullable<EmployerFormErrors['nif']>, string>
 };
 
 const CCC_ERROR_MESSAGES: Record<NonNullable<EmployerFormErrors['ccc']>, string> = {
-  invalid_format: 'El nº de cuenta de cotización debe tener 11 dígitos.',
+  invalid_format: 'El nº de cuenta de cotización debe tener 11 o 12 dígitos.',
 };
 
 export function EmployerSettingsScreen() {

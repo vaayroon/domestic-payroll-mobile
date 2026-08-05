@@ -12,8 +12,14 @@ describe('validateCcc', () => {
     expect(validateCcc('   ')).toEqual({ ok: true, value: null });
   });
 
-  it('accepts exactly 11 digits', () => {
+  // ADR-5: sources diverge on número length, so both 11 and 12 digits are
+  // accepted rather than risk rejecting a valid CCC.
+  it('accepts 11 digits', () => {
     expect(validateCcc('28000000000')).toEqual({ ok: true, value: '28000000000' });
+  });
+
+  it('accepts 12 digits', () => {
+    expect(validateCcc('280000000000')).toEqual({ ok: true, value: '280000000000' });
   });
 
   it('strips spaces, slashes, and dashes before checking length', () => {
@@ -25,8 +31,8 @@ describe('validateCcc', () => {
     expect(validateCcc('2800000000')).toEqual({ ok: false, error: 'invalid_format' });
   });
 
-  it('rejects more than 11 digits', () => {
-    expect(validateCcc('280000000000')).toEqual({ ok: false, error: 'invalid_format' });
+  it('rejects more than 12 digits', () => {
+    expect(validateCcc('2800000000000')).toEqual({ ok: false, error: 'invalid_format' });
   });
 
   it('rejects non-numeric characters', () => {
