@@ -6,6 +6,7 @@ import m0001 from './0001_fearless_legion.sql';
 import m0002 from './0002_certain_valeria_richards.sql';
 import m0003 from './0003_flashy_speed_demon.sql';
 import m0004 from './0004_good_unicorn.sql';
+import m0005 from './0005_organic_harry_osborn.sql';
 
   export default {
     journal,
@@ -14,7 +15,8 @@ import m0004 from './0004_good_unicorn.sql';
 m0001,
 m0002,
 m0003,
-m0004
+m0004,
+m0005
     }
   }
   

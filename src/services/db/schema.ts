@@ -59,6 +59,8 @@ export const payrollRuns = sqliteTable(
     extraCents: integer('extra_cents').notNull().default(0),
     daysWorked: integer('days_worked').notNull().default(0),
     daysInMonth: integer('days_in_month').notNull().default(0),
+    periodStartDate: text('period_start_date'),
+    periodEndDate: text('period_end_date'),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [
