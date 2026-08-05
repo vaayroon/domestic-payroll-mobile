@@ -59,6 +59,8 @@ function runFixture(overrides: Partial<PayrollRun>): PayrollRun {
     extraCents: cents(0),
     daysWorked: 30,
     daysInMonth: 30,
+    periodStartDate: null,
+    periodEndDate: null,
     createdAt: 0,
     ...overrides,
   };

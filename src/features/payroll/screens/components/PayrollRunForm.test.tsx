@@ -43,6 +43,11 @@ const baseProps: PayrollRunFormProps = {
   onDecrementMonth: () => {},
   extraPayMode: 'EXCLUDE',
   onChangeExtraPayMode: () => {},
+  periodStartDate: null,
+  onChangePeriodStartDate: () => {},
+  periodEndDate: null,
+  onChangePeriodEndDate: () => {},
+  rangeError: null,
   preview: null,
   ratesWarning: null,
   saving: false,
@@ -167,5 +172,45 @@ describe('PayrollRunForm', () => {
     });
 
     expect(onChangeExtraPayMode).toHaveBeenCalledWith('PRORATE');
+  });
+
+  describe('period-range inputs', () => {
+    it('renders the prefilled start/end values', async () => {
+      const renderer = await renderForm({ ...baseProps, periodStartDate: '2026-06-10', periodEndDate: '2026-06-20' });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-form-period-start' }).props.value).toBe('2026-06-10');
+      expect(renderer.root.findByProps({ testID: 'payroll-run-form-period-end' }).props.value).toBe('2026-06-20');
+    });
+
+    it('fires onChangePeriodStartDate/onChangePeriodEndDate as the user edits the fields', async () => {
+      const onChangePeriodStartDate = jest.fn();
+      const onChangePeriodEndDate = jest.fn();
+      const renderer = await renderForm({ ...baseProps, onChangePeriodStartDate, onChangePeriodEndDate });
+
+      await act(async () => {
+        renderer.root.findByProps({ testID: 'payroll-run-form-period-start' }).props.onChangeText('2026-06-05');
+        renderer.root.findByProps({ testID: 'payroll-run-form-period-end' }).props.onChangeText('2026-06-25');
+      });
+
+      expect(onChangePeriodStartDate).toHaveBeenCalledWith('2026-06-05');
+      expect(onChangePeriodEndDate).toHaveBeenCalledWith('2026-06-25');
+    });
+
+    it('shows the range validation error when present', async () => {
+      const renderer = await renderForm({
+        ...baseProps,
+        rangeError: 'La fecha de inicio no puede ser posterior a la fecha de fin.',
+      });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-form-range-error' }).props.children).toBe(
+        'La fecha de inicio no puede ser posterior a la fecha de fin.',
+      );
+    });
+
+    it('does not render a range error node when rangeError is null', async () => {
+      const renderer = await renderForm(baseProps);
+
+      expect(() => renderer.root.findByProps({ testID: 'payroll-run-form-range-error' })).toThrow();
+    });
   });
 });

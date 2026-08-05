@@ -12,6 +12,7 @@ import { useCurrentEmployerId, useEmployeeRepository, useEmployerRepository, use
 import type { PayrollRun } from '@/types';
 
 import { buildReceiptHtml, buildReceiptViewModel } from '../receipt';
+import { resolveRatesConfig } from './ssContribution';
 
 export interface UseReceiptGeneratorResult {
   readonly generate: (run: PayrollRun) => Promise<{ readonly uri: string } | null>;
@@ -48,7 +49,12 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       // "Today" is resolved HERE, at the screen-boundary call, and injected
       // into the pure builder -- never read from a clock inside it.
       const issuedOnIso = new Date().toISOString().slice(0, 10);
-      const viewModel = buildReceiptViewModel({ run, employee, employer, issuedOnIso });
+      // Year-not-loaded boundary (design ADR-2, mirrored from
+      // usePayrollRunForm): resolved HERE, never inside the pure builder.
+      // `null` degrades the receipt to the single-lump SS line, no crash.
+      const ratesResult = resolveRatesConfig(run.periodYear);
+      const ratesConfig = ratesResult.ok ? ratesResult.config : null;
+      const viewModel = buildReceiptViewModel({ run, employee, employer, issuedOnIso, ratesConfig });
       const html = buildReceiptHtml(viewModel);
 
       const { uri } = await pdfGenerator.generate(html);

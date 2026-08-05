@@ -89,6 +89,14 @@ export interface PayrollRun {
   readonly extraCents: Cents;
   readonly daysWorked: number;
   readonly daysInMonth: number;
+  /**
+   * Persisted per-run period date range (ISO `YYYY-MM-DD`), edited/confirmed
+   * on the run form and prefilled from `Employee.altaDate`/`bajaDate` clipped
+   * to the selected month. `null` for runs saved before this field existed
+   * (no backfill) or when the range is otherwise unknown.
+   */
+  readonly periodStartDate: string | null;
+  readonly periodEndDate: string | null;
   readonly createdAt: number;
 }
 
@@ -104,6 +112,8 @@ export interface NewPayrollRun {
   readonly extraCents: Cents;
   readonly daysWorked: number;
   readonly daysInMonth: number;
+  readonly periodStartDate?: string | null;
+  readonly periodEndDate?: string | null;
 }
 
 /** A single free-form app-level setting, stored as a string value (e.g. the smoke-screen round-trip key). */

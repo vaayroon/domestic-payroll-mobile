@@ -30,6 +30,8 @@ const FAKE_RUN: PayrollRun = {
   extraCents: cents(0),
   daysWorked: 30,
   daysInMonth: 30,
+  periodStartDate: null,
+  periodEndDate: null,
   createdAt: 0,
 };
 

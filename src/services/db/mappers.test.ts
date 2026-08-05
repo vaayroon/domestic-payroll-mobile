@@ -176,6 +176,8 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     extraCents: 30000,
     daysWorked: 20,
     daysInMonth: 30,
+    periodStartDate: null,
+    periodEndDate: null,
     createdAt: 1_700_000_000_000,
   };
 
@@ -222,6 +224,8 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
       extraCents: 30000,
       daysWorked: 20,
       daysInMonth: 30,
+      periodStartDate: null,
+      periodEndDate: null,
       createdAt: 1_700_000_000_000,
     });
   });
@@ -243,6 +247,64 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
       1_700_000_000_000,
     );
     expect(insertRow.prorated).toBe(false);
+  });
+
+  it('legacy row with NULL period range round-trips as null (Scenario 1)', () => {
+    const domain = payrollRunRowToDomain({ ...row, periodStartDate: null, periodEndDate: null });
+    expect(domain.periodStartDate).toBeNull();
+    expect(domain.periodEndDate).toBeNull();
+  });
+
+  it('new row with a full period range round-trips exactly (Scenario 2)', () => {
+    const domain = payrollRunRowToDomain({
+      ...row,
+      periodStartDate: '2026-06-01',
+      periodEndDate: '2026-06-30',
+    });
+    expect(domain.periodStartDate).toBe('2026-06-01');
+    expect(domain.periodEndDate).toBe('2026-06-30');
+  });
+
+  it('payrollRunInsertFromNew defaults periodStartDate/periodEndDate to null when omitted', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.periodStartDate).toBeNull();
+    expect(insertRow.periodEndDate).toBeNull();
+  });
+
+  it('payrollRunInsertFromNew passes through present periodStartDate/periodEndDate unchanged', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
+        periodStartDate: '2026-06-01',
+        periodEndDate: '2026-06-30',
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.periodStartDate).toBe('2026-06-01');
+    expect(insertRow.periodEndDate).toBe('2026-06-30');
   });
 });
 

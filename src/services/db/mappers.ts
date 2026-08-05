@@ -105,6 +105,8 @@ export function payrollRunRowToDomain(row: PayrollRunRow): PayrollRun {
     extraCents: cents(row.extraCents),
     daysWorked: row.daysWorked,
     daysInMonth: row.daysInMonth,
+    periodStartDate: row.periodStartDate,
+    periodEndDate: row.periodEndDate,
     createdAt: row.createdAt,
   };
 }
@@ -122,6 +124,8 @@ export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, create
     extraCents: unbrand(input.extraCents),
     daysWorked: input.daysWorked,
     daysInMonth: input.daysInMonth,
+    periodStartDate: input.periodStartDate ?? null,
+    periodEndDate: input.periodEndDate ?? null,
     createdAt,
   };
 }
