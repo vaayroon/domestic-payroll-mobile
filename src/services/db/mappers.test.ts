@@ -17,6 +17,7 @@ describe('employerRowToDomain / employerInsertFromNew', () => {
     name: 'Empleador Ejemplo',
     nif: '00000000T',
     address: 'Calle Falsa 123',
+    ccc: '28000000000',
     createdAt: 1_700_000_000_000,
   };
 
@@ -26,25 +27,34 @@ describe('employerRowToDomain / employerInsertFromNew', () => {
       name: 'Empleador Ejemplo',
       nif: '00000000T',
       address: 'Calle Falsa 123',
+      ccc: '28000000000',
       createdAt: 1_700_000_000_000,
     });
   });
 
-  it('preserves null nif/address rather than coercing to undefined', () => {
-    const nullableRow: EmployerRow = { ...row, nif: null, address: null };
+  it('preserves null nif/address/ccc rather than coercing to undefined', () => {
+    const nullableRow: EmployerRow = { ...row, nif: null, address: null, ccc: null };
     const domain = employerRowToDomain(nullableRow);
     expect(domain.nif).toBeNull();
     expect(domain.address).toBeNull();
+    expect(domain.ccc).toBeNull();
   });
 
   it('builds an insert row from NewEmployer + generated id/createdAt', () => {
-    expect(employerInsertFromNew({ name: 'Empleador Ejemplo', nif: '00000000T' }, 'employer-1', 1_700_000_000_000)).toEqual({
+    expect(
+      employerInsertFromNew({ name: 'Empleador Ejemplo', nif: '00000000T', ccc: '28000000000' }, 'employer-1', 1_700_000_000_000),
+    ).toEqual({
       id: 'employer-1',
       name: 'Empleador Ejemplo',
       nif: '00000000T',
       address: null,
+      ccc: '28000000000',
       createdAt: 1_700_000_000_000,
     });
+  });
+
+  it('defaults ccc to null when omitted', () => {
+    expect(employerInsertFromNew({ name: 'Empleador Ejemplo' }, 'employer-1', 1_700_000_000_000).ccc).toBeNull();
   });
 });
 
