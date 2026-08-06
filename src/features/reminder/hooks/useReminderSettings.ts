@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react';
 
-import { useNotificationScheduler, useSettingsRepository } from '@/core';
+import { useNotificationScheduler } from '@/core/NotifyServiceProvider';
+import { useSettingsRepository } from '@/core/RepositoryProvider';
 
 import { reconcileReminder } from '../application/reconcileReminder';
 import {
