@@ -13,9 +13,9 @@ const FAKE_VIEW_MODEL: ReceiptViewModel = {
   totalDevengos: '1.050,00 €',
   deducciones: [{ label: 'Cuota Seguridad Social (persona trabajadora)', amount: '45,00 €' }],
   deduccionesDesglose: [
-    { concepto: 'Contingencias comunes', base: '970,00 €', tipo: '4,70 %', cuota: '45,58 €' },
-    { concepto: 'Desempleo', base: '970,00 €', tipo: '1,55 %', cuota: '15,04 €' },
-    { concepto: 'MEI (Mecanismo de Equidad Intergeneracional)', base: '970,00 €', tipo: '0,15 %', cuota: '1,46 €' },
+    { concepto: 'Contingencias comunes', baseMensual: '970,00 €', basePeriodo: '970,00 €', tipo: '4,70 %', cuota: '45,58 €' },
+    { concepto: 'Desempleo', baseMensual: '970,00 €', basePeriodo: '970,00 €', tipo: '1,55 %', cuota: '15,04 €' },
+    { concepto: 'MEI (Mecanismo de Equidad Intergeneracional)', baseMensual: '970,00 €', basePeriodo: '970,00 €', tipo: '0,15 %', cuota: '1,46 €' },
   ],
   totalDeducciones: '62,08 €',
   liquidoTotal: '1.005,00 €',
@@ -114,6 +114,22 @@ describe('buildReceiptHtml', () => {
       const htmlNoBreakdown = buildReceiptHtml(FAKE_VIEW_MODEL_NO_BREAKDOWN);
       expect(htmlNoBreakdown).toContain('Cuota Seguridad Social (persona trabajadora)');
       expect(htmlNoBreakdown).not.toContain('Contingencias comunes');
+    });
+
+    it('renders both dual-base column headers (Base mensual, Base del periodo) (R3)', () => {
+      expect(html).toContain('Base mensual');
+      expect(html).toContain('Base del periodo');
+    });
+
+    it('emits exactly 5 <td> cells per desglose row (concepto, baseMensual, basePeriodo, tipo, cuota) (R3)', () => {
+      const comunesRowMatch = html.match(/<tr><td>Contingencias comunes<\/td>.*?<\/tr>/);
+      expect(comunesRowMatch).not.toBeNull();
+      const tdCount = (comunesRowMatch?.[0].match(/<td/g) ?? []).length;
+      expect(tdCount).toBe(5);
+    });
+
+    it('the desglose total row spans 4 columns (colspan="4") (R3)', () => {
+      expect(html).toContain('<td colspan="4">Total a deducir</td>');
     });
   });
 

@@ -14,8 +14,19 @@ export interface ReceiptLineItem {
 /** One itemized worker SS deduction line, by contingency (contingencias comunes / desempleo / MEI). Formatted display strings only -- `Cents` never leaks past `buildReceiptViewModel`. */
 export interface ReceiptDeduccionDesglose {
   readonly concepto: string;
-  /** Base de cotización, formatted via `formatEuros` -- the same value on every row (shared base). */
-  readonly base: string;
+  /**
+   * Full, unprorated base de cotización mensual, formatted via
+   * `formatEuros` -- informational only, the same value on every row
+   * (shared base). On a full month this equals `basePeriodo`.
+   */
+  readonly baseMensual: string;
+  /**
+   * Operative base for this row: `baseMensual` prorated by the same
+   * `daysWorked/30` ratio the engine used for the SS cuota, formatted via
+   * `formatEuros`. `basePeriodo x tipo` reconciles to `cuota` (within the
+   * pre-existing 1-cent residual-on-largest-line tolerance).
+   */
+  readonly basePeriodo: string;
   /** Contribution rate as a percentage, e.g. `"4,70 %"`. */
   readonly tipo: string;
   /** Already formatted via `formatEuros`. */
