@@ -37,6 +37,12 @@ export interface Employer {
    * validation currently shipped (control-digit checksum deferred).
    */
   readonly ccc: string | null;
+  /**
+   * Default issuing place ("lugar") pre-filled on every receipt's "En
+   * [lugar], a [fecha]" line for this employer's employees. `null` preserves
+   * the current blank `………` placeholder — see `buildReceiptViewModel.ts`.
+   */
+  readonly defaultLugar: string | null;
   readonly createdAt: number;
 }
 
@@ -46,6 +52,7 @@ export interface NewEmployer {
   readonly nif?: string | null;
   readonly address?: string | null;
   readonly ccc?: string | null;
+  readonly defaultLugar?: string | null;
 }
 
 /** A household employee under the Régimen Especial de Empleados de Hogar. */
