@@ -359,10 +359,13 @@ describe('buildReceiptViewModel', () => {
       expect(desempleo?.concepto).toBe('Desempleo');
       expect(mei?.concepto).toBe('MEI (Mecanismo de Equidad Intergeneracional)');
 
-      // Shared base on every row.
-      expect(comunes?.base).toBe(`970,00${NBSP}€`);
-      expect(desempleo?.base).toBe(`970,00${NBSP}€`);
-      expect(mei?.base).toBe(`970,00${NBSP}€`);
+      // Shared base on every row -- full month, so baseMensual === basePeriodo.
+      expect(comunes?.baseMensual).toBe(`970,00${NBSP}€`);
+      expect(desempleo?.baseMensual).toBe(`970,00${NBSP}€`);
+      expect(mei?.baseMensual).toBe(`970,00${NBSP}€`);
+      expect(comunes?.basePeriodo).toBe(`970,00${NBSP}€`);
+      expect(desempleo?.basePeriodo).toBe(`970,00${NBSP}€`);
+      expect(mei?.basePeriodo).toBe(`970,00${NBSP}€`);
 
       expect(comunes?.tipo).toBe('4,70 %');
       expect(desempleo?.tipo).toBe('1,55 %');
@@ -434,6 +437,73 @@ describe('buildReceiptViewModel', () => {
       expect(vm.deducciones).toEqual([
         { label: 'Cuota Seguridad Social (persona trabajadora)', amount: `62,08${NBSP}€` },
       ]);
+    });
+  });
+
+  describe('dual base (baseMensual / basePeriodo) on a partial month (spec R3/S1)', () => {
+    // baseGrossCents=122100 (1.221,00€) INDEFINIDO, partial month (9/30 días
+    // worked, real daysInMonth=31) => retribución 142450 -> tramo 8 (uncapped)
+    // -> baseCotizacionCents=142450 (1.424,50€); basePeriodo = 142450x9/30 =
+    // 42735 (427,35€); ssDeductionCents=2735 (same numbers as engine.test.ts's
+    // "July partial month" proof).
+    const partialEmployee: Employee = { ...FAKE_EMPLOYEE, baseGrossCents: cents(122100) };
+    const partialMonthRun: PayrollRun = {
+      ...FAKE_RUN,
+      grossCents: cents(36630),
+      ssDeductionCents: cents(2735),
+      netCents: cents(36630 - 2735),
+      extraCents: cents(0),
+      prorated: true,
+      daysWorked: 9,
+      daysInMonth: 31,
+    };
+
+    it('emits baseMensual (full, informational) and basePeriodo (operative, prorated) on every row', () => {
+      const vm = buildReceiptViewModel({
+        run: partialMonthRun,
+        employee: partialEmployee,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: RATES_2026,
+      });
+
+      expect(vm.deduccionesDesglose).toHaveLength(3);
+      for (const row of vm.deduccionesDesglose) {
+        expect(row.baseMensual).toBe(`1424,50${NBSP}€`);
+        expect(row.basePeriodo).toBe(`427,35${NBSP}€`);
+      }
+    });
+
+    it('reconciles basePeriodo x tipo to cuota per row, within the pre-existing 1-cent residual-on-CC tolerance', () => {
+      const vm = buildReceiptViewModel({
+        run: partialMonthRun,
+        employee: partialEmployee,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: RATES_2026,
+      });
+
+      const parseEuros = (amount: string): number =>
+        Math.round(Number(amount.replace(NBSP, '').replace('€', '').trim().replace(/\./g, '').replace(',', '.')) * 100);
+
+      const [comunes, desempleo, mei] = vm.deduccionesDesglose;
+      expect(comunes?.tipo).toBe('4,70 %');
+      expect(desempleo?.tipo).toBe('1,55 %');
+      expect(mei?.tipo).toBe('0,15 %');
+      expect(comunes?.cuota).toBe(`20,09${NBSP}€`);
+      expect(desempleo?.cuota).toBe(`6,62${NBSP}€`);
+      expect(mei?.cuota).toBe(`0,64${NBSP}€`);
+
+      const basePeriodoCents = parseEuros(comunes?.basePeriodo ?? '0');
+      for (const row of vm.deduccionesDesglose) {
+        expect(Math.abs(parseEuros(row.basePeriodo) - basePeriodoCents)).toBe(0);
+      }
+
+      // Column foots exactly to the persisted ssDeductionCents (27,35 €) via
+      // residual-on-CC -- the pre-existing tolerance, not new.
+      const sumCents = vm.deduccionesDesglose.reduce((total, row) => total + parseEuros(row.cuota), 0);
+      expect(sumCents).toBe(partialMonthRun.ssDeductionCents);
+      expect(vm.totalDeducciones).toBe(`27,35${NBSP}€`);
     });
   });
 });

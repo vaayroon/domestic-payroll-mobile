@@ -38,7 +38,7 @@ function renderDesgloseRows(rows: readonly ReceiptDeduccionDesglose[]): string {
   return rows
     .map(
       (row) =>
-        `<tr><td>${row.concepto}</td><td class="amount">${row.base}</td><td class="amount">${row.tipo}</td><td class="amount">${row.cuota}</td></tr>`,
+        `<tr><td>${row.concepto}</td><td class="amount">${row.baseMensual}</td><td class="amount">${row.basePeriodo}</td><td class="amount">${row.tipo}</td><td class="amount">${row.cuota}</td></tr>`,
     )
     .join('');
 }
@@ -52,9 +52,9 @@ function renderDesgloseRows(rows: readonly ReceiptDeduccionDesglose[]): string {
 function renderDeducciones(viewModel: ReceiptViewModel): string {
   if (viewModel.deduccionesDesglose.length > 0) {
     return `<table>
-        <tr><th>Concepto</th><th class="amount">Base</th><th class="amount">Tipo</th><th class="amount">Cuota</th></tr>
+        <tr><th>Concepto</th><th class="amount">Base mensual</th><th class="amount">Base del periodo</th><th class="amount">Tipo</th><th class="amount">Cuota</th></tr>
         ${renderDesgloseRows(viewModel.deduccionesDesglose)}
-        <tr class="total-row"><td colspan="3">Total a deducir</td><td class="amount">${viewModel.totalDeducciones}</td></tr>
+        <tr class="total-row"><td colspan="4">Total a deducir</td><td class="amount">${viewModel.totalDeducciones}</td></tr>
       </table>`;
   }
 

@@ -8,10 +8,11 @@ import {
   resolveEffectivePeriod,
   resolveEffectivePeriodFromRange,
   resolveExtraPayCents,
+  SALARY_DEVENGO_DIVISOR,
   semesterBounds,
   type PayrollInput,
 } from './engine';
-import { SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
+import { SS_DIVISOR, SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
 
 // All amounts below are obviously-fake placeholders (CLAUDE.md §5) -- never
 // real salary figures. `RATES_2026` itself is public BOE data, not PII.
@@ -34,6 +35,16 @@ function baseInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
     ...overrides,
   };
 }
+
+describe('SALARY_DEVENGO_DIVISOR', () => {
+  it('is numerically equal to SS_DIVISOR (drift-lock invariant, design ADR-1)', () => {
+    // Distinct legal bases (labor-law devengo vs. TGSS contribution base),
+    // but this equality is REQUIRED for the receipt's basePeriodo x tipo =
+    // cuota reconciliation to hold. If this ever fails, salary and SS
+    // proration have silently diverged.
+    expect(SALARY_DEVENGO_DIVISOR).toBe(SS_DIVISOR);
+  });
+});
 
 describe('daysInMonth', () => {
   it('returns 31 for July', () => {
@@ -266,7 +277,7 @@ describe('resolveExtraPayCents', () => {
 
     it('scales the monthly accrual by the same day ratio as gross in a partial month', () => {
       const input = baseInput({ extraPayMode: 'PRORATE', periodMonth: 7, altaDate: '2026-07-23' });
-      expect(resolveExtraPayCents(input)).toBe(cents(Math.round((FAKE_BASE_GROSS * 9) / (6 * 31))));
+      expect(resolveExtraPayCents(input)).toBe(cents(Math.round((FAKE_BASE_GROSS * 9) / (6 * 30))));
     });
 
     it('12 full months sum to exactly 2x baseGrossCents (annual invariant)', () => {
@@ -318,15 +329,15 @@ describe('calculatePayrollRun', () => {
     expect(result.prorated).toBe(false);
   });
 
-  it('July partial month (design proof): salary /31 vs SS /30 use DIFFERENT divisors -> gross 354,48, SS 27,35, net 327,13', () => {
+  it('July partial month (design proof): salary and SS share the same /30 ratio -> gross 366,30, SS 27,35, net 338,95', () => {
     const result = calculatePayrollRun(
       baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-07-23' }),
     );
     expect(result.daysWorked).toBe(9);
     expect(result.daysInMonth).toBe(31);
-    expect(result.grossCents).toBe(cents(35448)); // 354,48 EUR: 1221,00 x 9/31
+    expect(result.grossCents).toBe(cents(36630)); // 366,30 EUR: 1221,00 x 9/30
     expect(result.ssDeductionCents).toBe(cents(2735)); // 27,35 EUR: 91,17 x 9/30 (base 1424,50, INDEFINIDO)
-    expect(result.netCents).toBe(cents(32713)); // 327,13 EUR
+    expect(result.netCents).toBe(cents(33895)); // 338,95 EUR
     expect(result.prorated).toBe(true);
   });
 
@@ -379,9 +390,9 @@ describe('calculatePayrollRun', () => {
     expect(includedInMonth.ssDeductionCents).toBe(cents(9117));
   });
 
-  it('rounding boundary: 90000 x 9/31 rounds exactly once, no further rounding downstream', () => {
+  it('rounding boundary: 90000 x 9/30 rounds exactly once, no further rounding downstream', () => {
     const result = calculatePayrollRun(baseInput({ periodMonth: 7, altaDate: '2026-07-23' }));
-    expect(result.grossCents).toBe(cents(26129));
+    expect(result.grossCents).toBe(cents(27000));
   });
 
   it('includes the resolved extra in gross for INCLUDE_IN_MONTH in June', () => {

@@ -82,24 +82,34 @@ function computeDeduccionesDesglose(
   const meiCuotaCents = multiplyByRatio(baseCotizacionCents, meiPer10000 * ssDaysWorked, 10000 * SS_DIVISOR);
   const contingenciasComunesCuotaCents = subtractCents(subtractCents(run.ssDeductionCents, desempleoCuotaCents), meiCuotaCents);
 
-  const baseDisplay = formatEuros(baseCotizacionCents);
+  // Operative base for the period: baseCotización prorated by the SAME
+  // ssDaysWorked/SS_DIVISOR ratio used for the cuotas above, so basePeriodo
+  // x tipo reconciles to cuota on partial months. A distinct rounding point
+  // from the cuota calculations (R5: still single-rounding per amount).
+  const basePeriodoCents = multiplyByRatio(baseCotizacionCents, ssDaysWorked, SS_DIVISOR);
+
+  const baseMensualDisplay = formatEuros(baseCotizacionCents);
+  const basePeriodoDisplay = formatEuros(basePeriodoCents);
 
   return [
     {
       concepto: 'Contingencias comunes',
-      base: baseDisplay,
+      baseMensual: baseMensualDisplay,
+      basePeriodo: basePeriodoDisplay,
       tipo: formatRatePercent(ratesConfig.worker.ccPer10000),
       cuota: formatEuros(contingenciasComunesCuotaCents),
     },
     {
       concepto: 'Desempleo',
-      base: baseDisplay,
+      baseMensual: baseMensualDisplay,
+      basePeriodo: basePeriodoDisplay,
       tipo: formatRatePercent(desempleoPer10000),
       cuota: formatEuros(desempleoCuotaCents),
     },
     {
       concepto: 'MEI (Mecanismo de Equidad Intergeneracional)',
-      base: baseDisplay,
+      baseMensual: baseMensualDisplay,
+      basePeriodo: basePeriodoDisplay,
       tipo: formatRatePercent(meiPer10000),
       cuota: formatEuros(meiCuotaCents),
     },
