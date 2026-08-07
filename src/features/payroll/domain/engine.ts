@@ -29,17 +29,43 @@
  *
  * SS decoupled proration (design ADR-4 / spec "ss-contribution"): the worker
  * SS cuota is no longer a manually-entered `fullMonthSsCents` prorated by the
- * SAME `daysWorked/daysInMonth` ratio as salary -- it is COMPUTED by
- * `computeWorkerSs` (see `ssContribution.ts`) from the employee's base gross,
- * the run's injected `RatesConfig`, and `contractType`, and prorated by its
- * OWN `daysWorked/SS_DIVISOR` (always /30, per TGSS mechanics) ratio. Salary
- * proration keeps the real calendar day count (`daysInMonth`, 28-31); these
- * two divisors must never be conflated.
+ * SAME ratio as salary -- it is COMPUTED by `computeWorkerSs` (see
+ * `ssContribution.ts`) from the employee's base gross, the run's injected
+ * `RatesConfig`, and `contractType`, and prorated by its own
+ * `daysWorked/SS_DIVISOR` (always /30, per TGSS mechanics) ratio. Salary
+ * devengo proration (see `SALARY_DEVENGO_DIVISOR` below) now uses the SAME
+ * /30 mes-comercial ratio -- the real calendar `daysInMonth` (28-31) is
+ * display-only and is NEVER a devengo divisor for either salary or SS.
+ * `SALARY_DEVENGO_DIVISOR` and `SS_DIVISOR` are numerically equal by design
+ * (guarded by a drift-lock test) but remain distinct named constants because
+ * they rest on different legal bases -- see `SALARY_DEVENGO_DIVISOR`'s
+ * doc-comment.
  */
 
 import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
 
 import { computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
+
+/**
+ * Divisor for the salary (and pagas-extra PRORATE) devengo proration: /30,
+ * the "mes comercial" convention. This is a LABOR-law basis, distinct from
+ * `SS_DIVISOR`'s TGSS/contribution-base basis, even though the two are
+ * numerically equal:
+ * - The Tribunal Supremo's daily-rate floor (STS 25/11/2019, salario
+ *   anual/365) sets a per-day minimum; /30 (e.g. base 1.221,00 -> 40,70
+ *   €/día) meets that floor, while /31 (39,39 €/día) under-pays it on a
+ *   31-day month.
+ * - It matches the gestoría "mes comercial" convention used to draft the
+ *   recibo (every month treated as 30 days for devengo purposes).
+ * - It keeps the recibo internally coherent: the salary daily basis aligns
+ *   with the SS contribution-base daily basis (both /30), so the two never
+ *   silently diverge on the same document.
+ *
+ * This is NOT a reuse of `SS_DIVISOR` -- see the drift-lock test in
+ * `engine.test.ts` (`SALARY_DEVENGO_DIVISOR === SS_DIVISOR`) for why the
+ * numeric equality is asserted rather than assumed.
+ */
+export const SALARY_DEVENGO_DIVISOR = 30;
 
 /** How the two annual pagas extra (bonus payments) are folded into a run. */
 export type ExtraPayMode = 'INCLUDE_IN_MONTH' | 'PRORATE' | 'EXCLUDE';
@@ -247,9 +273,11 @@ export function daysWorkedInInterval(altaDate: string | null, bajaDate: string |
  * `extraPayMode` (design ADR-1 / decision #674):
  * - `EXCLUDE` -- always zero.
  * - `PRORATE` -- each month accrues `baseGross/6`; in a partial month that
- *   monthly accrual is further scaled by the run month's own day ratio, both
- *   folded into a single `multiplyByRatio` call so there is only one
- *   rounding point.
+ *   monthly accrual is further scaled by the same /30 mes-comercial ratio
+ *   used for salary (`SALARY_DEVENGO_DIVISOR`, guarded to a full month's
+ *   normalized numerator so a full month always yields exactly `base/6`
+ *   regardless of the real day count), folded into a single
+ *   `multiplyByRatio` call so there is only one rounding point.
  * - `INCLUDE_IN_MONTH` -- paid as a lump ONLY in June or December, prorated
  *   by the fraction of the accrual semester actually worked (calendar-day
  *   overlap), independent of the run month's own day-count. Any other month
@@ -263,9 +291,9 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
   }
 
   if (extraPayMode === 'PRORATE') {
-    const daysInRunMonth = daysInMonth(periodYear, periodMonth);
     const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
-    return multiplyByRatio(baseGrossCents, effective.daysWorked, 6 * daysInRunMonth);
+    const days = effective.prorated ? effective.daysWorked : SALARY_DEVENGO_DIVISOR;
+    return multiplyByRatio(baseGrossCents, days, 6 * SALARY_DEVENGO_DIVISOR);
   }
 
   // INCLUDE_IN_MONTH: lump only in the accrual-settlement months.
@@ -281,21 +309,24 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
 
 /**
  * Thin orchestrator: resolves the effective run-month period, prorates base
- * gross by the real calendar-day ratio, computes the worker SS cuota via its
- * own /30 ratio, adds the pagas extra component, and derives the net via one
- * exact subtraction.
+ * gross by the /30 mes-comercial devengo ratio, computes the worker SS cuota
+ * via its own /30 ratio, adds the pagas extra component, and derives the net
+ * via one exact subtraction.
  *
- * SS days-worked normalization (spec "SS proration decoupled from salary
- * proration", both scenarios): when the run month is fully worked
- * (`effective.prorated === false`), the SS days-worked figure is normalized
- * to `SS_DIVISOR` (30) itself -- NOT the real `daysInMonth` (28-31) -- so a
- * full month in a 31-day month never overshoots a 31/30 ratio (spec "Full
- * month: divisor is 30/30 -> full-month cuota unchanged", any month length).
- * Only a GENUINELY partial period (`prorated === true`) uses the real
- * calendar `daysWorked` count as the SS numerator, exactly as salary does
- * (spec "Partial July" worked example: 9 días feeds BOTH the salary /31 and
- * the SS /30 ratios with the identical numerator, only the denominator
- * differs).
+ * Devengo days-worked normalization (salary AND SS share the same pattern,
+ * spec "SS proration decoupled from salary proration" + this change's spec):
+ * when the run month is fully worked (`effective.prorated === false`), the
+ * days-worked figure is normalized to the divisor itself (30) -- NOT the
+ * real `daysInMonth` (28-31) -- so a full month in a 31-day month never
+ * overshoots a 31/30 ratio (spec "Full month: divisor is 30/30 ->
+ * full-month amount unchanged", any month length). Only a GENUINELY partial
+ * period (`prorated === true`) uses the real calendar `daysWorked` count as
+ * the numerator, for both salary and SS (spec "Partial July" worked
+ * example: 9 días feeds BOTH the salary /30 and the SS /30 ratios with the
+ * identical numerator AND denominator -- they share the same ratio on
+ * partial months, not just the same numerator). The real calendar
+ * `daysInMonth` (28-31) survives only as informational display
+ * (`PayrollResult.daysInMonth`), never again as a devengo divisor.
  *
  * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
  * when the run month has zero overlapping days, `grossCents`/`ssDeductionCents`
@@ -311,7 +342,8 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
     ? resolveEffectivePeriodFromRange(periodYear, periodMonth, periodStartDate ?? null, periodEndDate ?? null)
     : resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
 
-  const proratedBaseCents = proratedAmount(baseGrossCents, effective.daysWorked, effective.daysInMonth);
+  const devengoDays = effective.prorated ? effective.daysWorked : SALARY_DEVENGO_DIVISOR;
+  const proratedBaseCents = proratedAmount(baseGrossCents, devengoDays, SALARY_DEVENGO_DIVISOR);
   const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;
   const ssDeductionCents = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType)
     .proratedWorkerSsCents;

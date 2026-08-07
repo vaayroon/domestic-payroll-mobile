@@ -66,8 +66,14 @@ export interface WorkerSsBreakdown {
 /**
  * TGSS treats the base de cotización as a 30-day month regardless of the
  * calendar month's real length (spec "SS proration decoupled from salary
- * proration") -- this is DIFFERENT from the salary proration divisor
- * (`daysInMonth`, 28-31), which is why the two must never share one ratio.
+ * proration"). Salary devengo proration now uses the same /30 mes-comercial
+ * ratio (see `engine.ts`'s `SALARY_DEVENGO_DIVISOR`), so on partial months
+ * salary and SS share the identical `daysWorked/30` ratio -- not just the
+ * same numerator. `SALARY_DEVENGO_DIVISOR` and `SS_DIVISOR` are numerically
+ * equal by design (guarded by a drift-lock test) but remain distinct named
+ * constants because they rest on different legal bases: this one is the
+ * TGSS contribution-base convention, `SALARY_DEVENGO_DIVISOR` is a
+ * labor-law devengo convention (see its doc-comment in `engine.ts`).
  */
 export const SS_DIVISOR = 30;
 
