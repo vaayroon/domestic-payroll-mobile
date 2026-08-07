@@ -1,0 +1,1 @@
+ALTER TABLE `employers` ADD `default_lugar` text;

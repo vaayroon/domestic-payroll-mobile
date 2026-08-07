@@ -19,6 +19,7 @@ export const employers = sqliteTable('employers', {
   nif: text('nif'),
   address: text('address'),
   ccc: text('ccc'),
+  defaultLugar: text('default_lugar'),
   createdAt: integer('created_at').notNull(),
 });
 

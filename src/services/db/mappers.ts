@@ -39,6 +39,7 @@ export function employerRowToDomain(row: EmployerRow): Employer {
     nif: row.nif,
     address: row.address,
     ccc: row.ccc,
+    defaultLugar: row.defaultLugar,
     createdAt: row.createdAt,
   };
 }
@@ -50,6 +51,7 @@ export function employerInsertFromNew(input: NewEmployer, id: string, createdAt:
     nif: input.nif ?? null,
     address: input.address ?? null,
     ccc: input.ccc ?? null,
+    defaultLugar: input.defaultLugar ?? null,
     createdAt,
   };
 }

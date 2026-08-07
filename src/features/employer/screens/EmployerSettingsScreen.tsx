@@ -133,6 +133,18 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
         ) : null}
       </View>
 
+      <View>
+        <Text className="mb-1 text-slate-300">Lugar de emisión (opcional)</Text>
+        <TextInput
+          testID="employer-form-default-lugar"
+          className="rounded-md bg-slate-800 px-3 py-2 text-white"
+          value={values.defaultLugar}
+          onChangeText={(text) => onChangeField('defaultLugar', text)}
+          placeholder="Ciudad donde se emiten los recibos"
+          placeholderTextColor="#94a3b8"
+        />
+      </View>
+
       {saveError !== null ? (
         <Text testID="employer-form-save-error" className="text-sm text-red-400">
           No se pudo guardar: {saveError}

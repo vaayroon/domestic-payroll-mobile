@@ -15,6 +15,7 @@ export interface EmployerFormInput {
   readonly nif: string;
   readonly address: string;
   readonly ccc: string;
+  readonly defaultLugar: string;
 }
 
 export interface EmployerFormErrors {
@@ -57,6 +58,7 @@ export function validateEmployerForm(input: EmployerFormInput): ValidateEmployer
   }
 
   const address = input.address.trim();
+  const defaultLugar = input.defaultLugar.trim();
 
   return {
     ok: true,
@@ -65,6 +67,7 @@ export function validateEmployerForm(input: EmployerFormInput): ValidateEmployer
       nif: nifResult.value,
       address: address === '' ? null : address,
       ccc: cccResult.value,
+      defaultLugar: defaultLugar === '' ? null : defaultLugar,
     },
   };
 }

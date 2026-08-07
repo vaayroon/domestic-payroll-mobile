@@ -22,6 +22,7 @@ const FAKE_EMPLOYER: Employer = {
   nif: '00000000T',
   address: 'Calle Falsa 123',
   ccc: '28000000000',
+  defaultLugar: null,
   createdAt: 0,
 };
 
@@ -95,15 +96,23 @@ describe('useEmployerForm', () => {
       nif: '00000000T',
       address: 'Calle Falsa 123',
       ccc: '28000000000',
+      defaultLugar: '',
     });
   });
 
-  it('seeds empty strings from bootstrap defaults (nif/address/ccc null)', async () => {
-    const bootstrapEmployer: Employer = { ...FAKE_EMPLOYER, nif: null, address: null, ccc: null, name: 'Empleador' };
+  it('seeds empty strings from bootstrap defaults (nif/address/ccc/defaultLugar null)', async () => {
+    const bootstrapEmployer: Employer = {
+      ...FAKE_EMPLOYER,
+      nif: null,
+      address: null,
+      ccc: null,
+      defaultLugar: null,
+      name: 'Empleador',
+    };
     const repository = new InMemoryEmployerRepository([bootstrapEmployer]);
     const harness = await renderUseEmployerForm(repository);
 
-    expect(harness.current.values).toEqual({ name: 'Empleador', nif: '', address: '', ccc: '' });
+    expect(harness.current.values).toEqual({ name: 'Empleador', nif: '', address: '', ccc: '', defaultLugar: '' });
   });
 
   it('calls update() with the validated patch on valid input, never create()', async () => {
@@ -127,8 +136,33 @@ describe('useEmployerForm', () => {
       nif: '00000000T',
       address: 'Calle Falsa 123',
       ccc: '28000000000',
+      defaultLugar: null,
     });
     expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('edits and submits defaultLugar with a placeholder value', async () => {
+    const repository = new InMemoryEmployerRepository([FAKE_EMPLOYER]);
+    const updateSpy = jest.spyOn(repository, 'update');
+    const harness = await renderUseEmployerForm(repository);
+
+    await act(async () => {
+      harness.current.setField('defaultLugar', 'Ciudad de Prueba');
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(true);
+    expect(updateSpy).toHaveBeenCalledWith(FAKE_EMPLOYER.id, {
+      name: 'Empleador de Prueba',
+      nif: '00000000T',
+      address: 'Calle Falsa 123',
+      ccc: '28000000000',
+      defaultLugar: 'Ciudad de Prueba',
+    });
   });
 
   it('surfaces validation errors and does not call update() on invalid input', async () => {
