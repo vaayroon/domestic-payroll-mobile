@@ -7,7 +7,8 @@
 
 import { act, create } from 'react-test-renderer';
 
-import { NotifyServiceProvider, RepositoryProvider, type Repositories } from '@/core';
+import { NotifyServiceProvider } from '@/core/NotifyServiceProvider';
+import { RepositoryProvider, type Repositories } from '@/core/RepositoryProvider';
 import { FakeNotificationScheduler } from '@/services/notify/testing/fakes';
 import type { AppSetting, EmployeeRepository, EmployerRepository, PayrollRunRepository, SettingsRepository } from '@/types';
 
