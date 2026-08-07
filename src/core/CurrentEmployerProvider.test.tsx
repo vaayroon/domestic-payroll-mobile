@@ -56,6 +56,7 @@ class InMemoryEmployerRepository implements EmployerRepository {
       nif: input.nif ?? null,
       address: input.address ?? null,
       ccc: input.ccc ?? null,
+      defaultLugar: input.defaultLugar ?? null,
       createdAt: Date.now(),
     };
     this.rows.push(employer);
@@ -144,6 +145,7 @@ describe('CurrentEmployerProvider', () => {
       nif: null,
       address: null,
       ccc: null,
+      defaultLugar: null,
       createdAt: 0,
     };
 

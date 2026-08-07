@@ -17,5 +17,6 @@ export const FAKE_EMPLOYER: Employer = {
   nif: null,
   address: null,
   ccc: null,
+  defaultLugar: null,
   createdAt: 0,
 };

@@ -32,6 +32,7 @@ const FAKE_EMPLOYER: Employer = {
   nif: '00000000T',
   address: 'Calle Falsa 123',
   ccc: '28000000000',
+  defaultLugar: null,
   createdAt: 0,
 };
 
@@ -137,6 +138,7 @@ describe('EmployerSettingsScreen', () => {
       nif: '00000000T',
       address: 'Calle Falsa 123',
       ccc: '28000000000',
+      defaultLugar: null,
     });
   });
 

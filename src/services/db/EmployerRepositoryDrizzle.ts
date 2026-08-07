@@ -48,6 +48,7 @@ export class EmployerRepositoryDrizzle implements EmployerRepository {
         ...(patch.nif !== undefined ? { nif: patch.nif } : {}),
         ...(patch.address !== undefined ? { address: patch.address } : {}),
         ...(patch.ccc !== undefined ? { ccc: patch.ccc } : {}),
+        ...(patch.defaultLugar !== undefined ? { defaultLugar: patch.defaultLugar } : {}),
       })
       .where(eq(employers.id, id))
       .returning();

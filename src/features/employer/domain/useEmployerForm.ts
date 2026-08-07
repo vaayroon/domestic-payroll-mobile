@@ -25,7 +25,7 @@ export interface UseEmployerFormResult {
   readonly saveError: string | null;
 }
 
-const EMPTY_VALUES: EmployerFormInput = { name: '', nif: '', address: '', ccc: '' };
+const EMPTY_VALUES: EmployerFormInput = { name: '', nif: '', address: '', ccc: '', defaultLugar: '' };
 
 export function useEmployerForm(): UseEmployerFormResult {
   const employerRepository = useEmployerRepository();
@@ -58,6 +58,7 @@ export function useEmployerForm(): UseEmployerFormResult {
             nif: employer.nif ?? '',
             address: employer.address ?? '',
             ccc: employer.ccc ?? '',
+            defaultLugar: employer.defaultLugar ?? '',
           });
           setLoadError(null);
         }
