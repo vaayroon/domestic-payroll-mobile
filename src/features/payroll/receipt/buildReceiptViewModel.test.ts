@@ -188,6 +188,52 @@ describe('buildReceiptViewModel', () => {
     expect(buildReceiptViewModel(input)).toEqual(buildReceiptViewModel(input));
   });
 
+  describe('lugarYFecha (Employer.defaultLugar)', () => {
+    it('renders "En <lugar>, a <fecha>" when the employer has a default lugar set', () => {
+      const vm = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: { ...FAKE_EMPLOYER, defaultLugar: 'Ciudad de Prueba' },
+        issuedOnIso: '2026-01-01',
+        ratesConfig: null,
+      });
+
+      expect(vm.lugarYFecha).toBe('En Ciudad de Prueba, a 1 de enero de 2026');
+    });
+
+    it('preserves the blank "En ………, a <fecha>" placeholder when defaultLugar is null (backward-compat)', () => {
+      const vm = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: { ...FAKE_EMPLOYER, defaultLugar: null },
+        issuedOnIso: '2026-01-01',
+        ratesConfig: null,
+      });
+
+      expect(vm.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
+    });
+
+    it('falls back to the blank placeholder when defaultLugar is an empty or whitespace-only string', () => {
+      const vmEmpty = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: { ...FAKE_EMPLOYER, defaultLugar: '' },
+        issuedOnIso: '2026-01-01',
+        ratesConfig: null,
+      });
+      expect(vmEmpty.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
+
+      const vmWhitespace = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: { ...FAKE_EMPLOYER, defaultLugar: '   ' },
+        issuedOnIso: '2026-01-01',
+        ratesConfig: null,
+      });
+      expect(vmWhitespace.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
+    });
+  });
+
   describe('CCC line (Scenarios 15, 16)', () => {
     it('renders the CCC value with no "verified" claim when present (Scenario 15)', () => {
       const vm = buildReceiptViewModel({

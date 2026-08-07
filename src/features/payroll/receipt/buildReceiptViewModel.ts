@@ -128,6 +128,16 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
       ? null
       : `del día ${dayOfMonth(run.periodStartDate)} al ${dayOfMonth(run.periodEndDate)}`;
 
+  // Employer's default issuing place ("lugar"), when set, pre-fills the "En
+  // [lugar], a [fecha]" line; null/empty preserves today's blank `………`
+  // placeholder (backward-compat — spec "Receipt preserves current blank
+  // behavior when lugar is absent").
+  const lugar = employer.defaultLugar?.trim() ? employer.defaultLugar.trim() : null;
+  const lugarYFecha =
+    lugar === null
+      ? `En ………, a ${formatSpanishDate(issuedOnIso)}`
+      : `En ${lugar}, a ${formatSpanishDate(issuedOnIso)}`;
+
   return {
     empleador: {
       nombre: employer.name,
@@ -154,7 +164,7 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
     deduccionesDesglose,
     totalDeducciones: formatEuros(run.ssDeductionCents),
     liquidoTotal: formatEuros(run.netCents),
-    lugarYFecha: `En ………, a ${formatSpanishDate(issuedOnIso)}`,
+    lugarYFecha,
     firmaLabel: 'Firma de la persona trabajadora',
   };
 }
