@@ -141,6 +141,30 @@ describe('useEmployerForm', () => {
     expect(createSpy).not.toHaveBeenCalled();
   });
 
+  it('edits and submits defaultLugar with a placeholder value', async () => {
+    const repository = new InMemoryEmployerRepository([FAKE_EMPLOYER]);
+    const updateSpy = jest.spyOn(repository, 'update');
+    const harness = await renderUseEmployerForm(repository);
+
+    await act(async () => {
+      harness.current.setField('defaultLugar', 'Ciudad de Prueba');
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(true);
+    expect(updateSpy).toHaveBeenCalledWith(FAKE_EMPLOYER.id, {
+      name: 'Empleador de Prueba',
+      nif: '00000000T',
+      address: 'Calle Falsa 123',
+      ccc: '28000000000',
+      defaultLugar: 'Ciudad de Prueba',
+    });
+  });
+
   it('surfaces validation errors and does not call update() on invalid input', async () => {
     const repository = new InMemoryEmployerRepository([FAKE_EMPLOYER]);
     const updateSpy = jest.spyOn(repository, 'update');

@@ -84,13 +84,14 @@ async function renderScreen(employerRepository: InMemoryEmployerRepository): Pro
 }
 
 describe('EmployerSettingsScreen', () => {
-  it('renders the four fields seeded from the current employer', async () => {
+  it('renders the five fields seeded from the current employer', async () => {
     const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
 
     expect(renderer.root.findByProps({ testID: 'employer-form-name' }).props.value).toBe('Empleador de Prueba');
     expect(renderer.root.findByProps({ testID: 'employer-form-nif' }).props.value).toBe('00000000T');
     expect(renderer.root.findByProps({ testID: 'employer-form-address' }).props.value).toBe('Calle Falsa 123');
     expect(renderer.root.findByProps({ testID: 'employer-form-ccc' }).props.value).toBe('28000000000');
+    expect(renderer.root.findByProps({ testID: 'employer-form-default-lugar' }).props.value).toBe('');
   });
 
   it('maps an invalid nif error code to a Spanish message on save attempt', async () => {
@@ -139,6 +140,27 @@ describe('EmployerSettingsScreen', () => {
       address: 'Calle Falsa 123',
       ccc: '28000000000',
       defaultLugar: null,
+    });
+  });
+
+  it('edits and submits the default lugar field through the repository', async () => {
+    const repository = new InMemoryEmployerRepository([FAKE_EMPLOYER]);
+    const updateSpy = jest.spyOn(repository, 'update');
+    const renderer = await renderScreen(repository);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'employer-form-default-lugar' }).props.onChangeText('Ciudad de Prueba');
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'employer-form-submit' }).props.onPress();
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(FAKE_EMPLOYER.id, {
+      name: 'Empleador de Prueba',
+      nif: '00000000T',
+      address: 'Calle Falsa 123',
+      ccc: '28000000000',
+      defaultLugar: 'Ciudad de Prueba',
     });
   });
 
