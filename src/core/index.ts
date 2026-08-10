@@ -14,3 +14,5 @@ export * from './MailServiceProvider';
 export * from './NotifyServiceProvider';
 export * from './ReminderProvider';
 export * from './parseEuroInput';
+export * from './validateNifNie';
+export * from './validateNaf';

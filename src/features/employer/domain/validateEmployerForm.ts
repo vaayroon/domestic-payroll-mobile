@@ -5,10 +5,10 @@
  * no I/O, error codes only, never UI copy.
  */
 
+import { validateNifNie } from '@/core';
 import type { NewEmployer } from '@/types/domain';
 
 import { validateCcc } from './validateCcc';
-import { validateNifNie } from './validateNifNie';
 
 export interface EmployerFormInput {
   readonly name: string;
