@@ -69,6 +69,24 @@ describe('validateEmployeeForm', () => {
     }
   });
 
+  it('rejects a malformed NIF as invalid', () => {
+    const result = validateEmployeeForm(
+      { name: 'Empleado de Prueba', nif: '12345678A', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { nif: 'invalid' } });
+  });
+
+  it('rejects a malformed NAF as invalid', () => {
+    const result = validateEmployeeForm(
+      { name: 'Empleado de Prueba', nif: '', naf: '123', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { naf: 'invalid' } });
+  });
+
   it('rejects an empty name', () => {
     const result = validateEmployeeForm(
       { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },

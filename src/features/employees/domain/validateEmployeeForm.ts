@@ -4,7 +4,7 @@
  * result is still a full, persistable `NewEmployee`.
  */
 
-import { parseEuroInput, type EuroParseError } from '@/core';
+import { parseEuroInput, validateNaf, validateNifNie, type EuroParseError } from '@/core';
 import type { ContractType, NewEmployee } from '@/types/domain';
 
 export interface EmployeeFormInput {
@@ -20,6 +20,8 @@ export interface EmployeeFormInput {
 
 export interface EmployeeFormErrors {
   name?: 'required';
+  nif?: 'invalid';
+  naf?: 'invalid';
   baseGross?: EuroParseError | 'not_positive';
   alta?: 'invalid_date';
   baja?: 'invalid_date' | 'before_alta';
@@ -69,6 +71,23 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.name = 'required';
   }
 
+  // NIF/NAF are optional (design "Employee identifiers"): empty input maps
+  // to `null` inside the validators themselves, so no separate empty-check
+  // is needed here -- only non-empty, malformed values fail. Mirrors how
+  // `validateEmployerForm` wires `validateNifNie`/`validateCcc`. Unlike the
+  // employer form, the specific `invalid_format`/`invalid_checksum` codes
+  // are collapsed into a single `'invalid'` code here (design decision --
+  // keeps the employee form's error surface minimal).
+  const nifResult = validateNifNie(input.nif);
+  if (!nifResult.ok) {
+    errors.nif = 'invalid';
+  }
+
+  const nafResult = validateNaf(input.naf);
+  if (!nafResult.ok) {
+    errors.naf = 'invalid';
+  }
+
   const parsedBaseGross = parseEuroInput(input.baseGross);
   if (!parsedBaseGross.ok) {
     errors.baseGross = parsedBaseGross.error;
@@ -108,6 +127,8 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
 
   if (
     errors.name !== undefined ||
+    errors.nif !== undefined ||
+    errors.naf !== undefined ||
     errors.baseGross !== undefined ||
     errors.alta !== undefined ||
     errors.baja !== undefined ||
@@ -116,14 +137,12 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     return { ok: false, errors };
   }
 
-  // Re-narrow: the branches above guarantee `parsedBaseGross.ok === true` at
-  // this point, but TypeScript can't infer that across the `errors` object.
-  if (!parsedBaseGross.ok) {
+  // Re-narrow: the branches above guarantee `parsedBaseGross.ok`,
+  // `nifResult.ok`, and `nafResult.ok` are all `true` at this point, but
+  // TypeScript can't infer that across the `errors` object.
+  if (!parsedBaseGross.ok || !nifResult.ok || !nafResult.ok) {
     return { ok: false, errors };
   }
-
-  const nif = input.nif.trim();
-  const naf = input.naf.trim();
 
   // Re-narrow: `errors.contractType` being unset guarantees a real choice was made.
   if (input.contractType === '') {
@@ -135,8 +154,8 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     value: {
       employerId,
       name,
-      nif: nif === '' ? null : nif,
-      naf: naf === '' ? null : naf,
+      nif: nifResult.value,
+      naf: nafResult.value,
       baseGrossCents: parsedBaseGross.value,
       altaDate,
       bajaDate,

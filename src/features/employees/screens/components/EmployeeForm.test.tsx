@@ -48,6 +48,20 @@ describe('EmployeeForm', () => {
     }
   });
 
+  it('maps the nif invalid error code to a Spanish message', async () => {
+    const renderer = await renderForm({ ...baseProps, errors: { nif: 'invalid' } });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('NIF/NIE no válido.');
+  });
+
+  it('maps the naf invalid error code to a Spanish message', async () => {
+    const renderer = await renderForm({ ...baseProps, errors: { naf: 'invalid' } });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('NAF no válido.');
+  });
+
   it('renders the alta/baja date inputs with their current values', async () => {
     const renderer = await renderForm({ ...baseProps, values: { ...baseProps.values, alta: '2026-07-23', baja: '2026-12-31' } });
 

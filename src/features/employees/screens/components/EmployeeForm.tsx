@@ -12,6 +12,14 @@ const NAME_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['name']>, strin
   required: 'El nombre es obligatorio.',
 };
 
+const NIF_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['nif']>, string> = {
+  invalid: 'NIF/NIE no válido.',
+};
+
+const NAF_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['naf']>, string> = {
+  invalid: 'NAF no válido.',
+};
+
 const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGross']>, string> = {
   empty: 'Introduce el salario bruto.',
   not_a_number: 'Introduce un número válido (ej. 900 o 900,50).',
@@ -76,6 +84,9 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
           placeholder="NIF"
           placeholderTextColor="#94a3b8"
         />
+        {errors.nif !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{NIF_ERROR_MESSAGES[errors.nif]}</Text>
+        ) : null}
       </View>
 
       <View>
@@ -88,6 +99,9 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
           placeholder="NAF"
           placeholderTextColor="#94a3b8"
         />
+        {errors.naf !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{NAF_ERROR_MESSAGES[errors.naf]}</Text>
+        ) : null}
       </View>
 
       <View>
