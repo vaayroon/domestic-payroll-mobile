@@ -49,6 +49,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fe3dc175-56cf-4e1e-b782-a56e344cfa2d"
+      }
+    },
+    "owner": "vaayroons-team"
   }
 }
