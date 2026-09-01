@@ -153,4 +153,33 @@ describe('useEmployerSignature', () => {
     const raw = await settings.get(EMPLOYER_SIGNATURE_KEY);
     expect(JSON.parse(raw ?? '{}')).toMatchObject({ pngBase64: null });
   });
+
+  it('degrades to "no signature" when the initial settings read rejects', async () => {
+    const throwingSettings: SettingsRepository = {
+      get: () => Promise.reject(new Error('I/O error')),
+      set: notImplemented('SettingsRepository.set'),
+    };
+
+    const harness = await renderUseEmployerSignature(throwingSettings);
+
+    expect(harness.current.loading).toBe(false);
+    expect(harness.current.savedPngBase64).toBeNull();
+    // The read failure is handled, not surfaced -- the user can still draw one.
+    expect(harness.current.saveError).toBeNull();
+  });
+
+  it('degrades to "no signature" when the initial settings read throws synchronously', async () => {
+    const throwingSettings: SettingsRepository = {
+      get: () => {
+        throw new Error('synchronous I/O error');
+      },
+      set: notImplemented('SettingsRepository.set'),
+    };
+
+    const harness = await renderUseEmployerSignature(throwingSettings);
+
+    expect(harness.current.loading).toBe(false);
+    expect(harness.current.savedPngBase64).toBeNull();
+    expect(harness.current.saveError).toBeNull();
+  });
 });

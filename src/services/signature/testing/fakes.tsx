@@ -22,9 +22,16 @@ export type FakeSignaturePadBehavior =
   | { readonly kind: 'capture-failed' };
 
 let behavior: FakeSignaturePadBehavior = { kind: 'ready-with-signature' };
+let clearCallCount = 0;
 
 export function setFakeSignaturePadBehavior(next: FakeSignaturePadBehavior): void {
   behavior = next;
+  clearCallCount = 0;
+}
+
+/** How many times the screen invoked `controls.clear()` since the last reset. */
+export function getFakeSignaturePadClearCount(): number {
+  return clearCallCount;
 }
 
 export function FakeSignaturePad({ onReady, onCapture, onEmpty, onFailure }: SignaturePadProps) {
@@ -45,7 +52,9 @@ export function FakeSignaturePad({ onReady, onCapture, onEmpty, onFailure }: Sig
         }
       },
       clear: () => {
-        // Canvas-only in the real adapter; the fake has no canvas state to clear.
+        // Canvas-only in the real adapter; the fake has no canvas state to
+        // clear, so it just records the call for assertions.
+        clearCallCount += 1;
       },
     });
     // Fires once on mount, mirroring the real adapter's `onLoadEnd` -> `onReady` timing.

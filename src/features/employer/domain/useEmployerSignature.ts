@@ -11,6 +11,9 @@
  * when the thrown value provably cannot carry PII; here a non-`Error` throw
  * could stringify the signature payload straight into UI text (CLAUDE.md §6,
  * design ADR-6).
+ *
+ * A failing initial read degrades to "no signature saved" instead of blocking
+ * the screen -- the user can always draw a new one.
  */
 
 import { useEffect, useState } from 'react';
@@ -56,6 +59,17 @@ export function useEmployerSignature(): UseEmployerSignatureResult {
           return;
         }
         setSavedPngBase64(parseEmployerSignature(raw).pngBase64);
+      } catch {
+        // A settings-read failure degrades to "no signature saved" -- the user
+        // can still draw and save one. Two reasons this catch must exist even
+        // though the default state is already `null`: without it the rejection
+        // escapes `void load()` as an unhandled rejection, and the graceful
+        // degradation would be accidental rather than intended. The caught
+        // value is discarded WITHOUT inspection: it could in principle carry
+        // the payload (CLAUDE.md §6, design ADR-6).
+        if (!cancelled) {
+          setSavedPngBase64(null);
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);

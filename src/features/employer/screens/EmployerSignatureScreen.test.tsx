@@ -8,9 +8,14 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { RepositoryProvider, SignaturePadProvider, type Repositories } from '@/core';
+import { EMPLOYER_SIGNATURE_KEY } from '@/core/employerSignature';
 import { InMemorySettingsRepository } from '@/core/testing/fakes';
 import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
-import { FakeSignaturePad, setFakeSignaturePadBehavior } from '@/services/signature/testing/fakes';
+import {
+  FakeSignaturePad,
+  getFakeSignaturePadClearCount,
+  setFakeSignaturePadBehavior,
+} from '@/services/signature/testing/fakes';
 import type { EmployeeRepository, EmployerRepository, PayrollRunRepository, SettingsRepository } from '@/types';
 
 import { EmployerSignatureScreen } from './EmployerSignatureScreen';
@@ -157,6 +162,31 @@ describe('EmployerSignatureScreen', () => {
     // Only saving dismisses the screen; deleting leaves the user on it so the
     // cleared state is visible and a new signature can be drawn right away.
     expect(mockRouterBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Limpiar" clears the canvas only: no persistence change, no dismissal', async () => {
+    const settings = new InMemorySettingsRepository();
+    const renderer = await renderScreen(settings);
+
+    // Save first, so a persisted signature exists to prove Limpiar leaves it alone.
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'signature-settings-save' }).props.onPress();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const backCallsAfterSave = mockRouterBack.mock.calls.length;
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'signature-settings-clear-canvas' }).props.onPress();
+    });
+
+    expect(getFakeSignaturePadClearCount()).toBe(1);
+    // Canvas-only: the saved signature and the screen both stay exactly as they were.
+    expect(renderer.root.findByProps({ testID: 'signature-settings-status' }).props.children).toBe('Firma guardada');
+    await expect(settings.get(EMPLOYER_SIGNATURE_KEY)).resolves.not.toBeNull();
+    expect(mockRouterBack).toHaveBeenCalledTimes(backCallsAfterSave);
   });
 
   it('renders the mapped copy for a load_failed pad failure', async () => {
