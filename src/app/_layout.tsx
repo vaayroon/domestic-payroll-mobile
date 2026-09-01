@@ -109,6 +109,10 @@ export default function RootLayout() {
                         name="settings/reminder"
                         options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
                       />
+                      <Stack.Screen
+                        name="settings/signature"
+                        options={{ presentation: 'modal', title: 'Firma' }}
+                      />
                     </Stack>
                   </ThemeProvider>
                 </ReminderProvider>
