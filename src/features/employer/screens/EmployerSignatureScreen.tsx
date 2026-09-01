@@ -4,8 +4,18 @@
  * `SignaturePad` component (resolved via `useSignaturePad()`, never a direct
  * import of the sealed adapter -- CLAUDE.md §3). Plain `View` layout, NOT a
  * `ScrollView` -- a scrollable parent would steal the drawing gesture.
+ *
+ * A successful save dismisses the screen via `router.back()`, matching every
+ * other save flow in the app (`EmployeeCreateScreen`, `EmployeeEditScreen`,
+ * `EmployerSettingsScreen`, `ReminderSettingsScreen`) and the fact that this
+ * route is registered with `presentation: 'modal'`. Note the back call belongs
+ * in `handleCapture`, not `handleSave`: the pad exports asynchronously, so the
+ * press handler cannot know whether the save succeeded. `Limpiar` and
+ * `Borrar firma guardada` deliberately stay put -- they manage state rather
+ * than completing the screen's task.
  */
 
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -22,6 +32,7 @@ const FAILURE_MESSAGES: Record<SignaturePadFailureCode, string> = {
 };
 
 export function EmployerSignatureScreen() {
+  const router = useRouter();
   const SignaturePad = useSignaturePad();
   const { loading, savedPngBase64, save, clear, saving, saveError } = useEmployerSignature();
 
@@ -32,9 +43,12 @@ export function EmployerSignatureScreen() {
     setControls(nextControls);
   };
 
-  const handleCapture = (pngBase64: string) => {
+  const handleCapture = async (pngBase64: string) => {
     setLocalError(null);
-    void save(pngBase64);
+    const success = await save(pngBase64);
+    if (success) {
+      router.back();
+    }
   };
 
   const handleEmpty = () => {
@@ -90,7 +104,7 @@ export function EmployerSignatureScreen() {
         heightPx={220}
         penColor="#111827"
         onReady={handleReady}
-        onCapture={handleCapture}
+        onCapture={(pngBase64) => void handleCapture(pngBase64)}
         onEmpty={handleEmpty}
         onFailure={handleFailure}
       />

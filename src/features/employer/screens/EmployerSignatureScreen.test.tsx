@@ -15,6 +15,17 @@ import type { EmployeeRepository, EmployerRepository, PayrollRunRepository, Sett
 
 import { EmployerSignatureScreen } from './EmployerSignatureScreen';
 
+// `router.back()` requires a live navigation tree (`assertIsReady` throws
+// outside one); these tests render the screen standalone via
+// `RepositoryProvider`, so `useRouter` is mocked the same way a real
+// navigation container would satisfy it (mirrors
+// `EmployerSettingsScreen.test.tsx`).
+const mockRouterBack = jest.fn();
+jest.mock('expo-router', () => ({
+  ...jest.requireActual('expo-router'),
+  useRouter: () => ({ back: mockRouterBack }),
+}));
+
 function notImplemented(method: string): () => never {
   return () => {
     throw new Error(`not implemented in this test fake: ${method}`);
@@ -74,6 +85,7 @@ async function renderScreen(settings: SettingsRepository): Promise<ReactTestRend
 describe('EmployerSignatureScreen', () => {
   beforeEach(() => {
     setFakeSignaturePadBehavior({ kind: 'ready-with-signature' });
+    mockRouterBack.mockClear();
   });
 
   it('shows "Sin firma guardada" when nothing is persisted', async () => {
@@ -97,6 +109,7 @@ describe('EmployerSignatureScreen', () => {
     });
 
     expect(renderer.root.findByProps({ testID: 'signature-settings-status' }).props.children).toBe('Firma guardada');
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
   });
 
   it('onEmpty shows the empty-canvas error and persists nothing', async () => {
@@ -113,6 +126,7 @@ describe('EmployerSignatureScreen', () => {
     expect(renderer.root.findByProps({ testID: 'signature-settings-status' }).props.children).toBe(
       'Sin firma guardada',
     );
+    expect(mockRouterBack).not.toHaveBeenCalled();
   });
 
   it('delete clears a previously saved signature', async () => {
@@ -140,6 +154,9 @@ describe('EmployerSignatureScreen', () => {
     expect(renderer.root.findByProps({ testID: 'signature-settings-status' }).props.children).toBe(
       'Sin firma guardada',
     );
+    // Only saving dismisses the screen; deleting leaves the user on it so the
+    // cleared state is visible and a new signature can be drawn right away.
+    expect(mockRouterBack).toHaveBeenCalledTimes(1);
   });
 
   it('renders the mapped copy for a load_failed pad failure', async () => {
@@ -162,6 +179,7 @@ describe('EmployerSignatureScreen', () => {
     expect(renderer.root.findByProps({ testID: 'signature-settings-error' }).props.children).toBe(
       'No se pudo leer la firma.',
     );
+    expect(mockRouterBack).not.toHaveBeenCalled();
   });
 
   it('never renders the raw synthetic payload as text (privacy)', async () => {
