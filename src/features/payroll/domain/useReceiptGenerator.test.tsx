@@ -10,7 +10,16 @@
 
 import { act, create } from 'react-test-renderer';
 
-import { CurrentEmployerProvider, PdfServiceProvider, RepositoryProvider, type Repositories } from '@/core';
+import {
+  CurrentEmployerProvider,
+  EMPLOYER_SIGNATURE_KEY,
+  PdfServiceProvider,
+  RepositoryProvider,
+  serializeEmployerSignature,
+  type Repositories,
+} from '@/core';
+import { InMemorySettingsRepository } from '@/core/testing/fakes';
+import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
 import type { Employee, PayrollRun, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
@@ -52,29 +61,21 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
-function notImplemented(method: string): () => never {
-  return () => {
-    throw new Error(`not implemented in this test fake: ${method}`);
-  };
-}
-
-const fakeSettingsRepository: SettingsRepository = {
-  get: notImplemented('SettingsRepository.get'),
-  set: notImplemented('SettingsRepository.set'),
-};
-
 function HookHarness({ onResult }: { onResult: (result: UseReceiptGeneratorResult) => void }) {
   const result = useReceiptGenerator();
   onResult(result);
   return null;
 }
 
-async function renderUseReceiptGenerator(generator: FakeReceiptPdfGenerator) {
+async function renderUseReceiptGenerator(
+  generator: FakeReceiptPdfGenerator,
+  settings: SettingsRepository = new InMemorySettingsRepository(),
+) {
   const repositories: Repositories = {
     employers: new InMemoryEmployerRepository([FAKE_EMPLOYER]),
     employees: new InMemoryEmployeeRepository([FAKE_EMPLOYEE]),
     payrollRuns: new InMemoryPayrollRunRepository([FAKE_RUN]),
-    settings: fakeSettingsRepository,
+    settings,
   };
 
   let latest!: UseReceiptGeneratorResult;
@@ -139,5 +140,41 @@ describe('useReceiptGenerator', () => {
     expect(result).toBeNull();
     expect(harness.current.error).toMatch(/No se encontró/);
     expect(generator.lastHtml).toBeNull();
+  });
+
+  it('embeds a saved employer signature into the generated HTML', async () => {
+    const settings = new InMemorySettingsRepository();
+    await settings.set(
+      EMPLOYER_SIGNATURE_KEY,
+      serializeEmployerSignature({ pngBase64: SYNTHETIC_SIGNATURE_PNG_BASE64, updatedAt: 1 }),
+    );
+    const generator = new FakeReceiptPdfGenerator();
+    const harness = await renderUseReceiptGenerator(generator, settings);
+
+    await act(async () => {
+      await harness.current.generate(FAKE_RUN);
+    });
+
+    expect(generator.lastHtml).toContain(`data:image/png;base64,${SYNTHETIC_SIGNATURE_PNG_BASE64}`);
+    expect(harness.current.error).toBeNull();
+  });
+
+  it('degrades to a no-image receipt, without blocking generation, when the settings read fails', async () => {
+    const throwingSettings: SettingsRepository = {
+      get: () => Promise.reject(new Error('I/O error')),
+      set: () => Promise.reject(new Error('unused')),
+    };
+    const generator = new FakeReceiptPdfGenerator();
+    const harness = await renderUseReceiptGenerator(generator, throwingSettings);
+
+    let result: { readonly uri: string } | null = null;
+    await act(async () => {
+      result = await harness.current.generate(FAKE_RUN);
+    });
+
+    expect(result).toEqual({ uri: 'file:///fake/recibo-1.pdf' });
+    expect(harness.current.error).toBeNull();
+    expect(generator.lastHtml).not.toBeNull();
+    expect(generator.lastHtml).not.toContain('<img');
   });
 });
