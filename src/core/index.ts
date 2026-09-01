@@ -16,3 +16,4 @@ export * from './ReminderProvider';
 export * from './parseEuroInput';
 export * from './validateNifNie';
 export * from './validateNaf';
+export * from './employerSignature';
