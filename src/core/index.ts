@@ -17,3 +17,4 @@ export * from './parseEuroInput';
 export * from './validateNifNie';
 export * from './validateNaf';
 export * from './employerSignature';
+export * from './SignaturePadProvider';

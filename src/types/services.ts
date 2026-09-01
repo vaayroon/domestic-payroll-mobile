@@ -5,6 +5,12 @@
  * these interfaces live in `src/services/*` and are wired in via a `core/`
  * provider, mirroring the sealed-adapter pattern used for Drizzle
  * (CLAUDE.md §3).
+ *
+ * This file holds two different contract shapes: behavioural interfaces
+ * (the five above) and one PROPS contract (`SignaturePadProps` below) for a
+ * sealed rendering surface. See design ADR-1/ADR-2 of
+ * `sdd/saved-signature/design` for why the props-contract deviation is
+ * deliberate rather than an accident.
  */
 
 /** Renders receipt HTML into an on-device PDF file. */
@@ -70,4 +76,41 @@ export interface NotificationScheduler {
   consumeStartupTap(): Promise<boolean>;
   /** Registers a listener for default-action taps received while the app is already running (foreground/background, spec TN-1). Returns an unsubscribe function. */
   onTap(listener: () => void): () => void;
+}
+
+export type SignaturePadFailureCode = 'load_failed' | 'capture_failed';
+
+/**
+ * Imperative handle a `SignaturePad` hands back once its drawing surface is
+ * ready. Plain data + functions -- deliberately NOT a React ref, so the
+ * contract stays free of React types and `src/types` keeps its zero-dependency
+ * property (CLAUDE.md §3).
+ */
+export interface SignaturePadControls {
+  /** Exports the current drawing. Answers via `onCapture`, or `onEmpty` when nothing was drawn. */
+  readonly capture: () => void;
+  /** Clears the drawing surface only. Never touches persistence. */
+  readonly clear: () => void;
+}
+
+/**
+ * Props contract for the sealed signature-capture surface
+ * (`src/services/signature/SignaturePadView`). Domain-free: no payroll, no
+ * employer, no persistence. The ONLY contract in this file that is a props
+ * shape rather than a behavioural interface -- see ADR-1 of
+ * `sdd/saved-signature/design` for why that deviation is deliberate.
+ */
+export interface SignaturePadProps {
+  /** Bare base64 PNG (NO `data:` prefix) to pre-draw, enabling edit-in-place. `null` starts blank. */
+  readonly initialPngBase64: string | null;
+  /** Explicit pixel height. A WebView with no height collapses to zero on Android. */
+  readonly heightPx: number;
+  readonly penColor: string;
+  readonly onReady: (controls: SignaturePadControls) => void;
+  /** Bare base64 PNG payload, `data:` prefix already stripped by the adapter. */
+  readonly onCapture: (pngBase64: string) => void;
+  readonly onEmpty: () => void;
+  /** A CODE, never a message -- the library's raw error text must never reach the app (see design ADR-6). */
+  readonly onFailure: (code: SignaturePadFailureCode) => void;
+  readonly testID?: string;
 }
