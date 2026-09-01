@@ -1,3 +1,4 @@
+import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { buildReceiptHtml } from './buildReceiptHtml';
 import type { ReceiptViewModel } from './ReceiptViewModel';
 
@@ -21,6 +22,8 @@ const FAKE_VIEW_MODEL: ReceiptViewModel = {
   liquidoTotal: '1.005,00 €',
   lugarYFecha: 'En ………, a 4 de agosto de 2026',
   firmaLabel: 'Firma de la persona trabajadora',
+  empleadorFirmaImagenBase64: null,
+  empleadorFirmaLabel: 'Firma de la parte empleadora',
 };
 
 const FAKE_VIEW_MODEL_NULL_RANGE: ReceiptViewModel = {
@@ -31,6 +34,11 @@ const FAKE_VIEW_MODEL_NULL_RANGE: ReceiptViewModel = {
 const FAKE_VIEW_MODEL_NO_BREAKDOWN: ReceiptViewModel = {
   ...FAKE_VIEW_MODEL,
   deduccionesDesglose: [],
+};
+
+const FAKE_VIEW_MODEL_WITH_SIGNATURE: ReceiptViewModel = {
+  ...FAKE_VIEW_MODEL,
+  empleadorFirmaImagenBase64: SYNTHETIC_SIGNATURE_PNG_BASE64,
 };
 
 describe('buildReceiptHtml', () => {
@@ -137,6 +145,56 @@ describe('buildReceiptHtml', () => {
     it('renders a visible note stating the employer-contribution block is not included', () => {
       expect(html.toLowerCase()).toContain('determinación de bases');
       expect(html.toLowerCase()).toContain('fuera del alcance');
+    });
+  });
+
+  describe('two-column employer/worker signature grid', () => {
+    it('with a signature: embeds an inline data URI image in the employer column', () => {
+      const htmlWithSignature = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_SIGNATURE);
+      expect(htmlWithSignature).toContain(`data:image/png;base64,${SYNTHETIC_SIGNATURE_PNG_BASE64}`);
+      expect(htmlWithSignature).toContain('class="firma-image"');
+      expect(htmlWithSignature).toContain('alt=""');
+    });
+
+    it('without a signature: renders no <img>, and the employer blank line + label', () => {
+      expect(html).not.toContain('<img');
+      expect(html).toContain(FAKE_VIEW_MODEL.empleadorFirmaLabel);
+    });
+
+    it('both states: the worker line and label are preserved verbatim', () => {
+      const htmlWithSignature = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_SIGNATURE);
+      for (const document of [html, htmlWithSignature]) {
+        expect(document).toContain('<div class="firma-line"></div>');
+        expect(document).toContain('Firma de la persona trabajadora');
+      }
+    });
+
+    it('both states: lugarYFecha renders exactly once', () => {
+      const htmlWithSignature = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_SIGNATURE);
+      for (const document of [html, htmlWithSignature]) {
+        expect(document.split(FAKE_VIEW_MODEL.lugarYFecha).length).toBe(2);
+      }
+    });
+
+    it('renders the firma-grid CSS with bottom-aligned columns', () => {
+      expect(html).toContain('.firma-grid');
+      expect(html).toContain('vertical-align: bottom');
+    });
+
+    it('bounds the image via CSS max-width/max-height, never raw width/height attributes', () => {
+      const htmlWithSignature = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_SIGNATURE);
+      expect(htmlWithSignature).toContain('max-width');
+      expect(htmlWithSignature).toContain('max-height');
+      expect(htmlWithSignature).not.toMatch(/<img[^>]*\swidth=/);
+      expect(htmlWithSignature).not.toMatch(/<img[^>]*\sheight=/);
+    });
+
+    it('stays self-contained with an embedded signature (SC4 regression)', () => {
+      const htmlWithSignature = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_SIGNATURE);
+      expect(htmlWithSignature).not.toMatch(/https?:\/\//i);
+      expect(htmlWithSignature).not.toMatch(/<link\b/i);
+      expect(htmlWithSignature).not.toMatch(/<script\b/i);
+      expect(htmlWithSignature).not.toMatch(/@font-face/i);
     });
   });
 });

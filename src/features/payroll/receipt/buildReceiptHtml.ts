@@ -65,7 +65,18 @@ function renderDeducciones(viewModel: ReceiptViewModel): string {
 }
 
 export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
-  const { empleador, trabajador, periodo, devengos, totalDevengos, liquidoTotal, lugarYFecha, firmaLabel } = viewModel;
+  const {
+    empleador,
+    trabajador,
+    periodo,
+    devengos,
+    totalDevengos,
+    liquidoTotal,
+    lugarYFecha,
+    firmaLabel,
+    empleadorFirmaImagenBase64,
+    empleadorFirmaLabel,
+  } = viewModel;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -93,7 +104,12 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
       .header-grid table { border: none; }
       .header-grid table td { border: none; padding: 2px 0; }
       .firma { margin-top: 40px; }
+      .firma-grid { border: none; page-break-inside: avoid; }
+      .firma-grid td { width: 50%; border: none; vertical-align: bottom; padding: 0 8px 0 0; }
       .firma-line { margin-top: 24px; border-top: 1px solid #111827; width: 60%; }
+      .firma-grid td .firma-line { width: 90%; }
+      .firma-image { display: block; max-width: 90%; max-height: 64px; margin-top: 4px; }
+      .firma-label { margin: 4px 0 0; font-size: 11px; }
       .footnote { margin-top: 24px; font-size: 9px; color: #4b5563; }
     </style>
   </head>
@@ -148,8 +164,20 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
 
       <div class="firma">
         <p>${lugarYFecha}</p>
-        <div class="firma-line"></div>
-        <p>${firmaLabel}</p>
+        <table class="firma-grid">
+          <tr>
+            <td>
+              ${empleadorFirmaImagenBase64 === null
+                ? '<div class="firma-line"></div>'
+                : `<img class="firma-image" alt="" src="data:image/png;base64,${empleadorFirmaImagenBase64}" />`}
+              <p class="firma-label">${empleadorFirmaLabel}</p>
+            </td>
+            <td>
+              <div class="firma-line"></div>
+              <p class="firma-label">${firmaLabel}</p>
+            </td>
+          </tr>
+        </table>
       </div>
 
       <p class="footnote">
