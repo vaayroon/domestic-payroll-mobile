@@ -17,7 +17,8 @@
       "extends": "development",
       "env": {
         "ANDROID_SDK_ROOT": "/home/kevin/Android/Sdk",
-        "ANDROID_HOME": "/home/kevin/Android/Sdk"
+        "ANDROID_HOME": "/home/kevin/Android/Sdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk-amd64"
       }
     },
     "preview-local": {

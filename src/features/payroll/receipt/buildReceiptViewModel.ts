@@ -41,6 +41,8 @@ export interface BuildReceiptViewModelInput {
    * single lump `deducciones` line (today's behavior), no crash.
    */
   readonly ratesConfig: RatesConfig | null;
+  /** Bare base64 PNG (NO `data:` prefix) of the employer's saved signature, or `null` when none is saved. Required (not optional) so the strict compiler enumerates every call site (design ADR-5). */
+  readonly employerSignatureBase64: string | null;
 }
 
 /** Formats an integer parts-per-10000 rate as a Spanish percentage string, e.g. `470` -> `"4,70 %"`. */
@@ -117,7 +119,7 @@ function computeDeduccionesDesglose(
 }
 
 export function buildReceiptViewModel(input: BuildReceiptViewModelInput): ReceiptViewModel {
-  const { run, employee, employer, issuedOnIso, ratesConfig } = input;
+  const { run, employee, employer, issuedOnIso, ratesConfig, employerSignatureBase64 } = input;
 
   const salarioBaseCents = subtractCents(run.grossCents, run.extraCents);
 
@@ -176,5 +178,7 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
     liquidoTotal: formatEuros(run.netCents),
     lugarYFecha,
     firmaLabel: 'Firma de la persona trabajadora',
+    empleadorFirmaImagenBase64: employerSignatureBase64,
+    empleadorFirmaLabel: 'Firma de la parte empleadora',
   };
 }

@@ -36,6 +36,10 @@ module.exports = defineConfig([
               group: ['expo-notifications', 'expo-notifications/*'],
               message: 'expo-notifications is only allowed inside src/services/notify/. Depend on the NotificationScheduler interface in src/types instead.',
             },
+            {
+              group: ['react-native-signature-canvas', 'react-native-signature-canvas/*', 'react-native-webview', 'react-native-webview/*'],
+              message: 'react-native-signature-canvas/react-native-webview are only allowed inside src/services/signature/. Depend on the SignaturePadProps contract in src/types instead.',
+            },
           ],
         },
       ],
@@ -61,6 +65,12 @@ module.exports = defineConfig([
   },
   {
     files: ['src/services/notify/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    files: ['src/services/signature/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },

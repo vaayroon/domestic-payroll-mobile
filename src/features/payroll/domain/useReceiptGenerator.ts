@@ -8,7 +8,14 @@
 
 import { useState } from 'react';
 
-import { useCurrentEmployerId, useEmployeeRepository, useEmployerRepository, usePdfGenerator } from '@/core';
+import {
+  readEmployerSignature,
+  useCurrentEmployerId,
+  useEmployeeRepository,
+  useEmployerRepository,
+  usePdfGenerator,
+  useSettingsRepository,
+} from '@/core';
 import type { PayrollRun } from '@/types';
 
 import { buildReceiptHtml, buildReceiptViewModel } from '../receipt';
@@ -24,6 +31,7 @@ export interface UseReceiptGeneratorResult {
 export function useReceiptGenerator(): UseReceiptGeneratorResult {
   const employeeRepository = useEmployeeRepository();
   const employerRepository = useEmployerRepository();
+  const settingsRepository = useSettingsRepository();
   const employerId = useCurrentEmployerId();
   const pdfGenerator = usePdfGenerator();
 
@@ -35,9 +43,10 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
     setGenerating(true);
     setError(null);
     try {
-      const [employee, employer] = await Promise.all([
+      const [employee, employer, employerSignatureBase64] = await Promise.all([
         employeeRepository.getById(run.employeeId),
         employerRepository.getById(employerId),
+        readEmployerSignature(settingsRepository),
       ]);
       if (employee === null) {
         throw new Error('No se encontró el empleado de esta nómina.');
@@ -54,7 +63,14 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       // `null` degrades the receipt to the single-lump SS line, no crash.
       const ratesResult = resolveRatesConfig(run.periodYear);
       const ratesConfig = ratesResult.ok ? ratesResult.config : null;
-      const viewModel = buildReceiptViewModel({ run, employee, employer, issuedOnIso, ratesConfig });
+      const viewModel = buildReceiptViewModel({
+        run,
+        employee,
+        employer,
+        issuedOnIso,
+        ratesConfig,
+        employerSignatureBase64,
+      });
       const html = buildReceiptHtml(viewModel);
 
       const { uri } = await pdfGenerator.generate(html);

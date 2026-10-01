@@ -160,6 +160,10 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
       <Link href="/settings/reminder" testID="employer-form-reminder-link" className="text-center">
         <Text className="text-emerald-400">Recordatorio mensual</Text>
       </Link>
+
+      <Link href="/settings/signature" testID="employer-form-signature-link" className="text-center">
+        <Text className="text-emerald-400">Firma de la parte empleadora</Text>
+      </Link>
     </View>
   );
 }

@@ -85,4 +85,8 @@ export interface ReceiptViewModel {
   readonly liquidoTotal: string;
   readonly lugarYFecha: string;
   readonly firmaLabel: string;
+  /** Bare base64 PNG (NO `data:` prefix) of the employer's saved signature; `null` renders a blank hand-signable line instead. */
+  readonly empleadorFirmaImagenBase64: string | null;
+  /** Spanish label under the employer signature column. */
+  readonly empleadorFirmaLabel: string;
 }

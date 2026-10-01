@@ -94,6 +94,12 @@ describe('EmployerSettingsScreen', () => {
     expect(renderer.root.findByProps({ testID: 'employer-form-default-lugar' }).props.value).toBe('');
   });
 
+  it('exposes a link to the signature capture screen', async () => {
+    const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
+
+    expect(renderer.root.findByProps({ testID: 'employer-form-signature-link' })).toBeTruthy();
+  });
+
   it('maps an invalid nif error code to a Spanish message on save attempt', async () => {
     const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
 

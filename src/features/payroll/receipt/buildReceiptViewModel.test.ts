@@ -1,3 +1,4 @@
+import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED } from '@/features/employees/testing/fixtures';
 import type { Employee, Employer, PayrollRun } from '@/types';
 import { cents } from '@/types/money';
@@ -63,6 +64,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.devengos).toEqual([
@@ -81,6 +83,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.devengos).toEqual([{ label: 'Salario base', amount: `900,00${NBSP}€` }]);
@@ -93,6 +96,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.deducciones).toEqual([
@@ -108,6 +112,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.liquidoTotal).toBe(`1005,00${NBSP}€`);
@@ -122,6 +127,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.periodo).toEqual({
@@ -142,6 +148,7 @@ describe('buildReceiptViewModel', () => {
       employer: employerNoData,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.empleador.nif).toBe('—');
@@ -158,6 +165,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.trabajador.nif).toBe('—');
@@ -171,6 +179,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-01-01',
       ratesConfig: null,
+      employerSignatureBase64: null,
     });
 
     expect(vm.lugarYFecha).toContain('1 de enero de 2026');
@@ -183,6 +192,7 @@ describe('buildReceiptViewModel', () => {
       employer: FAKE_EMPLOYER,
       issuedOnIso: '2026-08-04',
       ratesConfig: null,
+      employerSignatureBase64: null,
     };
 
     expect(buildReceiptViewModel(input)).toEqual(buildReceiptViewModel(input));
@@ -196,6 +206,7 @@ describe('buildReceiptViewModel', () => {
         employer: { ...FAKE_EMPLOYER, defaultLugar: 'Ciudad de Prueba' },
         issuedOnIso: '2026-01-01',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.lugarYFecha).toBe('En Ciudad de Prueba, a 1 de enero de 2026');
@@ -208,6 +219,7 @@ describe('buildReceiptViewModel', () => {
         employer: { ...FAKE_EMPLOYER, defaultLugar: null },
         issuedOnIso: '2026-01-01',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
@@ -220,6 +232,7 @@ describe('buildReceiptViewModel', () => {
         employer: { ...FAKE_EMPLOYER, defaultLugar: '' },
         issuedOnIso: '2026-01-01',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
       expect(vmEmpty.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
 
@@ -229,6 +242,7 @@ describe('buildReceiptViewModel', () => {
         employer: { ...FAKE_EMPLOYER, defaultLugar: '   ' },
         issuedOnIso: '2026-01-01',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
       expect(vmWhitespace.lugarYFecha).toBe('En ………, a 1 de enero de 2026');
     });
@@ -242,6 +256,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.empleador.ccc).toBe('28123456789');
@@ -254,6 +269,7 @@ describe('buildReceiptViewModel', () => {
         employer: { ...FAKE_EMPLOYER, ccc: null },
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.empleador.ccc).toBe('—');
@@ -270,6 +286,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.periodo.rango).toBe('del día 1 al 30');
@@ -284,6 +301,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
       expect(vmBothNull.periodo.rango).toBeNull();
 
@@ -293,6 +311,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
       expect(vmStartOnly.periodo.rango).toBeNull();
     });
@@ -318,6 +337,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.periodo.rango).toBeNull();
@@ -350,6 +370,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       expect(vm.deduccionesDesglose).toHaveLength(3);
@@ -379,6 +400,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       const parseEuros = (amount: string): number =>
@@ -396,6 +418,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       const [comunes, desempleo, mei] = vm.deduccionesDesglose;
@@ -416,6 +439,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       expect(vm.totalDevengos).toBe(`900,00${NBSP}€`);
@@ -431,6 +455,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: null,
+        employerSignatureBase64: null,
       });
 
       expect(vm.deduccionesDesglose).toEqual([]);
@@ -465,6 +490,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       expect(vm.deduccionesDesglose).toHaveLength(3);
@@ -481,6 +507,7 @@ describe('buildReceiptViewModel', () => {
         employer: FAKE_EMPLOYER,
         issuedOnIso: '2026-08-04',
         ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
       });
 
       const parseEuros = (amount: string): number =>
@@ -504,6 +531,58 @@ describe('buildReceiptViewModel', () => {
       const sumCents = vm.deduccionesDesglose.reduce((total, row) => total + parseEuros(row.cuota), 0);
       expect(sumCents).toBe(partialMonthRun.ssDeductionCents);
       expect(vm.totalDeducciones).toBe(`27,35${NBSP}€`);
+    });
+  });
+
+  describe('employer signature fields', () => {
+    it('forwards a saved signature payload into empleadorFirmaImagenBase64', () => {
+      const vm = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: SYNTHETIC_SIGNATURE_PNG_BASE64,
+      });
+
+      expect(vm.empleadorFirmaImagenBase64).toBe(SYNTHETIC_SIGNATURE_PNG_BASE64);
+      expect(vm.empleadorFirmaLabel).toBe('Firma de la parte empleadora');
+    });
+
+    it('forwards null when no signature is saved', () => {
+      const vm = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: null,
+      });
+
+      expect(vm.empleadorFirmaImagenBase64).toBeNull();
+      expect(vm.empleadorFirmaLabel).toBe('Firma de la parte empleadora');
+    });
+
+    it('leaves the worker firmaLabel unchanged in both states', () => {
+      const withSignature = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: SYNTHETIC_SIGNATURE_PNG_BASE64,
+      });
+      const withoutSignature = buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee: FAKE_EMPLOYEE,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: null,
+      });
+
+      expect(withSignature.firmaLabel).toBe('Firma de la persona trabajadora');
+      expect(withoutSignature.firmaLabel).toBe('Firma de la persona trabajadora');
     });
   });
 });
