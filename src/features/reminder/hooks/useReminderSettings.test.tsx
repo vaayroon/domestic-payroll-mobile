@@ -12,6 +12,8 @@ import { RepositoryProvider, type Repositories } from '@/core/RepositoryProvider
 import { FakeNotificationScheduler } from '@/services/notify/testing/fakes';
 import type { AppSetting, EmployeeRepository, EmployerRepository, PayrollRunRepository, SettingsRepository } from '@/types';
 
+import { DEFAULT_REMINDER_PREFERENCES } from '../domain/preferences';
+
 import { useReminderSettings, type UseReminderSettingsResult } from './useReminderSettings';
 
 function notImplemented(method: string): () => never {
@@ -170,5 +172,48 @@ describe('useReminderSettings', () => {
 
     expect(scheduler.cancelled).toBe(true);
     expect(scheduler.scheduleCallCount).toBe(0);
+  });
+
+  it('degrades to the defaults when the settings read rejects', async () => {
+    const throwingSettings: SettingsRepository = {
+      get: () => Promise.reject(new Error('I/O error')),
+      set: notImplemented('SettingsRepository.set'),
+    };
+
+    const harness = await renderUseReminderSettings(throwingSettings, new FakeNotificationScheduler());
+
+    expect(harness.current.loading).toBe(false);
+    expect(harness.current.values).toEqual(DEFAULT_REMINDER_PREFERENCES);
+    expect(harness.current.saveError).toBeNull();
+  });
+
+  it('degrades to the defaults when the settings read throws synchronously', async () => {
+    const throwingSettings: SettingsRepository = {
+      get: () => {
+        throw new Error('synchronous I/O error');
+      },
+      set: notImplemented('SettingsRepository.set'),
+    };
+
+    const harness = await renderUseReminderSettings(throwingSettings, new FakeNotificationScheduler());
+
+    expect(harness.current.loading).toBe(false);
+    expect(harness.current.values).toEqual(DEFAULT_REMINDER_PREFERENCES);
+    expect(harness.current.saveError).toBeNull();
+  });
+
+  it('keeps successfully loaded preferences when only the permission read fails', async () => {
+    const settings = new InMemorySettingsRepository();
+    await settings.set('reminder.preferences', JSON.stringify({ enabled: true, dayOfMonth: 5, hour: 9, minute: 0 }));
+    const scheduler = new FakeNotificationScheduler();
+    jest.spyOn(scheduler, 'getPermissionStatus').mockRejectedValue(new Error('permission read failed'));
+
+    const harness = await renderUseReminderSettings(settings, scheduler);
+
+    expect(harness.current.loading).toBe(false);
+    // The permission read failed AFTER the preferences loaded -- they must survive.
+    expect(harness.current.values).toEqual({ enabled: true, dayOfMonth: 5, hour: 9, minute: 0 });
+    // Permission status is unknown, so no denied banner is claimed.
+    expect(harness.current.permissionDenied).toBe(false);
   });
 });
