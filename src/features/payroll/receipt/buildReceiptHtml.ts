@@ -28,17 +28,18 @@
  * ============================================================================
  */
 
+import { escapeHtml } from './escapeHtml';
 import type { ReceiptDeduccionDesglose, ReceiptLineItem, ReceiptViewModel } from './ReceiptViewModel';
 
 function renderLineItems(items: readonly ReceiptLineItem[]): string {
-  return items.map((item) => `<tr><td>${item.label}</td><td class="amount">${item.amount}</td></tr>`).join('');
+  return items.map((item) => `<tr><td>${escapeHtml(item.label)}</td><td class="amount">${escapeHtml(item.amount)}</td></tr>`).join('');
 }
 
 function renderDesgloseRows(rows: readonly ReceiptDeduccionDesglose[]): string {
   return rows
     .map(
       (row) =>
-        `<tr><td>${row.concepto}</td><td class="amount">${row.baseMensual}</td><td class="amount">${row.basePeriodo}</td><td class="amount">${row.tipo}</td><td class="amount">${row.cuota}</td></tr>`,
+        `<tr><td>${escapeHtml(row.concepto)}</td><td class="amount">${escapeHtml(row.baseMensual)}</td><td class="amount">${escapeHtml(row.basePeriodo)}</td><td class="amount">${escapeHtml(row.tipo)}</td><td class="amount">${escapeHtml(row.cuota)}</td></tr>`,
     )
     .join('');
 }
@@ -54,13 +55,13 @@ function renderDeducciones(viewModel: ReceiptViewModel): string {
     return `<table>
         <tr><th>Concepto</th><th class="amount">Base mensual</th><th class="amount">Base del periodo</th><th class="amount">Tipo</th><th class="amount">Cuota</th></tr>
         ${renderDesgloseRows(viewModel.deduccionesDesglose)}
-        <tr class="total-row"><td colspan="4">Total a deducir</td><td class="amount">${viewModel.totalDeducciones}</td></tr>
+        <tr class="total-row"><td colspan="4">Total a deducir</td><td class="amount">${escapeHtml(viewModel.totalDeducciones)}</td></tr>
       </table>`;
   }
 
   return `<table>
         ${renderLineItems(viewModel.deducciones)}
-        <tr class="total-row"><td>Total a deducir</td><td class="amount">${viewModel.totalDeducciones}</td></tr>
+        <tr class="total-row"><td>Total a deducir</td><td class="amount">${escapeHtml(viewModel.totalDeducciones)}</td></tr>
       </table>`;
 }
 
@@ -122,19 +123,19 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
           <td>
             <h2>Datos del empleador</h2>
             <table>
-              <tr><td>Nombre</td><td class="amount">${empleador.nombre}</td></tr>
-              <tr><td>NIF</td><td class="amount">${empleador.nif}</td></tr>
-              <tr><td>Domicilio</td><td class="amount">${empleador.domicilio}</td></tr>
-              <tr><td>CCC</td><td class="amount">${empleador.ccc}</td></tr>
+              <tr><td>Nombre</td><td class="amount">${escapeHtml(empleador.nombre)}</td></tr>
+              <tr><td>NIF</td><td class="amount">${escapeHtml(empleador.nif)}</td></tr>
+              <tr><td>Domicilio</td><td class="amount">${escapeHtml(empleador.domicilio)}</td></tr>
+              <tr><td>CCC</td><td class="amount">${escapeHtml(empleador.ccc)}</td></tr>
             </table>
           </td>
           <td>
             <h2>Datos del trabajador</h2>
             <table>
-              <tr><td>Nombre</td><td class="amount">${trabajador.nombre}</td></tr>
-              <tr><td>NIF</td><td class="amount">${trabajador.nif}</td></tr>
-              <tr><td>NAF</td><td class="amount">${trabajador.naf}</td></tr>
-              <tr><td>Grupo de cotización</td><td class="amount">${trabajador.grupoCotizacion}</td></tr>
+              <tr><td>Nombre</td><td class="amount">${escapeHtml(trabajador.nombre)}</td></tr>
+              <tr><td>NIF</td><td class="amount">${escapeHtml(trabajador.nif)}</td></tr>
+              <tr><td>NAF</td><td class="amount">${escapeHtml(trabajador.naf)}</td></tr>
+              <tr><td>Grupo de cotización</td><td class="amount">${escapeHtml(trabajador.grupoCotizacion)}</td></tr>
             </table>
           </td>
         </tr>
@@ -142,8 +143,8 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
 
       <h2>Período de liquidación</h2>
       <table>
-        <tr><td>Período</td><td class="amount">${periodo.descripcion}</td></tr>
-        ${periodo.rango !== null ? `<tr><td>Rango de días</td><td class="amount">${periodo.rango}</td></tr>` : ''}
+        <tr><td>Período</td><td class="amount">${escapeHtml(periodo.descripcion)}</td></tr>
+        ${periodo.rango !== null ? `<tr><td>Rango de días</td><td class="amount">${escapeHtml(periodo.rango)}</td></tr>` : ''}
         <tr><td>Días trabajados</td><td class="amount">${periodo.diasTrabajados} / ${periodo.diasNaturales} días</td></tr>
         ${periodo.prorrateado ? '<tr><td colspan="2">Mes prorrateado.</td></tr>' : ''}
       </table>
@@ -151,7 +152,7 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
       <h2>Devengos</h2>
       <table>
         ${renderLineItems(devengos)}
-        <tr class="total-row"><td>Total devengado</td><td class="amount">${totalDevengos}</td></tr>
+        <tr class="total-row"><td>Total devengado</td><td class="amount">${escapeHtml(totalDevengos)}</td></tr>
       </table>
 
       <h2>Deducciones</h2>
@@ -159,22 +160,22 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
 
       <h2>Líquido total a percibir</h2>
       <table>
-        <tr class="total-row"><td>Líquido total</td><td class="amount">${liquidoTotal}</td></tr>
+        <tr class="total-row"><td>Líquido total</td><td class="amount">${escapeHtml(liquidoTotal)}</td></tr>
       </table>
 
       <div class="firma">
-        <p>${lugarYFecha}</p>
+        <p>${escapeHtml(lugarYFecha)}</p>
         <table class="firma-grid">
           <tr>
             <td>
               ${empleadorFirmaImagenBase64 === null
                 ? '<div class="firma-line"></div>'
-                : `<img class="firma-image" alt="" src="data:image/png;base64,${empleadorFirmaImagenBase64}" />`}
-              <p class="firma-label">${empleadorFirmaLabel}</p>
+                : `<img class="firma-image" alt="" src="data:image/png;base64,${escapeHtml(empleadorFirmaImagenBase64)}" />`}
+              <p class="firma-label">${escapeHtml(empleadorFirmaLabel)}</p>
             </td>
             <td>
               <div class="firma-line"></div>
-              <p class="firma-label">${firmaLabel}</p>
+              <p class="firma-label">${escapeHtml(firmaLabel)}</p>
             </td>
           </tr>
         </table>
