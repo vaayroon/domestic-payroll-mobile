@@ -83,6 +83,45 @@ describe('buildReceiptHtml', () => {
     expect(buildReceiptHtml(FAKE_VIEW_MODEL)).toBe(buildReceiptHtml(FAKE_VIEW_MODEL));
   });
 
+  describe('HTML escaping of interpolated values', () => {
+    // Obviously-fake placeholders chosen to contain the characters that break markup.
+    const FAKE_VIEW_MODEL_WITH_MARKUP_CHARS: ReceiptViewModel = {
+      ...FAKE_VIEW_MODEL,
+      empleador: {
+        ...FAKE_VIEW_MODEL.empleador,
+        nombre: 'Pérez & Hijos <SL>',
+        domicilio: 'Calle "Falsa" 123 & 4',
+      },
+      lugarYFecha: 'En Villa & Corte, a 4 de agosto de 2026',
+    };
+
+    it('escapes markup characters instead of emitting them raw', () => {
+      const html = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_MARKUP_CHARS);
+
+      expect(html).toContain('Pérez &amp; Hijos &lt;SL&gt;');
+      expect(html).toContain('Calle &quot;Falsa&quot; 123 &amp; 4');
+      expect(html).toContain('En Villa &amp; Corte, a 4 de agosto de 2026');
+
+      // The raw forms must NOT survive into the document.
+      expect(html).not.toContain('Pérez & Hijos <SL>');
+      expect(html).not.toContain('Calle "Falsa" 123 & 4');
+    });
+
+    it('does not introduce a stray tag from a value containing angle brackets', () => {
+      const html = buildReceiptHtml(FAKE_VIEW_MODEL_WITH_MARKUP_CHARS);
+
+      expect(html).not.toContain('<SL>');
+    });
+
+    it('leaves ordinary values byte-identical', () => {
+      const html = buildReceiptHtml(FAKE_VIEW_MODEL);
+
+      expect(html).toContain('Empleador de Prueba');
+      expect(html).toContain('Calle Falsa 123');
+      expect(html).toContain('1.050,00 €');
+    });
+  });
+
   describe('CCC line (Scenario 15)', () => {
     it('renders the CCC value with no "verified" claim', () => {
       expect(html).toContain('CCC');

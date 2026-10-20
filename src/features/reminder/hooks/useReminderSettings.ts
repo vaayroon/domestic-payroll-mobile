@@ -8,6 +8,9 @@
  * through the SAME `reconcileReminder` helper `ReminderProvider` uses
  * (design D5) -- there is only one place that decides what should
  * currently be scheduled.
+ *
+ * A failing initial load (settings read or permission read) degrades to
+ * whatever state was already applied instead of rejecting.
  */
 
 import { useEffect, useState } from 'react';
@@ -74,6 +77,14 @@ export function useReminderSettings(): UseReminderSettingsResult {
             setPermissionDenied(status !== 'granted');
           }
         }
+      } catch {
+        // Without this catch the rejection escapes `void load()` below as an
+        // unhandled promise rejection. Deliberately does NOT reset `values`:
+        // if `settings.get()` failed, state still holds
+        // DEFAULT_REMINDER_PREFERENCES; if the LATER permission read failed,
+        // the preferences already loaded successfully and must not be thrown
+        // away. Either way the screen stays usable and the user can edit and
+        // save. The caught value is discarded without inspection.
       } finally {
         if (!cancelled) {
           setLoading(false);
