@@ -8,9 +8,15 @@
  * doc comment).
  *
  * THIS RECEIPT IS AN "OFFICIAL-FORMAT VISUAL", NOT A LEGAL-COMPLIANCE
- * GUARANTEE: the employer-contribution "determinación de bases" block
- * (empresa-side SS contribution breakdown) is explicitly OUT OF SCOPE for
- * this slice -- see the footnote rendered at the bottom of the document.
+ * GUARANTEE: the employer-contribution "determinación de bases" block is
+ * rendered from `RatesConfig.employer` at NOMINAL rates, followed by the two
+ * benefits the household is modelled on (20 % on contingencias comunes, 80 %
+ * on desempleo and FOGASA) and the effective total. The figures are computed
+ * by the app for information; they do not replace the Tesorería General de la
+ * Seguridad Social liquidation. When the figures cannot be trusted (rates not
+ * loaded, or the base de cotización drifted or cannot be checked) the block
+ * renders an explanatory note and NO rows or totals -- never a confident
+ * number beside a caveat.
  *
  * ============================================================================
  * ANDROID MARGIN QUIRK -- DO NOT MODIFY WITHOUT DEVICE-VERIFYING AGAIN
@@ -29,7 +35,14 @@
  */
 
 import { escapeHtml } from './escapeHtml';
-import type { ReceiptDeduccionDesglose, ReceiptLineItem, ReceiptViewModel } from './ReceiptViewModel';
+import type {
+  ReceiptDeduccionDesglose,
+  ReceiptEmpleadorBeneficioRow,
+  ReceiptEmpleadorCotizacion,
+  ReceiptEmpleadorCuotaRow,
+  ReceiptLineItem,
+  ReceiptViewModel,
+} from './ReceiptViewModel';
 
 function renderLineItems(items: readonly ReceiptLineItem[]): string {
   return items.map((item) => `<tr><td>${escapeHtml(item.label)}</td><td class="amount">${escapeHtml(item.amount)}</td></tr>`).join('');
@@ -65,6 +78,74 @@ function renderDeducciones(viewModel: ReceiptViewModel): string {
       </table>`;
 }
 
+function renderEmpleadorRows(rows: readonly ReceiptEmpleadorCuotaRow[]): string {
+  return rows
+    .map(
+      (row) =>
+        `<tr><td>${escapeHtml(row.concepto)}</td><td class="amount">${escapeHtml(row.basePeriodo)}</td><td class="amount">${escapeHtml(row.tipo)}</td><td class="amount">${escapeHtml(row.cuota)}</td></tr>`,
+    )
+    .join('');
+}
+
+/**
+ * Benefit rows reuse the four-column grid but their second cell is a CUOTA
+ * (`cuotaAfectada`), not a base de cotización -- the sub-header row emitted by
+ * `renderEmpleadorCotizacion` relabels that column so the table never prints a
+ * cuota under a "Base del periodo" header.
+ */
+function renderBeneficioRows(rows: readonly ReceiptEmpleadorBeneficioRow[]): string {
+  return rows
+    .map(
+      (row) =>
+        `<tr class="beneficio"><td>${escapeHtml(row.concepto)}</td><td class="amount">${escapeHtml(row.cuotaAfectada)}</td><td class="amount">${escapeHtml(row.tipo)}</td><td class="amount">${escapeHtml(row.importe)}</td></tr>`,
+    )
+    .join('');
+}
+
+/**
+ * Employer "determinación de bases y cuotas" section. Wrapped in ONE div that
+ * carries `page-break-inside: avoid` (the rule is unreliable on a `<table>` in
+ * the Android WebView), and the heading lives INSIDE that div so it can never
+ * be stranded on the previous page. Components, benefits and both totals are
+ * rows of a SINGLE table: three tables would give the print engine three
+ * places to break.
+ *
+ * The `unavailable` branch renders its note and no rows or totals, for every
+ * reason: retiring the old disclaimer must not turn an honest admission into a
+ * silent omission.
+ */
+function renderEmpleadorCotizacion(cotizacion: ReceiptEmpleadorCotizacion): string {
+  const heading = '<h2>Determinación de bases y cuotas a cargo de la parte empleadora</h2>';
+
+  if (cotizacion.kind === 'unavailable') {
+    return `<div class="empleador-cotizacion">
+        ${heading}
+        <p class="nota">${escapeHtml(cotizacion.nota)}</p>
+      </div>`;
+  }
+
+  return `<div class="empleador-cotizacion">
+        ${heading}
+        <table>
+          <tr><th>Concepto</th><th class="amount">Base del periodo</th><th class="amount">Tipo</th><th class="amount">Cuota</th></tr>
+          ${renderEmpleadorRows(cotizacion.filas)}
+          <tr class="total-row"><td colspan="3">Cuota de la parte empleadora</td><td class="amount">${escapeHtml(cotizacion.totalNominal)}</td></tr>
+          <tr><th>Beneficios en la cotización</th><th class="amount">Cuota afectada</th><th class="amount">Tipo</th><th class="amount">Importe</th></tr>
+          ${renderBeneficioRows(cotizacion.beneficios)}
+          <tr class="total-row"><td colspan="3">Total a ingresar por la parte empleadora</td><td class="amount">${escapeHtml(cotizacion.totalEfectivo)}</td></tr>
+        </table>
+      </div>`;
+}
+
+/**
+ * Legal-basis footnote, rendered only when figures are: it describes the
+ * figures, so beside a no-figures note it would cite norms for numbers that are
+ * not on the page. Norms are cited by BOE id only -- the document is
+ * self-contained and must carry no URL.
+ */
+const NOTA_BASE_LEGAL =
+  'Tipos de cotización: Orden PJC/297/2026 (BOE-A-2026-7296), arts. 15 y 35; tarifa de primas para AT y EP: disposición adicional 61ª del TRLGSS, redactada por el Real Decreto-ley 3/2026 (BOE-A-2026-2548). Beneficios en la cotización: Real Decreto-ley 16/2022 (BOE-A-2022-14680), disposición adicional 1ª, apartado 1. Importes calculados por la aplicación a efectos informativos; no sustituyen a la liquidación de la Tesorería General de la Seguridad Social.';
+
 export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
   const {
     empleador,
@@ -73,6 +154,7 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
     devengos,
     totalDevengos,
     liquidoTotal,
+    empleadorCotizacion,
     lugarYFecha,
     firmaLabel,
     empleadorFirmaImagenBase64,
@@ -104,7 +186,11 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
       .header-grid td { vertical-align: top; border: 1px solid #111827; width: 50%; padding: 4px 8px; }
       .header-grid table { border: none; }
       .header-grid table td { border: none; padding: 2px 0; }
-      .firma { margin-top: 40px; }
+      .empleador-cotizacion { page-break-inside: avoid; }
+      .empleador-cotizacion td:first-child { width: 46%; }
+      .empleador-cotizacion .amount { white-space: nowrap; }
+      .empleador-cotizacion .nota { margin: 4px 0 0; font-size: 11px; }
+      .firma { margin-top: 40px; page-break-inside: avoid; }
       .firma-grid { border: none; page-break-inside: avoid; }
       .firma-grid td { width: 50%; border: none; vertical-align: bottom; padding: 0 8px 0 0; }
       .firma-line { margin-top: 24px; border-top: 1px solid #111827; width: 60%; }
@@ -163,6 +249,8 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
         <tr class="total-row"><td>Líquido total</td><td class="amount">${escapeHtml(liquidoTotal)}</td></tr>
       </table>
 
+      ${renderEmpleadorCotizacion(empleadorCotizacion)}
+
       <div class="firma">
         <p>${escapeHtml(lugarYFecha)}</p>
         <table class="firma-grid">
@@ -181,11 +269,7 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
         </table>
       </div>
 
-      <p class="footnote">
-        Este recibo reproduce el formato oficial de Empleados de Hogar a efectos visuales e informativos. NO incluye
-        el bloque de determinación de bases y cuotas a cargo de la parte empleadora (cotización empresarial), que
-        queda fuera del alcance de esta versión.
-      </p>
+      ${empleadorCotizacion.kind === 'figures' ? `<p class="footnote">${NOTA_BASE_LEGAL}</p>` : ''}
     </div>
   </body>
 </html>`;
