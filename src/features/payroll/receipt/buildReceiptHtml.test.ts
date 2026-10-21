@@ -20,6 +20,22 @@ const FAKE_VIEW_MODEL: ReceiptViewModel = {
   ],
   totalDeducciones: '62,08 €',
   liquidoTotal: '1.005,00 €',
+  empleadorCotizacion: {
+    kind: 'figures',
+    filas: [
+      { concepto: 'Contingencias comunes', basePeriodo: '1424,50 €', tipo: '23,60 %', cuota: '336,18 €' },
+      { concepto: 'Contingencias profesionales (AT y EP)', basePeriodo: '1424,50 €', tipo: '1,50 %', cuota: '21,37 €' },
+      { concepto: 'Desempleo', basePeriodo: '1424,50 €', tipo: '5,50 %', cuota: '78,35 €' },
+      { concepto: 'FOGASA (Fondo de Garantía Salarial)', basePeriodo: '1424,50 €', tipo: '0,20 %', cuota: '2,85 €' },
+      { concepto: 'MEI (Mecanismo de Equidad Intergeneracional)', basePeriodo: '1424,50 €', tipo: '0,75 %', cuota: '10,68 €' },
+    ],
+    beneficios: [
+      { concepto: 'Reducción por contingencias comunes', cuotaAfectada: '336,18 €', tipo: '20 %', importe: '-67,24 €' },
+      { concepto: 'Bonificación por desempleo y FOGASA', cuotaAfectada: '81,20 €', tipo: '80 %', importe: '-64,96 €' },
+    ],
+    totalNominal: '449,43 €',
+    totalEfectivo: '317,23 €',
+  },
   lugarYFecha: 'En ………, a 4 de agosto de 2026',
   firmaLabel: 'Firma de la persona trabajadora',
   empleadorFirmaImagenBase64: null,
