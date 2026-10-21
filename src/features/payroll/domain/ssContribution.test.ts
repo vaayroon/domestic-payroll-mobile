@@ -273,3 +273,112 @@ describe('computeEmployerSs', () => {
     });
   });
 });
+
+describe('computeEmployerSs: remaining spec scenarios', () => {
+  const G_1221 = cents(122100);
+  const { employer } = RATES_2026;
+
+  it('D1.1: the 2026 employer rates are the BOE constants, and an unloaded year still resolves to year_not_loaded', () => {
+    expect(employer.ccPer10000).toBe(2360);
+    expect(employer.atEpPer10000).toBe(150);
+    expect(employer.desempleoPer10000).toEqual({ INDEFINIDO: 550, TEMPORAL: 670 });
+    expect(employer.fogasaPer10000).toBe(20);
+    expect(employer.meiPer10000).toBe(75);
+    expect(employer.beneficios).toEqual({ reduccionCcPercent: 20, bonificacionDesempleoFogasaPercent: 80 });
+    expect(resolveRatesConfig(2099)).toEqual({ ok: false, reason: 'year_not_loaded' });
+  });
+
+  it('total nominal rate: INDEFINIDO 31,55 % and TEMPORAL 32,75 %', () => {
+    const total = (desempleo: number): number =>
+      employer.ccPer10000 + employer.atEpPer10000 + desempleo + employer.fogasaPer10000 + employer.meiPer10000;
+    expect(total(employer.desempleoPer10000.INDEFINIDO)).toBe(3155);
+    expect(total(employer.desempleoPer10000.TEMPORAL)).toBe(3275);
+  });
+
+  describe('D2.1 tramo boundary (retribución 1.061,00 vs 1.061,01)', () => {
+    it('909,43 gross resolves to base 970,00: nominal 306,04, effective 216,03', () => {
+      const r = computeEmployerSs(RATES_2026, cents(90943), 30, 'INDEFINIDO');
+      expect(r.baseCotizacionCents).toBe(cents(97000));
+      expect(r.totalNominalCents).toBe(cents(30604));
+      expect(r.totalEfectivoCents).toBe(cents(21603));
+    });
+
+    it('909,44 gross resolves to base 1.151,00 with its own rows and totals', () => {
+      const r = computeEmployerSs(RATES_2026, cents(90944), 30, 'INDEFINIDO');
+      expect(r.baseCotizacionCents).toBe(cents(115100));
+      expect(r.contingenciasComunesCents).toBe(cents(27164)); // 271,64
+      expect(r.atEpCents).toBe(cents(1727)); // 17,27
+      expect(r.desempleoCents).toBe(cents(6331)); // 63,31
+      expect(r.fogasaCents).toBe(cents(230)); // 2,30
+      expect(r.meiCents).toBe(cents(863)); // 8,63
+      expect(r.totalNominalCents).toBe(cents(36315)); // 363,15
+      expect(r.reduccionCcCents).toBe(cents(5433)); // 54,33
+      expect(r.bonificacionDesempleoFogasaCents).toBe(cents(5249)); // 52,49
+      expect(r.totalEfectivoCents).toBe(cents(25633)); // 256,33
+    });
+  });
+
+  it('D3.4: G-800 (base 970,00) rows and totals', () => {
+    const r = computeEmployerSs(RATES_2026, cents(80000), 30, 'INDEFINIDO');
+    expect(r.baseCotizacionCents).toBe(cents(97000));
+    expect(r.contingenciasComunesCents).toBe(cents(22892)); // 228,92
+    expect(r.atEpCents).toBe(cents(1455)); // 14,55
+    expect(r.desempleoCents).toBe(cents(5335)); // 53,35
+    expect(r.fogasaCents).toBe(cents(194)); // 1,94
+    expect(r.meiCents).toBe(cents(728)); // 7,28
+    expect(r.totalNominalCents).toBe(cents(30604)); // 306,04
+    expect(r.reduccionCcCents).toBe(cents(4578)); // 45,78
+    expect(r.bonificacionDesempleoFogasaCents).toBe(cents(4423)); // 44,23
+    expect(r.totalEfectivoCents).toBe(cents(21603)); // 216,03
+  });
+
+  it('D4.1: MEI and AT-EP carry no benefit; the benefits derive only from CC and desempleo + FOGASA', () => {
+    const base = computeEmployerSs(RATES_2026, G_1221, 30, 'INDEFINIDO');
+    expect(base.reduccionCcCents).toBe(applyBenefitPercent(base.contingenciasComunesCents, 20));
+    expect(base.cuotaBaseBonificacionCents).toBe(base.desempleoCents + base.fogasaCents);
+    expect(base.bonificacionDesempleoFogasaCents).toBe(applyBenefitPercent(base.cuotaBaseBonificacionCents, 80));
+
+    // Doubling the AT-EP and MEI rates must not move either benefit.
+    const doubled: RatesConfig = {
+      ...RATES_2026,
+      employer: { ...employer, atEpPer10000: employer.atEpPer10000 * 2, meiPer10000: employer.meiPer10000 * 2 },
+    };
+    const changed = computeEmployerSs(doubled, G_1221, 30, 'INDEFINIDO');
+    expect(changed.atEpCents).not.toBe(base.atEpCents);
+    expect(changed.meiCents).not.toBe(base.meiCents);
+    expect(changed.reduccionCcCents).toBe(base.reduccionCcCents);
+    expect(changed.bonificacionDesempleoFogasaCents).toBe(base.bonificacionDesempleoFogasaCents);
+    expect(base.reduccionCcCents + base.bonificacionDesempleoFogasaCents).toBe(13220); // 132,20
+  });
+
+  it('D5.1: TEMPORAL uses 6,70 % desempleo and changes nothing else', () => {
+    const r = computeEmployerSs(RATES_2026, G_1221, 30, 'TEMPORAL');
+    expect(r.contingenciasComunesCents).toBe(cents(33618)); // 336,18
+    expect(r.atEpCents).toBe(cents(2137)); // 21,37
+    expect(r.desempleoCents).toBe(cents(9544)); // 95,44
+    expect(r.meiCents).toBe(cents(1068)); // 10,68
+    expect(r.fogasaCents).toBe(cents(285)); // 2,85
+    expect(r.totalNominalCents).toBe(cents(46652)); // 466,52
+    expect(r.reduccionCcCents).toBe(cents(6724)); // 67,24
+    expect(r.bonificacionDesempleoFogasaCents).toBe(cents(7863)); // 78,63
+    expect(r.totalEfectivoCents).toBe(cents(32065)); // 320,65
+  });
+
+  it('D6.2: a full month is normalised to 30 days, giving the golden figures (a 31/30 ratio would not)', () => {
+    const full = computeEmployerSs(RATES_2026, G_1221, 30, 'INDEFINIDO');
+    expect(full.totalEfectivoCents).toBe(cents(31723));
+    expect(computeEmployerSs(RATES_2026, G_1221, 31, 'INDEFINIDO').totalEfectivoCents).not.toBe(full.totalEfectivoCents);
+  });
+
+  it('zero days worked yields an all-zero breakdown without throwing', () => {
+    const r = computeEmployerSs(RATES_2026, G_1221, 0, 'INDEFINIDO');
+    expect(r.totalNominalCents).toBe(cents(0));
+    expect(r.totalEfectivoCents).toBe(cents(0));
+  });
+
+  it('D7.1: pure and deterministic, identical arguments give deeply equal results', () => {
+    const first = computeEmployerSs(RATES_2026, G_1221, 9, 'INDEFINIDO');
+    const second = computeEmployerSs(RATES_2026, G_1221, 9, 'INDEFINIDO');
+    expect(second).toEqual(first);
+  });
+});
