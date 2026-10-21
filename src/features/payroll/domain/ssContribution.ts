@@ -17,10 +17,15 @@
  * per-10000 rate BEFORE the single `multiplyByRatio` call that produces the
  * cuota. This guarantees ONE rounding point per cuota, avoiding the ±1 cent
  * drift that per-component round-then-sum can introduce.
+ *
+ * The employer side (`computeEmployerSs`) follows a DIFFERENT discipline on
+ * purpose, because it has a different job: its figures are printed row by row
+ * and must each be reproducible from the row beside them. See
+ * `computeEmployerSs` for the algorithm and the two excluded alternatives.
  */
 
 import type { ContractType } from '@/types/domain';
-import { type Cents, cents, multiplyByRatio } from '@/types/money';
+import { addCents, type Cents, cents, multiplyByRatio, subtractCents } from '@/types/money';
 
 export type { ContractType };
 
@@ -29,6 +34,44 @@ export interface WorkerRateComponents {
   readonly ccPer10000: number;
   readonly desempleoPer10000: Record<ContractType, number>;
   readonly meiPer10000: number;
+}
+
+/**
+ * Employer (empleador) contribution rates, expressed as integer
+ * parts-per-10000 (i.e. `2360` = 23,60%). NOMINAL rates only.
+ *
+ * Effective rates (the nominal rate net of a benefit, e.g. contingencias
+ * comunes at 18,88 %) are deliberately NOT modelled and must never become a
+ * constant, however inviting the reference table in engram
+ * `payroll/at-ep-tarifa-2026-boe` looks. Summing individually-rounded
+ * effective rows yields 317,24 on the TGSS golden vector where the official
+ * document prints 317,23 (excluded algorithm "R-C"). See `computeEmployerSs`.
+ */
+export interface EmployerRateComponents {
+  /** Contingencias comunes, employer share. */
+  readonly ccPer10000: number;
+  /** Contingencias profesionales (AT y EP), employer only. A single constant for CNAE-2025 code 97 (hogares). */
+  readonly atEpPer10000: number;
+  /** Desempleo, employer share; depends on the contract type. */
+  readonly desempleoPer10000: Record<ContractType, number>;
+  /** FOGASA, employer only. */
+  readonly fogasaPer10000: number;
+  /** MEI (Mecanismo de Equidad Intergeneracional), employer share. No benefit is permitted on it. */
+  readonly meiPer10000: number;
+  /** The employer benefits applicable to the rows above. */
+  readonly beneficios: EmployerBenefitRates;
+}
+
+/**
+ * Employer benefits on the cuota, as integer percent. Only the 20 % / 80 %
+ * route of RD-ley 16/2022 DA 1ª apartado 1 is modelled; the 45 % / 30 % route
+ * (DA 1ª apartado 2) and the familia-numerosa route are a known limitation.
+ */
+export interface EmployerBenefitRates {
+  /** Reducción on the employer contingencias comunes cuota. */
+  readonly reduccionCcPercent: number;
+  /** Bonificación on the employer desempleo + FOGASA cuotas. */
+  readonly bonificacionDesempleoFogasaPercent: number;
 }
 
 /**
@@ -43,12 +86,13 @@ export interface Tramo {
   readonly baseCents: Cents;
 }
 
-/** One year's full SS configuration: the tramo table, the tope máximo, and worker rates. */
+/** One year's full SS configuration: the tramo table, the tope máximo, and worker and employer rates. */
 export interface RatesConfig {
   readonly year: number;
   readonly tramos: readonly Tramo[];
   readonly topeMaxBaseCents: Cents;
   readonly worker: WorkerRateComponents;
+  readonly employer: EmployerRateComponents;
 }
 
 export type ResolveRatesResult = { readonly ok: true; readonly config: RatesConfig } | { readonly ok: false; readonly reason: 'year_not_loaded' };
@@ -61,6 +105,42 @@ export interface WorkerSsBreakdown {
   readonly fullMonthWorkerSsCents: Cents;
   /** The cuota prorated by `daysWorked / SS_DIVISOR` (spec "SS proration decoupled from salary proration"). */
   readonly proratedWorkerSsCents: Cents;
+}
+
+/**
+ * The computed breakdown of one employer contribution for one payroll run.
+ *
+ * A flat record of named `Cents` fields (not rows): the domain knows no
+ * Spanish labels and no display order, so the receipt layer owns both.
+ *
+ * Sign convention: every amount here is a POSITIVE magnitude, including the
+ * two benefits. The receipt layer owns the minus sign.
+ *
+ * There is intentionally NO per-component effective field (for example no
+ * `contingenciasComunesEfectivaCents`). The only effective quantity is
+ * `totalEfectivoCents`, reachable solely as nominal total minus the two
+ * rounded benefits. That makes the excluded "R-C" algorithm unrepresentable.
+ */
+export interface EmployerSsBreakdown {
+  /** The base de cotización resolved from the tramo table, full month and unprorated. */
+  readonly baseCotizacionCents: Cents;
+  /** The base prorated by `daysWorked / SS_DIVISOR`; the operand each nominal row is a percentage of. */
+  readonly basePeriodoCents: Cents;
+  readonly contingenciasComunesCents: Cents;
+  readonly atEpCents: Cents;
+  readonly desempleoCents: Cents;
+  readonly fogasaCents: Cents;
+  readonly meiCents: Cents;
+  /** Exact sum of the five rounded rows above. */
+  readonly totalNominalCents: Cents;
+  /** Desempleo + FOGASA (the rounded rows): the operand of the bonificación. A cuota, not a base. */
+  readonly cuotaBaseBonificacionCents: Cents;
+  /** Reducción on contingencias comunes. POSITIVE magnitude. */
+  readonly reduccionCcCents: Cents;
+  /** Bonificación on desempleo + FOGASA. POSITIVE magnitude. */
+  readonly bonificacionDesempleoFogasaCents: Cents;
+  /** Nominal total minus both benefits, exact. */
+  readonly totalEfectivoCents: Cents;
 }
 
 /**
@@ -103,6 +183,31 @@ export const SS_RATES_BY_YEAR: Record<number, RatesConfig> = {
       ccPer10000: 470, // 4,70%
       desempleoPer10000: { INDEFINIDO: 155, TEMPORAL: 160 }, // 1,55% / 1,60%
       meiPer10000: 15, // 0,15%
+    },
+    // Employer rates. Each value cites its norm by BOE id (engram
+    // `payroll/ss-employer-2026-boe`, `payroll/at-ep-tarifa-2026-boe`).
+    employer: {
+      // Contingencias comunes 23,60%: Orden PJC/297/2026 (BOE-A-2026-7296) art. 15.3.
+      ccPer10000: 2360,
+      // AT y EP 1,50%: tarifa de primas, TRLGSS DA 61ª as worded by RDL 3/2026
+      // (BOE-A-2026-2548) DF 1ª apartado Tres, Cuadro I, CNAE-2025 row 97.
+      // Confirmed against an official TGSS recibo (21,37 EUR on base 1.424,50).
+      // DA 61ª apartado 4 lets the Government adjust the tarifa annually, so a
+      // future year needs its own citation; never copy this value forward.
+      atEpPer10000: 150,
+      // Desempleo 5,50% INDEFINIDO / 6,70% TEMPORAL: Orden PJC/297/2026 art. 35.
+      desempleoPer10000: { INDEFINIDO: 550, TEMPORAL: 670 },
+      // FOGASA 0,20%, employer only: Orden PJC/297/2026 art. 35.
+      fogasaPer10000: 20,
+      // MEI 0,75% employer: Orden PJC/297/2026 art. 16. No benefit is permitted
+      // on it (TRLGSS art. 127 bis.2), so it never enters a benefit operand.
+      meiPer10000: 75,
+      // RD-ley 16/2022 (BOE-A-2022-14680) DA 1ª apartado 1. AT y EP gets no
+      // benefit: DA 1ª does not mention it.
+      beneficios: {
+        reduccionCcPercent: 20, // on employer contingencias comunes
+        bonificacionDesempleoFogasaPercent: 80, // on employer desempleo + FOGASA
+      },
     },
   },
 };
@@ -175,4 +280,100 @@ export function computeWorkerSs(
   const proratedWorkerSsCents = multiplyByRatio(baseCotizacionCents, ratePer10000 * daysWorked, 10000 * SS_DIVISOR);
 
   return { baseCotizacionCents, fullMonthWorkerSsCents, proratedWorkerSsCents };
+}
+
+/**
+ * R-B2, display-source: a benefit is a percentage of the ALREADY-ROUNDED cuota
+ * row(s) printed above it, never of an unrounded intermediate. The `Cents`
+ * parameter type is the guard: an exact-source operand is not a `Cents` value
+ * and could only be expressed by folding the rates into one numerator, which is
+ * the formula quarantined in the test file.
+ *
+ * The TGSS golden vector does NOT discriminate this from the exact-source
+ * reading (R-B1); two inputs do, and both are pinned in the tests: a 9/30
+ * partial month (official TGSS figures, bonificación 19,48 not 19,49) and the
+ * tope máximo (232,62 not 232,61).
+ *
+ * Both benefit rows MUST call this. Do not inline the multiplication.
+ */
+export function applyBenefitPercent(cuotaAfectadaCents: Cents, percent: number): Cents {
+  return multiplyByRatio(cuotaAfectadaCents, percent, 100);
+}
+
+/**
+ * Computes one employer's contribution for a payroll run (the receipt's
+ * "determinación de bases y cuotas" block). It shares the base de cotización
+ * with the worker side: same retribución, same tramo table, same tope.
+ *
+ * Algorithm "R-B" (bottom-up), in this order and no other:
+ *   1. Each of the five nominal rows is ONE `multiplyByRatio` of
+ *      `base x rate x days / 30`, never a rounded full-month row times days.
+ *   2. The nominal total is the exact sum of those ALREADY-ROUNDED rows.
+ *   3. Both benefits go through `applyBenefitPercent` on the rounded rows
+ *      (R-B2, see its doc comment).
+ *   4. The effective total is the nominal total minus the two rounded
+ *      benefits, an exact subtraction.
+ *
+ * Why: every printed figure is reproducible with a calculator from the row
+ * beside it, and the result matches an official TGSS recibo to the cent
+ * (base 1.424,50 INDEFINIDO: 449,43 - 67,24 - 64,96 = 317,23).
+ *
+ * Two alternatives are excluded and must not be reintroduced:
+ *   - R-C: rounding each row at its EFFECTIVE rate and summing gives 317,24,
+ *     one cent off the official document. Hence no effective rate or effective
+ *     row exists anywhere in this module.
+ *   - R-A: carrying full precision to a single final rounding folds the rates
+ *     into one numerator and forces some printed row to contradict its own
+ *     stated rate. That formula lives only in the test file, as a drift lock.
+ * The effective total can differ from the ideal single-rounded product by 1-2
+ * cents. This is accepted: nothing here is persisted or remitted by the app.
+ *
+ * Days are normalised like the worker side (the caller passes `SS_DIVISOR`
+ * for a non-prorated run, even in a 31-day month).
+ */
+export function computeEmployerSs(
+  config: RatesConfig,
+  baseGrossCents: Cents,
+  daysWorked: number,
+  contractType: ContractType,
+): EmployerSsBreakdown {
+  const retribucionCents = resolveRetribucionCents(baseGrossCents);
+  const baseCotizacionCents = resolveBaseCotizacion(config.tramos, config.topeMaxBaseCents, retribucionCents);
+  const basePeriodoCents = multiplyByRatio(baseCotizacionCents, daysWorked, SS_DIVISOR);
+  const { employer } = config;
+
+  const nominalRow = (ratePer10000: number): Cents =>
+    multiplyByRatio(baseCotizacionCents, ratePer10000 * daysWorked, 10000 * SS_DIVISOR);
+
+  const contingenciasComunesCents = nominalRow(employer.ccPer10000);
+  const atEpCents = nominalRow(employer.atEpPer10000);
+  const desempleoCents = nominalRow(employer.desempleoPer10000[contractType]);
+  const fogasaCents = nominalRow(employer.fogasaPer10000);
+  const meiCents = nominalRow(employer.meiPer10000);
+
+  const totalNominalCents = [atEpCents, desempleoCents, fogasaCents, meiCents].reduce(addCents, contingenciasComunesCents);
+
+  const cuotaBaseBonificacionCents = addCents(desempleoCents, fogasaCents);
+  const reduccionCcCents = applyBenefitPercent(contingenciasComunesCents, employer.beneficios.reduccionCcPercent);
+  const bonificacionDesempleoFogasaCents = applyBenefitPercent(
+    cuotaBaseBonificacionCents,
+    employer.beneficios.bonificacionDesempleoFogasaPercent,
+  );
+
+  const totalEfectivoCents = subtractCents(subtractCents(totalNominalCents, reduccionCcCents), bonificacionDesempleoFogasaCents);
+
+  return {
+    baseCotizacionCents,
+    basePeriodoCents,
+    contingenciasComunesCents,
+    atEpCents,
+    desempleoCents,
+    fogasaCents,
+    meiCents,
+    totalNominalCents,
+    cuotaBaseBonificacionCents,
+    reduccionCcCents,
+    bonificacionDesempleoFogasaCents,
+    totalEfectivoCents,
+  };
 }
