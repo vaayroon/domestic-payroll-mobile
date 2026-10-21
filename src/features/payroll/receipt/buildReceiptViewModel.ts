@@ -56,6 +56,19 @@ function dayOfMonth(iso: string): number {
 }
 
 /**
+ * SS days-worked normalization, mirroring the engine (engine.ts:
+ * `calculatePayrollRun`) -- a full month normalizes to SS_DIVISOR itself,
+ * never the real calendar `daysInMonth`.
+ *
+ * Shared by the worker desglose, the employer block and the drift detector so
+ * that the detector normalizes exactly like the figures it checks: a detector
+ * that normalized differently would report phantom drift.
+ */
+function resolveSsDaysWorked(run: PayrollRun): number {
+  return run.prorated ? run.daysWorked : SS_DIVISOR;
+}
+
+/**
  * Per-contingency breakdown of the worker's SS cuota (contingencias comunes /
  * desempleo / MEI), reconciled to the persisted `ssDeductionCents` via
  * residual-on-largest-line (design "Cuota reconciliation"): the two smaller
@@ -72,10 +85,7 @@ function computeDeduccionesDesglose(
   const retribucionCents = resolveRetribucionCents(employee.baseGrossCents);
   const baseCotizacionCents = resolveBaseCotizacion(ratesConfig.tramos, ratesConfig.topeMaxBaseCents, retribucionCents);
 
-  // Mirrors the engine's SS days-worked normalization (engine.ts:
-  // `calculatePayrollRun`) -- a full month normalizes to SS_DIVISOR itself,
-  // never the real calendar `daysInMonth`.
-  const ssDaysWorked = run.prorated ? run.daysWorked : SS_DIVISOR;
+  const ssDaysWorked = resolveSsDaysWorked(run);
 
   const desempleoPer10000 = ratesConfig.worker.desempleoPer10000[employee.contractType];
   const meiPer10000 = ratesConfig.worker.meiPer10000;
