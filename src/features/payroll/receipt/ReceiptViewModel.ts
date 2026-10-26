@@ -33,6 +33,70 @@ export interface ReceiptDeduccionDesglose {
   readonly cuota: string;
 }
 
+/** One nominal employer contribution row: base de cotización x nominal tipo. */
+export interface ReceiptEmpleadorCuotaRow {
+  readonly concepto: string;
+  /** Base de cotización for the period (prorated `daysWorked/30`), formatted via `formatEuros`. */
+  readonly basePeriodo: string;
+  /** Nominal contribution rate as a percentage, e.g. `"23,60 %"`. */
+  readonly tipo: string;
+  /** Already formatted via `formatEuros`. */
+  readonly cuota: string;
+}
+
+/**
+ * One employer benefit row. Its operand is a CUOTA already computed above,
+ * never a base de cotización -- hence `cuotaAfectada`, not `basePeriodo`, so a
+ * benefit row cannot be assigned into the nominal array by mistake.
+ */
+export interface ReceiptEmpleadorBeneficioRow {
+  readonly concepto: string;
+  /** Sum of the nominal cuotas this benefit applies to, formatted. A cuota, NOT a base. */
+  readonly cuotaAfectada: string;
+  /** Benefit percentage, e.g. `"20 %"`. */
+  readonly tipo: string;
+  /** Already negative and formatted, e.g. `"-67,24 €"`. */
+  readonly importe: string;
+}
+
+/** The employer block with confident figures: rates present and the base verified. */
+export interface ReceiptEmpleadorCotizacionCifras {
+  readonly kind: 'figures';
+  /** The five nominal rows, in display order. */
+  readonly filas: readonly ReceiptEmpleadorCuotaRow[];
+  /** The two benefit rows, always after the nominal rows. */
+  readonly beneficios: readonly ReceiptEmpleadorBeneficioRow[];
+  /** Exact sum of the nominal rows, formatted. */
+  readonly totalNominal: string;
+  /** Nominal total minus both benefits, formatted. */
+  readonly totalEfectivo: string;
+}
+
+/**
+ * Why the employer block carries no figures:
+ * - `rates_unavailable`: the period year has no `RatesConfig` entry.
+ * - `base_drifted`: the base de cotización recomputed from the current employee
+ *   no longer matches the persisted worker cuota, so any figure would be wrong.
+ * - `base_not_verifiable`: the run lacks the inputs for that comparison (legacy).
+ */
+export type ReceiptEmpleadorCotizacionNoDisponibleReason = 'rates_unavailable' | 'base_drifted' | 'base_not_verifiable';
+
+/** The employer block with NO figures at all, only an explanatory note. */
+export interface ReceiptEmpleadorCotizacionNoDisponible {
+  readonly kind: 'unavailable';
+  readonly reason: ReceiptEmpleadorCotizacionNoDisponibleReason;
+  /** Spanish note rendered instead of rows and totals. */
+  readonly nota: string;
+}
+
+/**
+ * Employer "determinación de bases y cuotas" block. A discriminated union so
+ * that figures and a "no reliable figures here" note can never coexist: a type
+ * able to hold both at once would invite rendering a confident number beside a
+ * note saying it cannot be trusted.
+ */
+export type ReceiptEmpleadorCotizacion = ReceiptEmpleadorCotizacionCifras | ReceiptEmpleadorCotizacionNoDisponible;
+
 export interface ReceiptViewModel {
   readonly empleador: {
     readonly nombre: string;
@@ -83,6 +147,8 @@ export interface ReceiptViewModel {
   readonly deduccionesDesglose: readonly ReceiptDeduccionDesglose[];
   readonly totalDeducciones: string;
   readonly liquidoTotal: string;
+  /** Employer contribution block, or the note explaining why it carries no figures. */
+  readonly empleadorCotizacion: ReceiptEmpleadorCotizacion;
   readonly lugarYFecha: string;
   readonly firmaLabel: string;
   /** Bare base64 PNG (NO `data:` prefix) of the employer's saved signature; `null` renders a blank hand-signable line instead. */

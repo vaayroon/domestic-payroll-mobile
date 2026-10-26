@@ -86,8 +86,11 @@ Net salary = Gross salary − Employee SS deduction
   Keep the day-count rule explicit and documented in the payroll module (calendar days).
 - **Extra payments (pagas extra)**: two payments of the base gross, paid in **June** and **December**.
   Toggle to include or prorate them.
-- **No real amounts in the repo.** Salary figures are entered in-app per employee. Any example
-  numbers in code, tests, fixtures, or docs MUST be obviously-fake placeholders.
+- **Identifiers are never real in the repo. Monetary amounts may be.** No real NIF/NIE/NAF/CCC,
+  names, or addresses in code, tests, fixtures, or docs — see §6. Monetary figures are a different
+  case: a test vector copied from an official TGSS document is what pins the payroll maths to the
+  authority that actually charges the cuota, so real amounts ARE permitted in fixtures and tests.
+  An amount on its own identifies nobody. Salary figures are still entered in-app per employee.
 - All labels, receipt fields, and legal copy on the PDF are in **Spanish**.
 
 ## 6. Privacy & data handling (IMPORTANT)
@@ -95,7 +98,8 @@ Net salary = Gross salary − Employee SS deduction
 This app stores real personal data: names, **NIF/NIE, NAF (social security number)**, address, salary.
 
 - **Never commit real PII to git.** No real NIF/NIE/NAF/addresses in source, docs, fixtures, or
-  commit messages. Use obviously-fake placeholders in any committed sample/fixture.
+  commit messages. Use obviously-fake placeholders for **those** values in any committed
+  sample/fixture. This rule is about identifiers, not about monetary amounts — see §5.
 - The real seed profile (employer + first employee) lives in the user's **local engram memory**
   and, when scaffolded, in a **git-ignored** local seed module + the on-device SQLite DB.
 - Personal data stays on-device. No analytics, no telemetry, no third-party upload.
