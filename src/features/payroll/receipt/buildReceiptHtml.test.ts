@@ -324,6 +324,84 @@ describe('buildReceiptHtml', () => {
     });
   });
 
+  describe('employer box, annex rows in annex order (spec E1-E4)', () => {
+    // Pairwise-distinct, obviously fake sentinels so a swapped value cannot hide.
+    const SENTINEL_VIEW_MODEL: ReceiptViewModel = {
+      ...FAKE_VIEW_MODEL,
+      empleador: {
+        nombre: 'EMPLEADOR-NOMBRE-FICTICIO',
+        domicilio: 'EMPLEADOR-DOMICILIO-FICTICIO',
+        nif: 'EMPLEADOR-NIF-FICTICIO',
+        ccc: 'EMPLEADOR-CCC-FICTICIO',
+      },
+      trabajador: { ...FAKE_VIEW_MODEL.trabajador, nif: 'TRABAJADOR-NIF-FICTICIO' },
+    };
+    const sentinelHtml = buildReceiptHtml(SENTINEL_VIEW_MODEL);
+
+    it('prints exactly four rows, labelled and ordered as the annex (E1.1)', () => {
+      const box = headerBox(html, 'Datos del empleador');
+
+      expect(box.rowCount).toBe(4);
+      expect(box.rows.map((row) => row.label)).toEqual(['Empresa', 'Domicilio', 'NIF', 'CCC']);
+    });
+
+    it('no longer puts the identifier before the address (E1.2)', () => {
+      const labels = headerBox(html, 'Datos del empleador').rows.map((row) => row.label);
+
+      expect(labels.indexOf('Domicilio')).toBeGreaterThan(-1);
+      expect(labels.indexOf('Domicilio')).toBeLessThan(labels.indexOf('NIF'));
+    });
+
+    it('prints neither Nombre nor CIF as a label in the employer box (E2.1)', () => {
+      const labels = headerBox(html, 'Datos del empleador').rows.map((row) => row.label);
+
+      expect(labels).not.toContain('Nombre');
+      expect(labels).not.toContain('CIF');
+    });
+
+    it('keeps the first label bare and the heading unchanged (E2.2)', () => {
+      expect(headerBox(html, 'Datos del empleador').rows[0]?.label).toBe('Empresa');
+      expect(html).toContain('<h2>Datos del empleador</h2>');
+    });
+
+    it('keeps every value under its own label (E3.1)', () => {
+      const values = Object.fromEntries(
+        headerBox(sentinelHtml, 'Datos del empleador').rows.map((row) => [row.label, row.value]),
+      );
+
+      expect(values).toEqual({
+        Empresa: 'EMPLEADOR-NOMBRE-FICTICIO',
+        Domicilio: 'EMPLEADOR-DOMICILIO-FICTICIO',
+        NIF: 'EMPLEADOR-NIF-FICTICIO',
+        CCC: 'EMPLEADOR-CCC-FICTICIO',
+      });
+    });
+
+    it('prints NIF once per box, each holding its own party value (E3.2)', () => {
+      const employerNif = headerBox(sentinelHtml, 'Datos del empleador').rows.filter((row) => row.label === 'NIF');
+      const workerNif = headerBox(sentinelHtml, 'Datos del trabajador').rows.filter((row) => row.label === 'NIF');
+
+      expect(employerNif.map((row) => row.value)).toEqual(['EMPLEADOR-NIF-FICTICIO']);
+      expect(workerNif.map((row) => row.value)).toEqual(['TRABAJADOR-NIF-FICTICIO']);
+    });
+
+    it('still escapes every employer value (X1)', () => {
+      const nombre = hostile('nom');
+      const document = buildReceiptHtml({
+        ...FAKE_VIEW_MODEL,
+        empleador: { ...FAKE_VIEW_MODEL.empleador, nombre: nombre.raw },
+      });
+
+      expect(document).toContain(`<tr><td>Empresa</td><td class="amount">${nombre.escaped}</td></tr>`);
+      expect(document).not.toContain(nombre.raw);
+    });
+
+    it('introduces no URL and no "verificad" claim through the labels (E4.2)', () => {
+      expect(html).not.toMatch(/https?:\/\//i);
+      expect(html.toLowerCase()).not.toContain('verificad');
+    });
+  });
+
   describe('CCC line (Scenario 15)', () => {
     it('renders the CCC value with no "verified" claim', () => {
       expect(html).toContain('CCC');

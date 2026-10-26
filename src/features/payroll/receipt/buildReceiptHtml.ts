@@ -27,6 +27,15 @@
  * annex concepts and must never be wired to each other (see
  * `GRUPO_PROFESIONAL` in `ReceiptViewModel.ts`).
  *
+ * The employer box prints `Empresa`, `Domicilio`, `NIF`, `CCC`, in annex
+ * order. `Empresa` stays bare even though the employer is a household: the
+ * `Datos del empleador` heading above supplies that context, and adding
+ * information around a denomination is permitted while renaming it is not.
+ * The annex's own `CIF` is deliberately printed as `NIF`: the CIF was
+ * abolished by RD 1065/2007 (BOE-A-2007-15984, disposición derogatoria única
+ * 1.a), and art. 18.1 gives natural and legal persons a single NIF. `NIF` is a
+ * label in BOTH header boxes.
+ *
  * ============================================================================
  * ANDROID MARGIN QUIRK -- DO NOT MODIFY WITHOUT DEVICE-VERIFYING AGAIN
  * ============================================================================
@@ -218,9 +227,9 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
           <td>
             <h2>Datos del empleador</h2>
             <table>
-              <tr><td>Nombre</td><td class="amount">${escapeHtml(empleador.nombre)}</td></tr>
-              <tr><td>NIF</td><td class="amount">${escapeHtml(empleador.nif)}</td></tr>
+              <tr><td>Empresa</td><td class="amount">${escapeHtml(empleador.nombre)}</td></tr>
               <tr><td>Domicilio</td><td class="amount">${escapeHtml(empleador.domicilio)}</td></tr>
+              <tr><td>NIF</td><td class="amount">${escapeHtml(empleador.nif)}</td></tr>
               <tr><td>CCC</td><td class="amount">${escapeHtml(empleador.ccc)}</td></tr>
             </table>
           </td>
