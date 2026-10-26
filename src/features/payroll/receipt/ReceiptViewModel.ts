@@ -5,6 +5,18 @@
  * already-formatted strings.
  */
 
+/**
+ * The worker's professional group, a fixed description of this regime printed
+ * under the annex's `Grupo profesional` denomination.
+ *
+ * `as const` is load-bearing: `ReceiptViewModel['trabajador']['grupoProfesional']`
+ * is typed as this literal, NOT `string`, so the employee's stored (free text)
+ * `grupoCotizacion` cannot be assigned into the professional-group slot. Both
+ * slots hold a string, so without the literal type a mis-wire would compile.
+ * Do not widen it to `string` for convenience; that silently removes the guard.
+ */
+export const GRUPO_PROFESIONAL = 'Empleado/a de Hogar' as const;
+
 export interface ReceiptLineItem {
   readonly label: string;
   /** Already formatted via `formatEuros` (e.g. "900,00 €"). */
@@ -121,6 +133,12 @@ export interface ReceiptViewModel {
     readonly nif: string;
     /** `"—"` when the employee has no NAF on file. */
     readonly naf: string;
+    /** The annex's `Grupo profesional`: always `GRUPO_PROFESIONAL`, never the employee's own data. */
+    readonly grupoProfesional: typeof GRUPO_PROFESIONAL;
+    /**
+     * The annex's `Grupo de cotización`: the value stored on the employee, or
+     * `"—"` when none is on file. Never a default group.
+     */
     readonly grupoCotizacion: string;
   };
   readonly periodo: {

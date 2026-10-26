@@ -18,6 +18,15 @@
  * renders an explanatory note and NO rows or totals -- never a confident
  * number beside a caveat.
  *
+ * HEADER LABELS are the annex's own denominations, taken verbatim (art. 1.1 of
+ * the Orden of 27-12-1994, BOE-A-1995-912, forbids altering the denomination
+ * of an annex concept): `Trabajador`, `NIF`, `Núm. Afil. Seguridad Social`,
+ * `Grupo profesional`, `Grupo de cotización` for the worker box. They are
+ * static literals and are never escaped; only the interpolated values are.
+ * The worker's `grupoProfesional` and `grupoCotizacion` are two different
+ * annex concepts and must never be wired to each other (see
+ * `GRUPO_PROFESIONAL` in `ReceiptViewModel.ts`).
+ *
  * ============================================================================
  * ANDROID MARGIN QUIRK -- DO NOT MODIFY WITHOUT DEVICE-VERIFYING AGAIN
  * ============================================================================
@@ -218,9 +227,10 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
           <td>
             <h2>Datos del trabajador</h2>
             <table>
-              <tr><td>Nombre</td><td class="amount">${escapeHtml(trabajador.nombre)}</td></tr>
+              <tr><td>Trabajador</td><td class="amount">${escapeHtml(trabajador.nombre)}</td></tr>
               <tr><td>NIF</td><td class="amount">${escapeHtml(trabajador.nif)}</td></tr>
-              <tr><td>NAF</td><td class="amount">${escapeHtml(trabajador.naf)}</td></tr>
+              <tr><td>Núm. Afil. Seguridad Social</td><td class="amount">${escapeHtml(trabajador.naf)}</td></tr>
+              <tr><td>Grupo profesional</td><td class="amount">${escapeHtml(trabajador.grupoProfesional)}</td></tr>
               <tr><td>Grupo de cotización</td><td class="amount">${escapeHtml(trabajador.grupoCotizacion)}</td></tr>
             </table>
           </td>

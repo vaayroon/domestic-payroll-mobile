@@ -9,7 +9,13 @@ import type {
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
 const FAKE_VIEW_MODEL: ReceiptViewModel = {
   empleador: { nombre: 'Empleador de Prueba', nif: '00000000T', domicilio: 'Calle Falsa 123', ccc: '28123456789' },
-  trabajador: { nombre: 'Empleada de Prueba', nif: '00000001T', naf: '000000000001', grupoCotizacion: 'Empleado/a de Hogar' },
+  trabajador: {
+    nombre: 'Empleada de Prueba',
+    nif: '00000001T',
+    naf: '000000000001',
+    grupoProfesional: 'Empleado/a de Hogar',
+    grupoCotizacion: '7',
+  },
   periodo: { descripcion: 'junio de 2026', diasTrabajados: 30, diasNaturales: 30, prorrateado: false, rango: 'del día 1 al 30' },
   devengos: [
     { label: 'Salario base', amount: '900,00 €' },
@@ -99,6 +105,29 @@ function employerBlock(document: string): string {
   expect(start).toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
   return document.slice(start, end);
+}
+
+/**
+ * One header box (`Datos del trabajador`), sliced out by its heading. `NIF` is
+ * a label in BOTH header boxes, so a lookup over the whole document is wrong:
+ * always slice first. Labels are static literals and are matched raw.
+ */
+function headerBox(
+  document: string,
+  heading: string,
+): { readonly rowCount: number; readonly rows: readonly { readonly label: string; readonly value: string }[] } {
+  const start = document.indexOf(`<h2>${heading}</h2>`);
+  expect(start).toBeGreaterThan(-1);
+  const end = document.indexOf('</table>', start);
+  expect(end).toBeGreaterThan(start);
+  const box = document.slice(start, end);
+  return {
+    rowCount: (box.match(/<tr>/g) ?? []).length,
+    rows: [...box.matchAll(/<tr><td>([^<]*)<\/td><td class="amount">([^<]*)<\/td><\/tr>/g)].map((match) => ({
+      label: match[1] ?? '',
+      value: match[2] ?? '',
+    })),
+  };
 }
 
 /** Hostile value (markup characters + quotes) and the exact form `escapeHtml` must emit for it. */
@@ -192,6 +221,106 @@ describe('buildReceiptHtml', () => {
       expect(html).toContain('Empleador de Prueba');
       expect(html).toContain('Calle Falsa 123');
       expect(html).toContain('1.050,00 €');
+    });
+  });
+
+  describe('worker box, annex rows in annex order (spec W1, W3, X1.2)', () => {
+    const WORKER_LABELS = [
+      'Trabajador',
+      'NIF',
+      'Núm. Afil. Seguridad Social',
+      'Grupo profesional',
+      'Grupo de cotización',
+    ];
+
+    it('prints exactly five rows, labelled and ordered as the annex (W1.1)', () => {
+      const box = headerBox(html, 'Datos del trabajador');
+
+      expect(box.rowCount).toBe(5);
+      expect(box.rows.map((row) => row.label)).toEqual(WORKER_LABELS);
+    });
+
+    it('keeps each value under its own label', () => {
+      const values = Object.fromEntries(
+        headerBox(html, 'Datos del trabajador').rows.map((row) => [row.label, row.value]),
+      );
+
+      expect(values).toEqual({
+        Trabajador: 'Empleada de Prueba',
+        NIF: '00000001T',
+        'Núm. Afil. Seguridad Social': '000000000001',
+        'Grupo profesional': 'Empleado/a de Hogar',
+        'Grupo de cotización': '7',
+      });
+    });
+
+    it('puts Empleado/a de Hogar under Grupo profesional only, never under Grupo de cotización (W1.2)', () => {
+      const rows = headerBox(html, 'Datos del trabajador').rows;
+
+      expect(rows.filter((row) => row.value.includes('Empleado/a de Hogar')).map((row) => row.label)).toEqual([
+        'Grupo profesional',
+      ]);
+    });
+
+    it('no longer prints Nombre or NAF as a label in the worker box (W1.3)', () => {
+      const labels = headerBox(html, 'Datos del trabajador').rows.map((row) => row.label);
+
+      expect(labels).not.toContain('Nombre');
+      expect(labels).not.toContain('NAF');
+    });
+
+    it('prints a null grupo de cotización as the placeholder, not an empty cell and not "null" (W3.2)', () => {
+      const document = buildReceiptHtml({
+        ...FAKE_VIEW_MODEL,
+        trabajador: { ...FAKE_VIEW_MODEL.trabajador, grupoCotizacion: '—' },
+      });
+      const row = headerBox(document, 'Datos del trabajador').rows.find((r) => r.label === 'Grupo de cotización');
+
+      expect(row?.value).toBe('—');
+      expect(document).not.toContain('>null<');
+    });
+
+    it('prints a long mixed grupo de cotización in full (W3.3)', () => {
+      const document = buildReceiptHtml({
+        ...FAKE_VIEW_MODEL,
+        trabajador: { ...FAKE_VIEW_MODEL.trabajador, grupoCotizacion: 'Grupo 10 — Peones' },
+      });
+      const row = headerBox(document, 'Datos del trabajador').rows.find((r) => r.label === 'Grupo de cotización');
+
+      expect(row?.value).toBe('Grupo 10 — Peones');
+    });
+
+    it('escapes the two group values, which are interpolated (X1.1)', () => {
+      const grupoCotizacion = hostile('gc');
+      const grupoProfesional = hostile('gp');
+      const document = buildReceiptHtml({
+        ...FAKE_VIEW_MODEL,
+        // The literal type forbids this everywhere else; the cast is test-only.
+        trabajador: {
+          ...FAKE_VIEW_MODEL.trabajador,
+          grupoProfesional: grupoProfesional.raw as ReceiptViewModel['trabajador']['grupoProfesional'],
+          grupoCotizacion: grupoCotizacion.raw,
+        },
+      });
+
+      expect(document).not.toContain('<script>');
+      expect(document).toContain(grupoCotizacion.escaped);
+      expect(document).toContain(grupoProfesional.escaped);
+    });
+
+    it('prints the label raw and only the value escaped (X1.2)', () => {
+      const naf = hostile('naf');
+      const document = buildReceiptHtml({
+        ...FAKE_VIEW_MODEL,
+        trabajador: { ...FAKE_VIEW_MODEL.trabajador, naf: naf.raw },
+      });
+
+      expect(document).toContain(
+        `<tr><td>Núm. Afil. Seguridad Social</td><td class="amount">${naf.escaped}</td></tr>`,
+      );
+      expect(document).not.toContain(naf.raw);
+      // Nothing about the label was turned into an entity.
+      expect(document).not.toMatch(/N&[a-z#0-9]+;m\./);
     });
   });
 

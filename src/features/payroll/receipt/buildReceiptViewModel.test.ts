@@ -5,6 +5,7 @@ import { cents } from '@/types/money';
 
 import { SS_RATES_BY_YEAR, type RatesConfig } from '../domain/ssContribution';
 import { buildReceiptViewModel } from './buildReceiptViewModel';
+import { GRUPO_PROFESIONAL, type ReceiptViewModel } from './ReceiptViewModel';
 
 // `Intl.NumberFormat('es-ES', ...)` inserts a NON-BREAKING SPACE (U+00A0,
 // not a regular space) between the amount and the `€` symbol.
@@ -174,6 +175,58 @@ describe('buildReceiptViewModel', () => {
 
     expect(vm.trabajador.nif).toBe('—');
     expect(vm.trabajador.naf).toBe('—');
+  });
+
+  describe('worker group fields (spec W2, W3)', () => {
+    function buildFor(employee: Employee): ReceiptViewModel {
+      return buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: null,
+      });
+    }
+
+    it('pins grupoProfesional to a literal type, so an employee string cannot enter that slot (W2.1)', () => {
+      const employeeString: string = FAKE_EMPLOYEE.grupoCotizacion ?? '';
+
+      // If `grupoProfesional` were ever widened to `string`, this suppression
+      // would itself fail to compile. That failure is the alarm: do not delete
+      // the directive to "fix" it, restore the literal type instead.
+      // @ts-expect-error -- a plain string must not be assignable to the professional-group slot
+      const slot: ReceiptViewModel['trabajador']['grupoProfesional'] = employeeString;
+
+      expect(slot).toBe(employeeString);
+    });
+
+    it.each([null, '7', 'Grupo 10 — Peones'])(
+      'always prints the fixed grupo profesional, whatever the stored grupo de cotización is (%j) (W2.2)',
+      (grupoCotizacion) => {
+        const vm = buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion });
+
+        expect(vm.trabajador.grupoProfesional).toBe(GRUPO_PROFESIONAL);
+        expect(vm.trabajador.grupoProfesional).toBe('Empleado/a de Hogar');
+      },
+    );
+
+    it('echoes the stored grupo de cotización (W3.1)', () => {
+      expect(buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: '7' }).trabajador.grupoCotizacion).toBe('7');
+    });
+
+    it('echoes a long mixed value untouched (W3.3)', () => {
+      expect(
+        buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: 'Grupo 10 — Peones' }).trabajador.grupoCotizacion,
+      ).toBe('Grupo 10 — Peones');
+    });
+
+    it('renders the placeholder, never a default group, when none is on file (W3.2)', () => {
+      const vm = buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: null });
+
+      expect(vm.trabajador.grupoCotizacion).toBe('—');
+      expect(vm.trabajador.grupoCotizacion).not.toBe(vm.trabajador.grupoProfesional);
+    });
   });
 
   it('injects the issue date into lugarYFecha and never reads the system clock (SC3)', () => {

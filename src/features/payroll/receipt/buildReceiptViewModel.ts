@@ -22,15 +22,13 @@ import {
   type EmployerSsBreakdown,
   type RatesConfig,
 } from '../domain/ssContribution';
-import type {
-  ReceiptDeduccionDesglose,
-  ReceiptEmpleadorCotizacion,
-  ReceiptLineItem,
-  ReceiptViewModel,
+import {
+  GRUPO_PROFESIONAL,
+  type ReceiptDeduccionDesglose,
+  type ReceiptEmpleadorCotizacion,
+  type ReceiptLineItem,
+  type ReceiptViewModel,
 } from './ReceiptViewModel';
-
-/** Hardcoded category label -- there is no stored `Employee` field for it (design ADR-3). */
-const GRUPO_COTIZACION = 'Empleado/a de Hogar';
 
 const PLACEHOLDER = '—';
 
@@ -471,7 +469,8 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
       nombre: employee.name,
       nif: employee.nif ?? PLACEHOLDER,
       naf: employee.naf ?? PLACEHOLDER,
-      grupoCotizacion: GRUPO_COTIZACION,
+      grupoProfesional: GRUPO_PROFESIONAL,
+      grupoCotizacion: employee.grupoCotizacion ?? PLACEHOLDER,
     },
     periodo: {
       descripcion: formatSpanishMonthYear(run.periodYear, run.periodMonth),
