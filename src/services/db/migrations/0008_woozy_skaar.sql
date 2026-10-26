@@ -1,0 +1,1 @@
+ALTER TABLE `payroll_runs` ADD `employer_total_efectivo_cents` integer;

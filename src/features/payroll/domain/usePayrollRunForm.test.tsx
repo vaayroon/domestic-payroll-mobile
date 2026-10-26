@@ -183,6 +183,7 @@ describe('usePayrollRunForm', () => {
         periodEndDate: null,
         baseCotizacionCents: null,
         contractType: null,
+        employerTotalEfectivoCents: null,
         createdAt: 0,
       },
     ]);
