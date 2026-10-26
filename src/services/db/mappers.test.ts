@@ -194,6 +194,7 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     periodEndDate: null,
     baseCotizacionCents: null,
     contractType: null,
+    employerTotalEfectivoCents: null,
     createdAt: 1_700_000_000_000,
   };
 
@@ -244,6 +245,7 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
       periodEndDate: null,
       baseCotizacionCents: null,
       contractType: null,
+      employerTotalEfectivoCents: null,
       createdAt: 1_700_000_000_000,
     });
   });
@@ -325,16 +327,32 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     expect(insertRow.periodEndDate).toBe('2026-06-30');
   });
 
-  it('pre-anchor row round-trips both cotización anchors as null (spec A2.1)', () => {
-    const domain = payrollRunRowToDomain({ ...row, baseCotizacionCents: null, contractType: null });
+  it('pre-anchor row round-trips every cotización anchor as null (spec A2.1)', () => {
+    const domain = payrollRunRowToDomain({
+      ...row,
+      baseCotizacionCents: null,
+      contractType: null,
+      employerTotalEfectivoCents: null,
+    });
     expect(domain.baseCotizacionCents).toBeNull();
     expect(domain.contractType).toBeNull();
+    expect(domain.employerTotalEfectivoCents).toBeNull();
   });
 
   it('anchored row round-trips the base branded as Cents and the contract type unchanged', () => {
     const domain = payrollRunRowToDomain({ ...row, baseCotizacionCents: 115100, contractType: 'TEMPORAL' });
     expect(domain.baseCotizacionCents).toBe(cents(115100));
     expect(domain.contractType).toBe('TEMPORAL');
+  });
+
+  it('round-trips the employer total branded as Cents', () => {
+    const domain = payrollRunRowToDomain({ ...row, employerTotalEfectivoCents: 31723 });
+    expect(domain.employerTotalEfectivoCents).toBe(cents(31723));
+  });
+
+  it('keeps an employer total of 0 as 0, not null: a zero-day run really does cost the employer nothing', () => {
+    const domain = payrollRunRowToDomain({ ...row, employerTotalEfectivoCents: 0 });
+    expect(domain.employerTotalEfectivoCents).toBe(cents(0));
   });
 
   it('degrades an unrecognised stored contract type to null instead of letting it reach the rate tables', () => {
@@ -352,7 +370,7 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     expect(domain.baseCotizacionCents).toBe(cents(115100)); // the base anchor survives on its own
   });
 
-  it('payrollRunInsertFromNew defaults both anchors to null when omitted -- never to INDEFINIDO (design ADR-1)', () => {
+  it('payrollRunInsertFromNew defaults every anchor to null when omitted -- never to INDEFINIDO (design ADR-1)', () => {
     const insertRow = payrollRunInsertFromNew(
       {
         employeeId: 'employee-1',
@@ -370,6 +388,7 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     );
     expect(insertRow.baseCotizacionCents).toBeNull();
     expect(insertRow.contractType).toBeNull();
+    expect(insertRow.employerTotalEfectivoCents).toBeNull();
   });
 
   it('payrollRunInsertFromNew unbrands a present base and passes the contract type through', () => {
@@ -386,12 +405,14 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
         daysInMonth: 30,
         baseCotizacionCents: cents(115100),
         contractType: 'TEMPORAL',
+        employerTotalEfectivoCents: cents(31723),
       },
       'run-1',
       1_700_000_000_000,
     );
     expect(insertRow.baseCotizacionCents).toBe(115100);
     expect(insertRow.contractType).toBe('TEMPORAL');
+    expect(insertRow.employerTotalEfectivoCents).toBe(31723);
   });
 
   // Every tramo base is positive, so a real run never carries base 0 -- this
@@ -410,11 +431,16 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
         daysInMonth: 30,
         baseCotizacionCents: cents(0),
         contractType: 'INDEFINIDO',
+        // Unlike the base, a zero employer total is REACHABLE: this very run,
+        // zero days worked, costs the employer nothing. Turning it into null
+        // would downgrade a genuinely anchored run to an unanchored one.
+        employerTotalEfectivoCents: cents(0),
       },
       'run-1',
       1_700_000_000_000,
     );
     expect(insertRow.baseCotizacionCents).toBe(0);
+    expect(insertRow.employerTotalEfectivoCents).toBe(0);
   });
 });
 

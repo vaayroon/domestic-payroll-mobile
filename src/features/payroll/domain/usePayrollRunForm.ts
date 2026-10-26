@@ -216,6 +216,7 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
         periodEndDate,
         baseCotizacionCents: result.baseCotizacionCents,
         contractType: result.contractType,
+        employerTotalEfectivoCents: result.employerTotalEfectivoCents,
       });
       return true;
     } catch (caught) {

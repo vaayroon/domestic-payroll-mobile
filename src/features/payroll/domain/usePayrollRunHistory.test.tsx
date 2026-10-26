@@ -63,6 +63,7 @@ function runFixture(overrides: Partial<PayrollRun>): PayrollRun {
     periodEndDate: null,
     baseCotizacionCents: null,
     contractType: null,
+    employerTotalEfectivoCents: null,
     createdAt: 0,
     ...overrides,
   };

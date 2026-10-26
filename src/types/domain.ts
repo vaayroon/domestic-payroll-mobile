@@ -117,6 +117,16 @@ export interface PayrollRun {
    * the "not anchored" signal, never a default.
    */
   readonly contractType: ContractType | null;
+  /**
+   * The employer's cuota efectiva (nominal total net of both benefits) this
+   * run was computed with. The base and contract anchors above pin the base
+   * and the rate SELECTOR, not the rate TABLE: correcting an employer rate in
+   * `SS_RATES_BY_YEAR` for an already-settled year leaves the worker cuota
+   * untouched, so only an employer-side figure of the run's own can expose it.
+   * `null` for runs saved before this field existed (no backfill); null is
+   * the "not anchored" signal, never a default.
+   */
+  readonly employerTotalEfectivoCents: Cents | null;
   readonly createdAt: number;
 }
 
@@ -136,6 +146,7 @@ export interface NewPayrollRun {
   readonly periodEndDate?: string | null;
   readonly baseCotizacionCents?: Cents | null;
   readonly contractType?: ContractType | null;
+  readonly employerTotalEfectivoCents?: Cents | null;
 }
 
 /** A single free-form app-level setting, stored as a string value (e.g. the smoke-screen round-trip key). */

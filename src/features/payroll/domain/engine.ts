@@ -40,11 +40,16 @@
  * (guarded by a drift-lock test) but remain distinct named constants because
  * they rest on different legal bases -- see `SALARY_DEVENGO_DIVISOR`'s
  * doc-comment.
+ *
+ * Employer figure: the same run also yields the employer's cuota efectiva
+ * (`PayrollResult.employerTotalEfectivoCents`), computed from the base the
+ * worker cuota resolved. It is not part of the net; it exists to be persisted
+ * as the run's employer anchor.
  */
 
 import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
 
-import { computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
+import { computeEmployerSsFromBase, computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
 
 /**
  * Divisor for the salary (and pagas-extra PRORATE) devengo proration: /30,
@@ -138,6 +143,20 @@ export interface PayrollResult {
   readonly baseCotizacionCents: Cents;
   /** Echo of the input contract type, which fixes the desempleo rate, for the caller to persist alongside the base. */
   readonly contractType: ContractType;
+  /**
+   * The employer's cuota efectiva for this run, surfaced so the caller can
+   * persist it as the run's third anchor.
+   *
+   * This is the only EMPLOYER-SIDE figure here. It is computed here rather
+   * than in the run form so that it can read the base `computeWorkerSs`
+   * ALREADY resolved: the employer anchor and the worker cuota are then the
+   * same period on the same base, with no second base resolution between them.
+   * The form would instead have to re-derive the SS days normalization
+   * (`prorated ? daysWorked : SS_DIVISOR`) that lives below, adding a third
+   * copy of it to the two this codebase already has (here and
+   * `resolveSsDaysWorked` in the receipt).
+   */
+  readonly employerTotalEfectivoCents: Cents;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -321,7 +340,8 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * Thin orchestrator: resolves the effective run-month period, prorates base
  * gross by the /30 mes-comercial devengo ratio, computes the worker SS cuota
  * via its own /30 ratio, adds the pagas extra component, and derives the net
- * via one exact subtraction.
+ * via one exact subtraction. It also computes the employer's cuota efectiva
+ * from the same resolved base; that figure never enters the net.
  *
  * Devengo days-worked normalization (salary AND SS share the same pattern,
  * spec "SS proration decoupled from salary proration" + this change's spec):
@@ -339,8 +359,9 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * (`PayrollResult.daysInMonth`), never again as a devengo divisor.
  *
  * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
- * when the run month has zero overlapping days, `grossCents`/`ssDeductionCents`
- * safely resolve to zero (never `NaN`/throw) -- but the `INCLUDE_IN_MONTH`
+ * when the run month has zero overlapping days,
+ * `grossCents`/`ssDeductionCents`/`employerTotalEfectivoCents` safely resolve
+ * to zero (never `NaN`/throw) -- but the `INCLUDE_IN_MONTH`
  * semester extra is NOT forced to zero, because it accrues independently of
  * the run month's own day-count.
  */
@@ -357,6 +378,9 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
   const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;
   const workerSs = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType);
   const ssDeductionCents = workerSs.proratedWorkerSsCents;
+  // `*FromBase`, fed the base the worker computation just resolved: the
+  // employer anchor must not re-resolve a base of its own.
+  const employerSs = computeEmployerSsFromBase(ratesConfig, workerSs.baseCotizacionCents, ssDaysWorked, contractType);
   const extraCents = resolveExtraPayCents(input);
 
   const grossCents = addCents(proratedBaseCents, extraCents);
@@ -372,5 +396,6 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
     daysInMonth: effective.daysInMonth,
     baseCotizacionCents: workerSs.baseCotizacionCents,
     contractType,
+    employerTotalEfectivoCents: employerSs.totalEfectivoCents,
   };
 }

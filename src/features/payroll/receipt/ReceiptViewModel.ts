@@ -75,8 +75,11 @@ export interface ReceiptEmpleadorCotizacionCifras {
 /**
  * Why the employer block carries no figures:
  * - `rates_unavailable`: the period year has no `RatesConfig` entry.
- * - `base_drifted`: the base de cotización recomputed from the current employee
- *   no longer matches the persisted worker cuota, so any figure would be wrong.
+ * - `base_drifted`: the receipt's recompute no longer matches what the run
+ *   persisted, so any figure would be wrong. The recompute uses the run's own
+ *   base and contract type when it has them, the current employee's otherwise.
+ *   Either the worker cuota differs, or, for a run carrying the employer
+ *   anchor, the employer cuota efectiva does.
  * - `base_not_verifiable`: the run lacks the inputs for that comparison (legacy).
  */
 export type ReceiptEmpleadorCotizacionNoDisponibleReason = 'rates_unavailable' | 'base_drifted' | 'base_not_verifiable';

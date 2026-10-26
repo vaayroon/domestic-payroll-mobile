@@ -54,6 +54,7 @@ const FAKE_RUN: PayrollRun = {
   periodEndDate: null,
   baseCotizacionCents: null,
   contractType: null,
+  employerTotalEfectivoCents: null,
   createdAt: 0,
 };
 
