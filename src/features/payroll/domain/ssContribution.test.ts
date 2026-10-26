@@ -2,11 +2,13 @@ import { cents, multiplyByRatio } from '@/types/money';
 
 import {
   applyBenefitPercent,
+  type BaseCotizacionDesglose,
   computeEmployerSs,
   computeEmployerSsFromBase,
   computeWorkerSs,
   computeWorkerSsFromBase,
   resolveBaseCotizacion,
+  resolveBaseCotizacionDesglose,
   resolveBaseCotizacionForGross,
   resolveRatesConfig,
   resolveRetribucionCents,
@@ -460,5 +462,102 @@ describe('from-base entry points (design ADR-3)', () => {
     expect(computeEmployerSs(RATES_2026, huge, 30, 'INDEFINIDO')).toEqual(
       computeEmployerSsFromBase(RATES_2026, RATES_2026.topeMaxBaseCents, 30, 'INDEFINIDO'),
     );
+  });
+});
+
+describe('resolveBaseCotizacionDesglose', () => {
+  // 2026: last closed tramo ceiling 142440 (1.424,40), tope 510120 (5.101,20).
+  describe('B2.1 decomposable range and boundaries', () => {
+    it.each([
+      [30600, 'tramo_base'],
+      [115100, 'tramo_base'],
+      [142440, 'tramo_base'],
+      [510120, 'tope_maximo'],
+    ])('base %i is not decomposable (%s)', (base, reason) => {
+      expect(resolveBaseCotizacionDesglose(RATES_2026, cents(base))).toEqual({ kind: 'not_decomposable', reason });
+    });
+
+    it.each([
+      [142441, 122092, 20349],
+      [142450, 122100, 20350],
+      [510119, 437245, 72874],
+    ])('base %i decomposes into %i + %i', (base, remuneracion, prorrata) => {
+      expect(resolveBaseCotizacionDesglose(RATES_2026, cents(base))).toEqual({
+        kind: 'decomposable',
+        remuneracionMensualCents: cents(remuneracion),
+        prorrataPagasCents: cents(prorrata),
+        totalCents: cents(base),
+      });
+    });
+  });
+
+  it('B3.1 SMI vector: 1.424,50 = 1.221,00 + 203,50, exactly the inverse of the 14/12 retribución', () => {
+    const result = resolveBaseCotizacionDesglose(RATES_2026, cents(142450));
+    expect(result.kind).toBe('decomposable');
+    // The remuneración reproduces the gross that produced the retribución.
+    expect(result.kind === 'decomposable' && resolveRetribucionCents(result.remuneracionMensualCents)).toBe(cents(142450));
+  });
+
+  it('B3.3 footing identity: remuneración + prorrata === base for EVERY decomposable base', () => {
+    for (let base = 142441; base <= 510119; base += 1) {
+      const result = resolveBaseCotizacionDesglose(RATES_2026, cents(base));
+      if (result.kind !== 'decomposable') {
+        throw new Error(`base ${base} unexpectedly not decomposable`);
+      }
+      if (result.remuneracionMensualCents + result.prorrataPagasCents !== base || result.totalCents !== base || result.prorrataPagasCents < 0) {
+        throw new Error(`base ${base} does not foot: ${JSON.stringify(result)}`);
+      }
+    }
+  });
+
+  it('B4.1 the tope and anything above it is not decomposable, tope checked before the ceiling', () => {
+    expect(resolveBaseCotizacionDesglose(RATES_2026, cents(510120))).toEqual({ kind: 'not_decomposable', reason: 'tope_maximo' });
+    expect(resolveBaseCotizacionDesglose(RATES_2026, cents(510121))).toEqual({ kind: 'not_decomposable', reason: 'tope_maximo' });
+  });
+
+  describe('B5 the boundary is read from the config', () => {
+    it('B5.1 a synthetic table moves the ceiling: 142450 is a tramo base there, 200001 decomposes', () => {
+      const synthetic: RatesConfig = {
+        ...RATES_2026,
+        tramos: [
+          { maxRetribucionCents: cents(100000), baseCents: cents(90000) },
+          { maxRetribucionCents: cents(200000), baseCents: cents(200000) },
+          { maxRetribucionCents: null, baseCents: cents(600000) },
+        ],
+        topeMaxBaseCents: cents(600000),
+      };
+      expect(resolveBaseCotizacionDesglose(synthetic, cents(142450))).toEqual({ kind: 'not_decomposable', reason: 'tramo_base' });
+      expect(resolveBaseCotizacionDesglose(synthetic, cents(200000))).toEqual({ kind: 'not_decomposable', reason: 'tramo_base' });
+      expect(resolveBaseCotizacionDesglose(synthetic, cents(200001)).kind).toBe('decomposable');
+    });
+
+    it('B5.2 drift lock: every closed tramo base is <= the last closed ceiling, and the tope is above it', () => {
+      // This is the premise that makes the predicate sound rather than a 2026
+      // coincidence: a tramo 1-7 base can never look like a tramo 8 retribución.
+      const closed = RATES_2026.tramos.filter((tramo) => tramo.maxRetribucionCents !== null);
+      const ceiling = Math.max(...closed.map((tramo) => tramo.maxRetribucionCents as number));
+      expect(closed.length).toBe(RATES_2026.tramos.length - 1);
+      expect(RATES_2026.tramos[RATES_2026.tramos.length - 1]?.maxRetribucionCents).toBeNull();
+      for (const tramo of closed) {
+        expect(tramo.baseCents).toBeLessThanOrEqual(ceiling);
+      }
+      expect(RATES_2026.topeMaxBaseCents).toBeGreaterThan(ceiling);
+      expect(ceiling).toBe(142440);
+    });
+  });
+
+  it('B1.2 a non-decomposable result cannot carry amounts (type-level)', () => {
+    const invalid: BaseCotizacionDesglose = {
+      kind: 'not_decomposable',
+      reason: 'tramo_base',
+      // @ts-expect-error -- the not_decomposable variant has no amount fields
+      remuneracionMensualCents: cents(1),
+    };
+    expect(invalid.kind).toBe('not_decomposable');
+  });
+
+  it('B6.1 is deterministic: identical arguments give deeply equal results', () => {
+    expect(resolveBaseCotizacionDesglose(RATES_2026, cents(300000))).toEqual(resolveBaseCotizacionDesglose(RATES_2026, cents(300000)));
+    expect(resolveBaseCotizacionDesglose.length).toBe(2);
   });
 });

@@ -262,6 +262,91 @@ export function resolveBaseCotizacionForGross(config: RatesConfig, baseGrossCent
   return resolveBaseCotizacion(config.tramos, config.topeMaxBaseCents, resolveRetribucionCents(baseGrossCents));
 }
 
+/**
+ * The decomposition of a persisted base de cotización into the annex's
+ * `Importe remuneración mensual` + `Importe prorrata pagas extraordinarias`.
+ *
+ * A union, not a record with zeros: the non-decomposable variant is unable to
+ * carry amounts, so "cannot decompose" can never be mistaken for "decomposes
+ * into nothing".
+ */
+export type BaseCotizacionDesglose =
+  | {
+      readonly kind: 'decomposable';
+      readonly remuneracionMensualCents: Cents;
+      readonly prorrataPagasCents: Cents;
+      /** Always the base that was passed in. */
+      readonly totalCents: Cents;
+    }
+  | {
+      readonly kind: 'not_decomposable';
+      /** `tramo_base`: the base came from a fixed tramo. `tope_maximo`: the base sits on the cap. */
+      readonly reason: 'tramo_base' | 'tope_maximo';
+    };
+
+/**
+ * The retribución ceiling of the last CLOSED tramo of the table (142440 in
+ * 2026), read from the config so no year's literal is hardcoded. Every base
+ * at or below it may have come from a fixed tramo; above it the base is the
+ * retribución itself. Not exported on purpose: it returns a number, never a
+ * decision, so the decision stays in `resolveBaseCotizacionDesglose`.
+ *
+ * A table with no closed tramo has no ceiling to exceed: every base is the
+ * retribución, so the ceiling is zero.
+ */
+function lastClosedTramoCeilingCents(tramos: readonly Tramo[]): Cents {
+  for (let index = tramos.length - 1; index >= 0; index -= 1) {
+    const { maxRetribucionCents } = tramos[index] as Tramo;
+    if (maxRetribucionCents !== null) {
+      return maxRetribucionCents;
+    }
+  }
+  return cents(0);
+}
+
+/**
+ * Decomposes a PERSISTED base de cotización (`PayrollRun.baseCotizacionCents`)
+ * into the annex's remuneración mensual + prorrata de pagas extraordinarias,
+ * where, and only where, that is true.
+ *
+ * In the Sistema Especial the base comes from the tramo scale; it equals the
+ * retribución only in the open-ended last tramo. So:
+ *   - `base <= ` the last closed tramo's ceiling: the base may be a fixed tramo
+ *     value, not a retribución -> `not_decomposable` / `tramo_base`.
+ *   - `base >= topeMaxBaseCents`: a capped base is indistinguishable from an
+ *     uncapped one of exactly the tope -> `not_decomposable` / `tope_maximo`.
+ *     The tope is checked first.
+ *   - otherwise the base IS the retribución (gross x 14/12), so
+ *     `remuneración = base x 12/14` and `prorrata = base - remuneración`.
+ *
+ * `remuneracionMensualCents` is the arithmetic inverse of
+ * `resolveRetribucionCents`: it reproduces the period's monthly gross to
+ * within the one cent that function may have rounded. It is the single new
+ * rounding point; the prorrata is an exact subtraction, so the two always add
+ * back to the base. NEVER reconcile it against `employee.baseGrossCents`: the
+ * salary may have changed since the run, and comparing against it is the
+ * reprint-drift defect returning as a "sanity check".
+ *
+ * This is the only entry point on purpose. Exporting the decomposability test
+ * or the 12/14 split separately would let a caller split without checking.
+ */
+export function resolveBaseCotizacionDesglose(config: RatesConfig, baseCotizacionCents: Cents): BaseCotizacionDesglose {
+  if (baseCotizacionCents >= config.topeMaxBaseCents) {
+    return { kind: 'not_decomposable', reason: 'tope_maximo' };
+  }
+  if (baseCotizacionCents <= lastClosedTramoCeilingCents(config.tramos)) {
+    return { kind: 'not_decomposable', reason: 'tramo_base' };
+  }
+
+  const remuneracionMensualCents = multiplyByRatio(baseCotizacionCents, 12, 14);
+  return {
+    kind: 'decomposable',
+    remuneracionMensualCents,
+    prorrataPagasCents: subtractCents(baseCotizacionCents, remuneracionMensualCents),
+    totalCents: baseCotizacionCents,
+  };
+}
+
 /** The worker's total contribution rate (CC + desempleo + MEI) for a contract type, as an exact integer parts-per-10000 sum. */
 export function workerTotalRatePer10000(worker: WorkerRateComponents, contractType: ContractType): number {
   return worker.ccPer10000 + worker.desempleoPer10000[contractType] + worker.meiPer10000;
