@@ -214,6 +214,8 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
         daysInMonth: result.daysInMonth,
         periodStartDate,
         periodEndDate,
+        baseCotizacionCents: result.baseCotizacionCents,
+        contractType: result.contractType,
       });
       return true;
     } catch (caught) {

@@ -129,6 +129,11 @@ describe('usePayrollRunForm', () => {
       daysInMonth: harness.current.preview?.daysInMonth,
       periodStartDate: harness.current.periodStartDate,
       periodEndDate: harness.current.periodEndDate,
+      // Cotización anchors: 970,00 EUR is the tramo base behind the 62,08 EUR
+      // cuota above (97000 x 640/10000), so the run records the very inputs
+      // its own figures came from.
+      baseCotizacionCents: cents(97000),
+      contractType: FAKE_EMPLOYEE.contractType,
     });
     expect(harness.current.error).toBeNull();
   });
