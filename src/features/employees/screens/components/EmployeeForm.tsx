@@ -20,6 +20,16 @@ const NAF_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['naf']>, string>
   invalid: 'NAF no válido.',
 };
 
+const GRUPO_COTIZACION_ERROR_MESSAGES: Record<
+  NonNullable<EmployeeFormErrors['grupoCotizacion']>,
+  string
+> = {
+  too_long: 'Usa como máximo 40 caracteres.',
+};
+
+const GRUPO_COTIZACION_HELPER_TEXT =
+  'Cópialo del alta o del informe de datos de cotización (IDC) de la Tesorería General de la Seguridad Social. Si no lo conoces, déjalo en blanco.';
+
 const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGross']>, string> = {
   empty: 'Introduce el salario bruto.',
   not_a_number: 'Introduce un número válido (ej. 900 o 900,50).',
@@ -101,6 +111,24 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
         />
         {errors.naf !== undefined ? (
           <Text className="mt-1 text-sm text-red-400">{NAF_ERROR_MESSAGES[errors.naf]}</Text>
+        ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Grupo de cotización (opcional)</Text>
+        <TextInput
+          testID="employee-form-grupo-cotizacion"
+          className="rounded-md bg-slate-800 px-3 py-2 text-white"
+          value={values.grupoCotizacion}
+          onChangeText={(text) => onChangeField('grupoCotizacion', text)}
+          placeholder="Grupo de cotización"
+          placeholderTextColor="#94a3b8"
+        />
+        <Text className="mt-1 text-sm text-slate-400">{GRUPO_COTIZACION_HELPER_TEXT}</Text>
+        {errors.grupoCotizacion !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">
+            {GRUPO_COTIZACION_ERROR_MESSAGES[errors.grupoCotizacion]}
+          </Text>
         ) : null}
       </View>
 

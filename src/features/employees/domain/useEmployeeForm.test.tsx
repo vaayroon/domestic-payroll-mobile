@@ -106,6 +106,7 @@ describe('useEmployeeForm', () => {
       altaDate: null,
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     });
     expect(harness.current.errors).toEqual({});
   });
@@ -166,6 +167,7 @@ describe('useEmployeeForm', () => {
       altaDate: null,
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     });
   });
 
@@ -209,6 +211,7 @@ describe('useEmployeeForm', () => {
       altaDate: '2026-07-23',
       bajaDate: '2026-12-31',
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     });
   });
 
@@ -242,5 +245,107 @@ describe('useEmployeeForm', () => {
     expect(success).toBe(false);
     expect(harness.current.errors).toEqual({ name: 'required' });
     expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  describe('grupoCotizacion', () => {
+    const employeeWithGroup = (grupoCotizacion: string | null): Employee => ({
+      id: 'employee-fake-target',
+      employerId: FAKE_EMPLOYER.id,
+      name: 'Empleado Original',
+      nif: null,
+      naf: null,
+      baseGrossCents: cents(90000),
+      active: true,
+      altaDate: null,
+      bajaDate: null,
+      contractType: 'INDEFINIDO',
+      grupoCotizacion,
+    });
+
+    it('seeds a null group as an empty field and submits it back as null', async () => {
+      const target = employeeWithGroup(null);
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      expect(harness.current.values.grupoCotizacion).toBe('');
+
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        target.id,
+        expect.objectContaining({ grupoCotizacion: null }),
+      );
+    });
+
+    it('seeds a stored group and submits it back unchanged', async () => {
+      const target = employeeWithGroup('7');
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      expect(harness.current.values.grupoCotizacion).toBe('7');
+
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        target.id,
+        expect.objectContaining({ grupoCotizacion: '7' }),
+      );
+    });
+
+    it('clears the stored group when the user empties the field', async () => {
+      const target = employeeWithGroup('7');
+      const repository = new InMemoryEmployeeRepository([target]);
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('grupoCotizacion', '');
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect((await repository.getById(target.id))?.grupoCotizacion).toBeNull();
+    });
+
+    it('starts empty on create and never invents a default group', async () => {
+      const repository = new InMemoryEmployeeRepository([]);
+      const createSpy = jest.spyOn(repository, 'create');
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+      expect(harness.current.values.grupoCotizacion).toBe('');
+
+      await act(async () => {
+        harness.current.setField('name', 'Empleado Nuevo');
+        harness.current.setField('baseGross', '900');
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ grupoCotizacion: null }));
+    });
+
+    it('surfaces too_long and does not reach the repository for an over-long group', async () => {
+      const target = employeeWithGroup(null);
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('grupoCotizacion', 'x'.repeat(41));
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(harness.current.errors).toEqual({ grupoCotizacion: 'too_long' });
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
   });
 });
