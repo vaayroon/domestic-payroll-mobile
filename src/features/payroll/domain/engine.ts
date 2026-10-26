@@ -147,14 +147,14 @@ export interface PayrollResult {
    * The employer's cuota efectiva for this run, surfaced so the caller can
    * persist it as the run's third anchor.
    *
-   * This is the only EMPLOYER-SIDE figure here, and it is computed in the
-   * engine on purpose. The alternative, having the run form compute it after the
-   * fact, would force the form to re-derive the SS days normalization
-   * (`prorated ? daysWorked : SS_DIVISOR`) that lives below, and a second
-   * derivation is exactly the disagreement an anchor exists to prevent. Here it
-   * is computed from the base `computeWorkerSs` ALREADY resolved, so the
-   * employer anchor and the worker cuota provably describe the same period on
-   * the same base.
+   * This is the only EMPLOYER-SIDE figure here. It is computed here rather
+   * than in the run form so that it can read the base `computeWorkerSs`
+   * ALREADY resolved: the employer anchor and the worker cuota are then the
+   * same period on the same base, with no second base resolution between them.
+   * The form would instead have to re-derive the SS days normalization
+   * (`prorated ? daysWorked : SS_DIVISOR`) that lives below, adding a third
+   * copy of it to the two this codebase already has (here and
+   * `resolveSsDaysWorked` in the receipt).
    */
   readonly employerTotalEfectivoCents: Cents;
 }

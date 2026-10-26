@@ -201,14 +201,10 @@ function computeDeduccionesDesglose(
  * The one place THIS MODULE writes that argument list. The drift detector
  * checks `run.employerTotalEfectivoCents` against this and the employer block
  * prints from it, so the figure that is verified and the figure that is
- * printed agree by construction -- not because two hand-written call sites
- * happen to match.
+ * printed are the same figure.
  *
- * The anchor's other half lives in `engine.ts`, which writes the same call to
- * produce the stored figure in the first place. Those two cannot be unified:
- * one runs at payroll time from a `PayrollInput`, the other at print time from
- * a `PayrollRun`. That pairing is what the detector exists to check, which is
- * why a mismatch between them is a finding and not an assertion failure.
+ * `engine.ts` writes its own call to produce the stored figure at payroll
+ * time. The two are not unified today.
  */
 function computeReceiptEmployerSs(
   run: PayrollRun,
@@ -322,11 +318,7 @@ function resolveBaseDriftStatus(
 
   if (run.employerTotalEfectivoCents !== null) {
     // The same helper `buildEmpleadorCotizacion` prints from, so what is
-    // checked here is what would be printed there -- by construction, one call
-    // site for the argument list. The worker side above has no such helper on
-    // purpose: `computeDeduccionesDesglose` does not recompute the cuota at
-    // all, it reconciles its rows to the persisted total, so there is no
-    // second derivation there to unify with this one.
+    // checked here is what would be printed there.
     const recomputedEmployerTotalCents = computeReceiptEmployerSs(run, cotizacion, ratesConfig).totalEfectivoCents;
 
     if (recomputedEmployerTotalCents !== run.employerTotalEfectivoCents) {

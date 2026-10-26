@@ -402,7 +402,7 @@ describe('calculatePayrollRun', () => {
     );
   });
 
-  it('prorates the employer anchor by the SS days, like the worker cuota beside it', () => {
+  it('prorates the employer anchor by the SS days', () => {
     const partial = calculatePayrollRun(
       baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-07-23' }),
     );
@@ -436,7 +436,7 @@ describe('calculatePayrollRun', () => {
     expect(result.employerTotalEfectivoCents).toBe(cents(32065)); // 320,65 EUR: the 6,70 % desempleo variant
   });
 
-  it('anchors a zero employer total on a zero-day run, which is a real value and not an absent one', () => {
+  it('anchors a zero employer total on a zero-day run', () => {
     const noOverlap = calculatePayrollRun(
       baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-08-01', extraPayMode: 'EXCLUDE' }),
     );

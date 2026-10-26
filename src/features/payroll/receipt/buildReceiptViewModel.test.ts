@@ -1097,8 +1097,8 @@ describe('buildReceiptViewModel', () => {
 
         it('compares a zero employer anchor instead of skipping it (pins `!== null`, not a truthy check)', () => {
           // A full month whose stored employer total is 0 against a recompute
-          // of 317,23. Only `run.employerTotalEfectivoCents !== null` reports
-          // this; `if (run.employerTotalEfectivoCents)` would read 0 as falsy,
+          // of 317,23. A NULL check reports this; a truthiness check
+          // (`if (run.employerTotalEfectivoCents)`) would read 0 as falsy,
           // skip the comparison entirely and reprint the figures.
           //
           // The zero-day case below cannot pin that choice, because there the
@@ -1110,10 +1110,11 @@ describe('buildReceiptViewModel', () => {
           expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
         });
 
-        it('treats a zero employer total as a real value, not an absent one', () => {
+        it('stays verified on a zero-day run, where the anchor and the recompute are both 0', () => {
           // A zero-day run costs the employer nothing and recomputes to zero,
-          // so the two agree and the run stays verified -- unlike a persisted
-          // worker cuota of 0, which rule 3 reads as an absent input.
+          // so the two agree. This case cannot distinguish a null check from a
+          // truthiness check -- the test above does that; what it pins is that
+          // agreement at zero verifies rather than reporting drift.
           const zeroDaysRun: PayrollRun = {
             ...anchoredRun,
             grossCents: cents(0),

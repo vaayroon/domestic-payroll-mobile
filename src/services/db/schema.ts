@@ -69,9 +69,9 @@ export const payrollRuns = sqliteTable(
     baseCotizacionCents: integer('base_cotizacion_cents'),
     contractType: text('contract_type', { enum: ['INDEFINIDO', 'TEMPORAL'] }),
     // The employer cuota efectiva this run was computed with, nullable with NO
-    // default for the same reason as the two anchors above: it is the only
-    // employer-side figure the run records, so the detector can tell an
-    // employer-rate correction from a run that simply predates the column.
+    // default for the same reason as the two anchors above: null marks a run
+    // that was never anchored, which a run anchored at 0 is not. A default
+    // would erase that distinction on every pre-existing row.
     employerTotalEfectivoCents: integer('employer_total_efectivo_cents'),
     createdAt: integer('created_at').notNull(),
   },
