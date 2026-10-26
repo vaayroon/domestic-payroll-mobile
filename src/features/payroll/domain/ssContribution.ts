@@ -252,6 +252,16 @@ export function resolveBaseCotizacion(
   return cents(Math.min(retribucionCents, topeMaxBaseCents));
 }
 
+/**
+ * The base de cotización for a monthly gross salary: retribución (gross x14/12)
+ * mapped through the tramo table and capped. The single path from a salary to
+ * a base -- every caller that has only a salary goes through here, so there is
+ * one resolution and one place to change it.
+ */
+export function resolveBaseCotizacionForGross(config: RatesConfig, baseGrossCents: Cents): Cents {
+  return resolveBaseCotizacion(config.tramos, config.topeMaxBaseCents, resolveRetribucionCents(baseGrossCents));
+}
+
 /** The worker's total contribution rate (CC + desempleo + MEI) for a contract type, as an exact integer parts-per-10000 sum. */
 export function workerTotalRatePer10000(worker: WorkerRateComponents, contractType: ContractType): number {
   return worker.ccPer10000 + worker.desempleoPer10000[contractType] + worker.meiPer10000;
@@ -272,8 +282,24 @@ export function computeWorkerSs(
   daysWorked: number,
   contractType: ContractType,
 ): WorkerSsBreakdown {
-  const retribucionCents = resolveRetribucionCents(baseGrossCents);
-  const baseCotizacionCents = resolveBaseCotizacion(config.tramos, config.topeMaxBaseCents, retribucionCents);
+  return computeWorkerSsFromBase(config, resolveBaseCotizacionForGross(config, baseGrossCents), daysWorked, contractType);
+}
+
+/**
+ * The same computation as `computeWorkerSs` starting from an ALREADY-RESOLVED
+ * base de cotización, for callers holding a base that must not be re-derived
+ * from a salary -- a receipt reprinting a past period from the base that
+ * period was actually computed with (`PayrollRun.baseCotizacionCents`).
+ *
+ * `computeWorkerSs` is a wrapper over this, so the tramo/tope resolution lives
+ * in exactly one place and the two entry points cannot drift apart.
+ */
+export function computeWorkerSsFromBase(
+  config: RatesConfig,
+  baseCotizacionCents: Cents,
+  daysWorked: number,
+  contractType: ContractType,
+): WorkerSsBreakdown {
   const ratePer10000 = workerTotalRatePer10000(config.worker, contractType);
 
   const fullMonthWorkerSsCents = multiplyByRatio(baseCotizacionCents, ratePer10000, 10000);
@@ -337,8 +363,20 @@ export function computeEmployerSs(
   daysWorked: number,
   contractType: ContractType,
 ): EmployerSsBreakdown {
-  const retribucionCents = resolveRetribucionCents(baseGrossCents);
-  const baseCotizacionCents = resolveBaseCotizacion(config.tramos, config.topeMaxBaseCents, retribucionCents);
+  return computeEmployerSsFromBase(config, resolveBaseCotizacionForGross(config, baseGrossCents), daysWorked, contractType);
+}
+
+/**
+ * The same computation as `computeEmployerSs` starting from an
+ * ALREADY-RESOLVED base de cotización -- see `computeWorkerSsFromBase` for
+ * why both entry points exist. `computeEmployerSs` is a wrapper over this.
+ */
+export function computeEmployerSsFromBase(
+  config: RatesConfig,
+  baseCotizacionCents: Cents,
+  daysWorked: number,
+  contractType: ContractType,
+): EmployerSsBreakdown {
   const basePeriodoCents = multiplyByRatio(baseCotizacionCents, daysWorked, SS_DIVISOR);
   const { employer } = config;
 
