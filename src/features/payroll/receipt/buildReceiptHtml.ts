@@ -144,7 +144,7 @@ function renderEmpleadorCotizacion(cotizacion: ReceiptEmpleadorCotizacion): stri
  * self-contained and must carry no URL.
  */
 const NOTA_BASE_LEGAL =
-  'Tipos de cotización: Orden PJC/297/2026 (BOE-A-2026-7296), arts. 15 y 35; tarifa de primas para AT y EP: disposición adicional 61ª del TRLGSS, redactada por el Real Decreto-ley 3/2026 (BOE-A-2026-2548). Beneficios en la cotización: Real Decreto-ley 16/2022 (BOE-A-2022-14680), disposición adicional 1ª, apartado 1. Importes calculados por la aplicación a efectos informativos; no sustituyen a la liquidación de la Tesorería General de la Seguridad Social.';
+  'Tipos de cotización: Orden PJC/297/2026 (BOE-A-2026-7296), arts. 15, 16 y 35; tarifa de primas para AT y EP: disposición adicional 61ª del TRLGSS, redactada por el Real Decreto-ley 3/2026 (BOE-A-2026-2548). Beneficios en la cotización: Real Decreto-ley 16/2022 (BOE-A-2022-14680), disposición adicional 1ª, apartado 1. Importes calculados por la aplicación a efectos informativos; no sustituyen a la liquidación de la Tesorería General de la Seguridad Social.';
 
 export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
   const {

@@ -279,6 +279,15 @@ describe('buildReceiptHtml', () => {
       expect(html).toContain('no sustituyen a la liquidación de la Tesorería General de la Seguridad Social');
       expect(html).not.toMatch(/https?:\/\//i);
     });
+
+    // Every rate printed in the block must be traceable from the footnote.
+    // Orden PJC/297/2026 splits them across three articles: art. 15 (contingencias
+    // comunes and AT y EP), art. 16 (MEI) and art. 35 (desempleo and FOGASA). The
+    // footnote first shipped citing only arts. 15 and 35, so the printed MEI row
+    // had no article behind it. Nothing guarded the list; this is that guard.
+    it('cites every article the printed rates come from, MEI included', () => {
+      expect(html).toContain('arts. 15, 16 y 35');
+    });
   });
 
   describe('employer contribution block, figures branch (spec V1.1)', () => {
