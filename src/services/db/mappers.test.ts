@@ -192,6 +192,8 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     daysInMonth: 30,
     periodStartDate: null,
     periodEndDate: null,
+    baseCotizacionCents: null,
+    contractType: null,
     createdAt: 1_700_000_000_000,
   };
 
@@ -240,6 +242,8 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
       daysInMonth: 30,
       periodStartDate: null,
       periodEndDate: null,
+      baseCotizacionCents: null,
+      contractType: null,
       createdAt: 1_700_000_000_000,
     });
   });
@@ -319,6 +323,98 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     );
     expect(insertRow.periodStartDate).toBe('2026-06-01');
     expect(insertRow.periodEndDate).toBe('2026-06-30');
+  });
+
+  it('pre-anchor row round-trips both cotización anchors as null (spec A2.1)', () => {
+    const domain = payrollRunRowToDomain({ ...row, baseCotizacionCents: null, contractType: null });
+    expect(domain.baseCotizacionCents).toBeNull();
+    expect(domain.contractType).toBeNull();
+  });
+
+  it('anchored row round-trips the base branded as Cents and the contract type unchanged', () => {
+    const domain = payrollRunRowToDomain({ ...row, baseCotizacionCents: 115100, contractType: 'TEMPORAL' });
+    expect(domain.baseCotizacionCents).toBe(cents(115100));
+    expect(domain.contractType).toBe('TEMPORAL');
+  });
+
+  it('degrades an unrecognised stored contract type to null instead of letting it reach the rate tables', () => {
+    // The Drizzle enum is compile-time only and the column has no SQL CHECK,
+    // so this is whatever is on disk -- e.g. a row written by a newer build and
+    // read back after a downgrade. Unanchored is a safe answer; a rate lookup
+    // on an unknown key would produce NaN and throw mid-receipt.
+    const domain = payrollRunRowToDomain({
+      ...row,
+      baseCotizacionCents: 115100,
+      contractType: 'FIJO_DISCONTINUO' as unknown as PayrollRunRow['contractType'],
+    });
+
+    expect(domain.contractType).toBeNull();
+    expect(domain.baseCotizacionCents).toBe(cents(115100)); // the base anchor survives on its own
+  });
+
+  it('payrollRunInsertFromNew defaults both anchors to null when omitted -- never to INDEFINIDO (design ADR-1)', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.baseCotizacionCents).toBeNull();
+    expect(insertRow.contractType).toBeNull();
+  });
+
+  it('payrollRunInsertFromNew unbrands a present base and passes the contract type through', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(150000),
+        ssDeductionCents: cents(9000),
+        netCents: cents(141000),
+        extraCents: cents(0),
+        daysWorked: 30,
+        daysInMonth: 30,
+        baseCotizacionCents: cents(115100),
+        contractType: 'TEMPORAL',
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.baseCotizacionCents).toBe(115100);
+    expect(insertRow.contractType).toBe('TEMPORAL');
+  });
+
+  // Every tramo base is positive, so a real run never carries base 0 -- this
+  // pins the `??` against a `||` that would silently turn 0 into null.
+  it('payrollRunInsertFromNew keeps a zero base as 0, not null (guards ?? against ||)', () => {
+    const insertRow = payrollRunInsertFromNew(
+      {
+        employeeId: 'employee-1',
+        periodYear: 2026,
+        periodMonth: 6,
+        grossCents: cents(0),
+        ssDeductionCents: cents(0),
+        netCents: cents(0),
+        extraCents: cents(0),
+        daysWorked: 0,
+        daysInMonth: 30,
+        baseCotizacionCents: cents(0),
+        contractType: 'INDEFINIDO',
+      },
+      'run-1',
+      1_700_000_000_000,
+    );
+    expect(insertRow.baseCotizacionCents).toBe(0);
   });
 });
 

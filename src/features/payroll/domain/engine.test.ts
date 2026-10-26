@@ -12,7 +12,7 @@ import {
   semesterBounds,
   type PayrollInput,
 } from './engine';
-import { SS_DIVISOR, SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
+import { computeWorkerSs, SS_DIVISOR, SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
 
 // All amounts below are obviously-fake placeholders (CLAUDE.md §5) -- never
 // real salary figures. `RATES_2026` itself is public BOE data, not PII.
@@ -373,6 +373,32 @@ describe('calculatePayrollRun', () => {
     );
     expect(result.ssDeductionCents).toBe(cents(9188)); // 91,88 EUR: TEMPORAL full-month cuota, 142450 x 645/10000
     expect(result.ssDeductionCents).not.toBe(cents(9117)); // proves the engine forwards contractType, not hardcodes INDEFINIDO
+  });
+
+  it('surfaces the base de cotización it computed with, read off the SAME breakdown as ssDeductionCents (design ADR-2)', () => {
+    const input = baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: null, bajaDate: null });
+    const result = calculatePayrollRun(input);
+    const breakdown = computeWorkerSs(RATES_2026, FAKE_BASE_GROSS_SS_PROOF, SS_DIVISOR, 'INDEFINIDO');
+
+    // Equality with the breakdown is the point: a second, independent
+    // resolution could introduce a rounding point the cuota never saw.
+    expect(result.baseCotizacionCents).toBe(breakdown.baseCotizacionCents);
+    expect(result.baseCotizacionCents).toBe(cents(142450)); // 1221,00 x14/12 -> tramo 8, uncapped
+  });
+
+  it('echoes the contract type it was given, so the caller can persist it as the run anchor', () => {
+    expect(calculatePayrollRun(baseInput({ contractType: 'TEMPORAL' })).contractType).toBe('TEMPORAL');
+    expect(calculatePayrollRun(baseInput({ contractType: 'INDEFINIDO' })).contractType).toBe('INDEFINIDO');
+  });
+
+  it('anchors the FULL-MONTH base on a partial run -- the anchor is a monthly base, proration stays a separate step', () => {
+    const partial = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-07-23' }),
+    );
+    expect(partial.prorated).toBe(true);
+    expect(partial.daysWorked).toBe(9);
+    expect(partial.ssDeductionCents).toBe(cents(2735)); // 27,35 EUR: 9/30 of the full-month cuota
+    expect(partial.baseCotizacionCents).toBe(cents(142450)); // unprorated, same as the full month
   });
 
   it('SS cuota is independent of extraPayMode (base de cotización always includes prorated pagas)', () => {

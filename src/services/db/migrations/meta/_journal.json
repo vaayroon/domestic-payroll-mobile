@@ -50,6 +50,13 @@
       "when": 1786087480164,
       "tag": "0006_add_default_lugar",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793008521362,
+      "tag": "0007_supreme_ultron",
+      "breakpoints": true
     }
   ]
 }

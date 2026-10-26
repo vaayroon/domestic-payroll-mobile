@@ -1,3 +1,4 @@
+import migrations from './migrations/migrations';
 import { resolvePendingMigrations, targetUserVersion } from './migrationPlan';
 import type { MigrationJournalEntry } from './migrationPlan';
 
@@ -47,5 +48,47 @@ describe('targetUserVersion', () => {
 
   it('is 0 for an empty journal', () => {
     expect(targetUserVersion([])).toBe(0);
+  });
+});
+
+/**
+ * Integrity checks against the REAL generated bundle, not a fixture. These
+ * guard the two ways a migration can be silently broken: a journal entry whose
+ * SQL never made it into the hand-maintained `migrations.js` map (which fails
+ * only at app boot, on a user's device), and a regenerated schema that quietly
+ * tightens a column the design requires to stay nullable.
+ */
+describe('generated migration bundle', () => {
+  const { entries } = migrations.journal;
+
+  it('has a sequential, 0-based journal', () => {
+    expect(entries.map((entry) => entry.idx)).toEqual(entries.map((_entry, index) => index));
+  });
+
+  it('has non-empty SQL for every journal entry, under the key runMigrations derives', () => {
+    for (const entry of entries) {
+      const key = `m${entry.idx.toString().padStart(4, '0')}`;
+      expect(typeof migrations.migrations[key]).toBe('string');
+      expect(migrations.migrations[key]?.trim()).not.toBe('');
+    }
+  });
+
+  it('keeps every migration additive: no DROP or table rewrite on an existing install', () => {
+    for (const sql of Object.values(migrations.migrations)) {
+      expect(sql).not.toMatch(/\bDROP\s+(TABLE|COLUMN)\b/i);
+    }
+  });
+
+  it('adds the cotización anchors as nullable columns with no default (design ADR-1)', () => {
+    const anchorMigration = Object.values(migrations.migrations).find((sql) =>
+      sql.includes('base_cotizacion_cents'),
+    );
+
+    expect(anchorMigration).toBeDefined();
+    expect(anchorMigration).toContain('ALTER TABLE `payroll_runs` ADD `base_cotizacion_cents` integer');
+    expect(anchorMigration).toContain('ALTER TABLE `payroll_runs` ADD `contract_type` text');
+    // A default would make every pre-existing row read back as anchored.
+    expect(anchorMigration).not.toMatch(/\bNOT\s+NULL\b/i);
+    expect(anchorMigration).not.toMatch(/\bDEFAULT\b/i);
   });
 });

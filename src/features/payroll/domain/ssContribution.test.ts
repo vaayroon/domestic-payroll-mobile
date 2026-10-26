@@ -3,8 +3,11 @@ import { cents, multiplyByRatio } from '@/types/money';
 import {
   applyBenefitPercent,
   computeEmployerSs,
+  computeEmployerSsFromBase,
   computeWorkerSs,
+  computeWorkerSsFromBase,
   resolveBaseCotizacion,
+  resolveBaseCotizacionForGross,
   resolveRatesConfig,
   resolveRetribucionCents,
   SS_RATES_BY_YEAR,
@@ -380,5 +383,82 @@ describe('computeEmployerSs: remaining spec scenarios', () => {
     const first = computeEmployerSs(RATES_2026, G_1221, 9, 'INDEFINIDO');
     const second = computeEmployerSs(RATES_2026, G_1221, 9, 'INDEFINIDO');
     expect(second).toEqual(first);
+  });
+});
+
+describe('from-base entry points (design ADR-3)', () => {
+  const G_1221 = cents(122100); // retribución 1424,50 -> tramo 8, base = retribución
+  const BASE_1221 = cents(142450);
+
+  it('resolveBaseCotizacionForGross is the single salary -> base path', () => {
+    expect(resolveBaseCotizacionForGross(RATES_2026, G_1221)).toBe(BASE_1221);
+    expect(resolveBaseCotizacionForGross(RATES_2026, G_1221)).toBe(
+      resolveBaseCotizacion(RATES_2026.tramos, RATES_2026.topeMaxBaseCents, resolveRetribucionCents(G_1221)),
+    );
+  });
+
+  it('computeWorkerSs is exactly its from-base core applied to the resolved base', () => {
+    for (const days of [30, 9, 0]) {
+      for (const contractType of ['INDEFINIDO', 'TEMPORAL'] as const) {
+        expect(computeWorkerSs(RATES_2026, G_1221, days, contractType)).toEqual(
+          computeWorkerSsFromBase(RATES_2026, BASE_1221, days, contractType),
+        );
+      }
+    }
+  });
+
+  it('computeEmployerSs is exactly its from-base core applied to the resolved base', () => {
+    for (const days of [30, 9, 0]) {
+      for (const contractType of ['INDEFINIDO', 'TEMPORAL'] as const) {
+        expect(computeEmployerSs(RATES_2026, G_1221, days, contractType)).toEqual(
+          computeEmployerSsFromBase(RATES_2026, BASE_1221, days, contractType),
+        );
+      }
+    }
+  });
+
+  it('a from-base call ignores the salary: anchored figures survive a cross-tramo salary change', () => {
+    const anchored = computeEmployerSsFromBase(RATES_2026, BASE_1221, 30, 'INDEFINIDO');
+
+    // The employee's salary later drops to 1.000,00, which lands in tramo 6
+    // and resolves to a different base...
+    const laterGross = cents(100000);
+    expect(resolveBaseCotizacionForGross(RATES_2026, laterGross)).toBe(cents(115100));
+    expect(computeEmployerSs(RATES_2026, laterGross, 30, 'INDEFINIDO').totalEfectivoCents).not.toBe(
+      anchored.totalEfectivoCents,
+    );
+
+    // ...but recomputing from the ANCHOR still reproduces the original period.
+    expect(computeEmployerSsFromBase(RATES_2026, BASE_1221, 30, 'INDEFINIDO')).toEqual(anchored);
+  });
+
+  it('the WORKER tope máximo cap also applies through the wrapper, not the core', () => {
+    const huge = cents(1_000_000);
+    expect(computeWorkerSs(RATES_2026, huge, 30, 'INDEFINIDO')).toEqual(
+      computeWorkerSsFromBase(RATES_2026, RATES_2026.topeMaxBaseCents, 30, 'INDEFINIDO'),
+    );
+  });
+
+  it('agrees with the wrapper inside a FIXED-base tramo, not just the open-ended 8º', () => {
+    // Tramo 5 maps a RANGE of retribución to one fixed base, which is why a
+    // salary edit inside a tramo moves nothing on the receipt.
+    const g800 = cents(80000); // retribución 933,33 -> tramo 5 -> base 970,00
+    expect(resolveBaseCotizacionForGross(RATES_2026, g800)).toBe(cents(97000));
+    expect(computeWorkerSs(RATES_2026, g800, 30, 'INDEFINIDO')).toEqual(
+      computeWorkerSsFromBase(RATES_2026, cents(97000), 30, 'INDEFINIDO'),
+    );
+    expect(computeEmployerSs(RATES_2026, g800, 9, 'TEMPORAL')).toEqual(
+      computeEmployerSsFromBase(RATES_2026, cents(97000), 9, 'TEMPORAL'),
+    );
+  });
+
+  it('the employer tope máximo cap still applies through the wrapper, not the core', () => {
+    const huge = cents(1_000_000); // retribución far above the 5.101,20 tope
+    expect(resolveBaseCotizacionForGross(RATES_2026, huge)).toBe(RATES_2026.topeMaxBaseCents);
+    // The core trusts the base it is given -- capping is the wrapper's job,
+    // and a persisted anchor was already capped when the run was created.
+    expect(computeEmployerSs(RATES_2026, huge, 30, 'INDEFINIDO')).toEqual(
+      computeEmployerSsFromBase(RATES_2026, RATES_2026.topeMaxBaseCents, 30, 'INDEFINIDO'),
+    );
   });
 });

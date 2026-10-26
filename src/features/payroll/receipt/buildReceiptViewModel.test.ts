@@ -51,6 +51,8 @@ const FAKE_RUN: PayrollRun = {
   daysInMonth: 30,
   periodStartDate: null,
   periodEndDate: null,
+  baseCotizacionCents: null,
+  contractType: null,
   createdAt: 1_700_000_000_000,
 };
 
@@ -896,6 +898,156 @@ describe('buildReceiptViewModel', () => {
 
     it('is deterministic with figures present', () => {
       expect(build(runG1221FullMonth, employeeG1221)).toEqual(build(runG1221FullMonth, employeeG1221));
+    });
+
+    describe('cotización anchors on the run (spec B1-B5)', () => {
+      // The same G-1221 full month, but recorded WITH the inputs it was
+      // computed from: base 1.424,50 and an INDEFINIDO contract.
+      const anchoredRun: PayrollRun = {
+        ...runG1221FullMonth,
+        baseCotizacionCents: cents(142450),
+        contractType: 'INDEFINIDO',
+      };
+
+      const vm = (run: PayrollRun, employee: Employee, ratesConfig: RatesConfig | null = RATES_2026) =>
+        buildReceiptViewModel({
+          run,
+          employee,
+          employer: FAKE_EMPLOYER,
+          issuedOnIso: '2026-08-04',
+          ratesConfig,
+          employerSignatureBase64: null,
+        });
+
+      it('reprints unchanged after a cross-tramo salary rise (B1.1)', () => {
+        const atPrintTime = vm(anchoredRun, employeeG1221);
+
+        // The employee is later raised to 2.000,00/month: retribución 2.333,33,
+        // a different tramo-8 base entirely.
+        const raised: Employee = { ...employeeG1221, baseGrossCents: cents(200000) };
+        const reprinted = vm(anchoredRun, raised);
+
+        expect(reprinted).toEqual(atPrintTime);
+        expect(reprinted.empleadorCotizacion.kind).toBe('figures');
+        // Still the original golden vector, not the raised salary's figures.
+        expect(reprinted.empleadorCotizacion.kind === 'figures' && reprinted.empleadorCotizacion.totalEfectivo).toBe(
+          eur('317,23'),
+        );
+      });
+
+      it('reprints unchanged after the contract type is flipped to TEMPORAL (B1.2)', () => {
+        const atPrintTime = vm(anchoredRun, employeeG1221);
+        const flipped: Employee = { ...employeeG1221, contractType: 'TEMPORAL' };
+
+        const reprinted = vm(anchoredRun, flipped);
+
+        expect(reprinted).toEqual(atPrintTime);
+        // The INDEFINIDO employer desempleo rate, not the TEMPORAL 6,70 %.
+        const block = reprinted.empleadorCotizacion;
+        expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('5,50 %');
+      });
+
+      it('without the anchor the SAME edit pins the figures to the EMPLOYEE current base (the defect)', () => {
+        const raised: Employee = { ...employeeG1221, baseGrossCents: cents(200000) };
+        const unanchored = vm(runG1221FullMonth, raised); // run has null anchors
+
+        // Not merely "different": the fallback follows the employee to base
+        // 2.333,33, so the desglose rows are that base's figures while the
+        // total still foots to the period's persisted 91,17.
+        expect(unanchored.deduccionesDesglose[0]?.baseMensual).toBe(eur('2333,33'));
+        expect(unanchored.totalDeducciones).toBe(eur('91,17'));
+        // The anchored build of the same run stays on the period's own base.
+        expect(vm(anchoredRun, raised).deduccionesDesglose[0]?.baseMensual).toBe(eur('1424,50'));
+      });
+
+      it('reprints unchanged from a TEMPORAL anchor even when the employee is now INDEFINIDO', () => {
+        // The reverse of B1.2: the anchor must supply the 6,70 % employer
+        // desempleo rate, not the employee's current 5,50 %.
+        const temporalRun: PayrollRun = {
+          ...anchoredRun,
+          contractType: 'TEMPORAL',
+          ssDeductionCents: cents(9188), // 6,45 % x 1.424,50, the TEMPORAL cuota
+          netCents: cents(122100 - 9188),
+        };
+
+        const block = vm(temporalRun, employeeG1221).empleadorCotizacion; // employee is INDEFINIDO
+
+        expect(block.kind).toBe('figures');
+        expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('6,70 %');
+      });
+
+      it('falls back per input in the other direction too: a contract anchor alone still uses it', () => {
+        const contractOnly: PayrollRun = {
+          ...runG1221FullMonth,
+          baseCotizacionCents: null,
+          contractType: 'TEMPORAL',
+          ssDeductionCents: cents(9188),
+          netCents: cents(122100 - 9188),
+        };
+
+        // Base falls back to the employee's current G-1221 (same 1.424,50),
+        // while the TEMPORAL anchor drives the rate.
+        const block = vm(contractOnly, employeeG1221).empleadorCotizacion;
+        expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('6,70 %');
+      });
+
+      it('stops the contingencias comunes row from absorbing base drift (B2.1)', () => {
+        // Anchored: every row is its own rate applied to the period base, and
+        // the column still foots to the persisted 91,17.
+        const anchored = vm(anchoredRun, employeeG800).deduccionesDesglose;
+        expect(anchored.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
+        // 66,95 is exactly 4,70 % x 1.424,50 -- a real CC figure, not a residual.
+
+        // The same run WITHOUT anchors, with the employee now on G-800: the
+        // rows are computed from base 970,00 while the total stays 91,17, so
+        // contingencias comunes silently swallows the 29,08 difference.
+        const drifting = vm(runG1221FullMonth, employeeG800).deduccionesDesglose;
+        expect(drifting.map((row) => row.cuota)).toEqual([eur('74,67'), eur('15,04'), eur('1,46')]);
+        // 74,67 against a true 4,70 % x 970,00 = 45,59. That is the defect.
+      });
+
+      it('still reports a rate correction for an already-run year (B4.2)', () => {
+        const correctedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
+
+        const block = vm(anchoredRun, employeeG1221, correctedRates).empleadorCotizacion;
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+      });
+
+      it('an anchor does NOT override the provable-legacy guard (B5.1)', () => {
+        // daysInMonth 0 means the persisted cuota was typed by hand. That stays
+        // true however the base is resolved, so the guard outranks the anchor.
+        const legacyWithAnchor: PayrollRun = {
+          ...anchoredRun,
+          ssDeductionCents: cents(794),
+          prorated: true,
+          daysWorked: 0,
+          daysInMonth: 0,
+        };
+
+        const block = vm(legacyWithAnchor, employeeG1221).empleadorCotizacion;
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_not_verifiable');
+      });
+
+      it('falls back per input: a base anchor alone still honours the stored contract type being absent', () => {
+        const baseOnly: PayrollRun = { ...runG1221FullMonth, baseCotizacionCents: cents(142450), contractType: null };
+
+        // Contract type falls back to the employee's current INDEFINIDO, so the
+        // run still verifies and prints the golden vector.
+        const block = vm(baseOnly, employeeG1221).empleadorCotizacion;
+        expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('317,23'));
+      });
+
+      it('anchoring a run to the values it already recomputed to changes nothing (B3.1)', () => {
+        // An un-edited employee makes the fallback and the anchor agree, so the
+        // two builds must be indistinguishable. This is what makes the anchor a
+        // no-op for every receipt that was already correct.
+        const nullAnchors = vm(runG1221FullMonth, employeeG1221);
+        const anchoredWithTheSameValues = vm(anchoredRun, employeeG1221);
+
+        expect(nullAnchors).toEqual(anchoredWithTheSameValues);
+      });
     });
   });
 });

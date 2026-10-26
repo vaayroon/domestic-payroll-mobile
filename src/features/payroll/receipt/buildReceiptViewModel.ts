@@ -11,14 +11,13 @@
 
 import { formatEuros } from '../screens/formatEuros';
 import { formatSpanishDate, formatSpanishMonthYear } from '../formatSpanishDate';
-import type { Employee, Employer, PayrollRun } from '@/types';
+import type { ContractType, Employee, Employer, PayrollRun } from '@/types';
 import { type Cents, multiplyByRatio, subtractCents } from '@/types/money';
 
 import {
-  computeEmployerSs,
-  computeWorkerSs,
-  resolveBaseCotizacion,
-  resolveRetribucionCents,
+  computeEmployerSsFromBase,
+  computeWorkerSsFromBase,
+  resolveBaseCotizacionForGross,
   SS_DIVISOR,
   type RatesConfig,
 } from '../domain/ssContribution';
@@ -91,6 +90,35 @@ function resolveSsDaysWorked(run: PayrollRun): number {
 }
 
 /**
+ * The cotización inputs this receipt must be computed from: the run's own
+ * anchors when it has them, the employee's current values when it does not.
+ *
+ * This is the repair. The receipt used to derive both from
+ * `employee.baseGrossCents`/`employee.contractType` AS THEY ARE AT PRINT TIME,
+ * so editing a salary silently reprinted an older period with the wrong base.
+ * A run created from the anchor change onward carries the base and contract
+ * type it was actually computed with, and reprints from those.
+ *
+ * Runs saved before those columns existed hold `null` (no backfill) and fall
+ * back to today's behavior -- per input, since a column is null or it is not.
+ *
+ * Resolved ONCE in `buildReceiptViewModel` and threaded into the worker
+ * desglose, the employer block and the drift detector, so all three provably
+ * agree. Resolving independently in each is precisely the bug this prevents.
+ */
+interface ResolvedCotizacionInputs {
+  readonly baseCotizacionCents: Cents;
+  readonly contractType: ContractType;
+}
+
+function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfig: RatesConfig): ResolvedCotizacionInputs {
+  return {
+    baseCotizacionCents: run.baseCotizacionCents ?? resolveBaseCotizacionForGross(ratesConfig, employee.baseGrossCents),
+    contractType: run.contractType ?? employee.contractType,
+  };
+}
+
+/**
  * Per-contingency breakdown of the worker's SS cuota (contingencias comunes /
  * desempleo / MEI), reconciled to the persisted `ssDeductionCents` via
  * residual-on-largest-line (design "Cuota reconciliation"): the two smaller
@@ -98,18 +126,32 @@ function resolveSsDaysWorked(run: PayrollRun): number {
  * engine used, then contingencias comunes absorbs whatever residual remains
  * so the column always foots exactly to the authoritative persisted total --
  * never independently re-rounded into a ±1-2 cent drift.
+ *
+ * The residual is meant to be a ROUNDING reconciliation, at most a cent or two.
+ * It used to do double duty, silently absorbing base drift as well whenever the
+ * employee's salary had moved since the run -- an arbitrary amount, invisible
+ * on the page. For an ANCHORED run that is now fixed: the rows and the
+ * persisted total come from the same base, so only the rounding is left.
+ *
+ * Two cases still absorb more than rounding, both pre-existing and neither
+ * made worse here:
+ *   - A pre-anchor run (null columns) whose employee has since been edited.
+ *   - Any run, anchored or not, after a WORKER rate in `SS_RATES_BY_YEAR` is
+ *     corrected for that year: the `tipo` column prints the current rate while
+ *     the cuota is reconciled to the old persisted total, so rate x base no
+ *     longer reproduces the printed figure. The employer block is suppressed
+ *     in that case (see `resolveBaseDriftStatus`); these worker rows are not.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
-  employee: Employee,
+  cotizacion: ResolvedCotizacionInputs,
   ratesConfig: RatesConfig,
 ): readonly ReceiptDeduccionDesglose[] {
-  const retribucionCents = resolveRetribucionCents(employee.baseGrossCents);
-  const baseCotizacionCents = resolveBaseCotizacion(ratesConfig.tramos, ratesConfig.topeMaxBaseCents, retribucionCents);
+  const { baseCotizacionCents, contractType } = cotizacion;
 
   const ssDaysWorked = resolveSsDaysWorked(run);
 
-  const desempleoPer10000 = ratesConfig.worker.desempleoPer10000[employee.contractType];
+  const desempleoPer10000 = ratesConfig.worker.desempleoPer10000[contractType];
   const meiPer10000 = ratesConfig.worker.meiPer10000;
 
   const desempleoCuotaCents = multiplyByRatio(baseCotizacionCents, desempleoPer10000 * ssDaysWorked, 10000 * SS_DIVISOR);
@@ -153,54 +195,73 @@ function computeDeduccionesDesglose(
 type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
 
 /**
- * Reprint base-drift detector. The receipt recomputes its figures from the
- * CURRENT `employee.baseGrossCents`, not from anything stored on the run, so
- * an edit to the employee after the run would silently reprint different
- * numbers. This recomputes the worker cuota from the current base and compares
- * it to the persisted `run.ssDeductionCents`: a mismatch proves the base de
- * cotización moved since the run.
+ * Reprint drift detector: does the receipt's own recompute still agree with
+ * the authoritative persisted `run.ssDeductionCents`?
  *
- * It is sound, not lucky: tramos 1-7 map a RANGE of retribución to a FIXED
- * base, so an edit inside one tramo changes nothing on the receipt. The
- * apparent false negative is a true negative. A cross-tramo edit, or any edit
- * in the open-ended 8º tramo, moves the cuota and is caught.
+ * ONE formulation, whose meaning narrows as anchors become available, because
+ * it always recomputes from `cotizacion` -- the resolved inputs, anchors
+ * preferred:
+ *
+ *   - **Anchored run**: base and contract type come from the run itself, so a
+ *     later salary or contract edit cannot move the recompute. What stays
+ *     detectable is a change to the WORKER side of `SS_RATES_BY_YEAR` for an
+ *     already-run year -- an inconsistency an anchor cannot fix, and a real
+ *     one: the printed figures would no longer match what was filed.
+ *
+ * KNOWN BLIND SPOT, pre-existing and not closed here: the comparison runs
+ * through the WORKER cuota, because `run.ssDeductionCents` is the only
+ * persisted figure to compare against. Correct an EMPLOYER rate or
+ * `topeMaxBaseCents` for an already-run year and the worker recompute still
+ * matches, so the run reports `verified` and the employer block reprints with
+ * the new rates. Closing that needs a persisted employer total, which is a
+ * change of its own.
+ *   - **Pre-anchor run** (either column null): the inputs fall back to the
+ *     employee's current values, so this remains the original indirect check,
+ *     the only drift signal those rows have.
+ *
+ * A salary edit no longer produces a note on an anchored run, and that is the
+ * point, not an oversight: the reprint is now reproduced from its own period
+ * and is correct. Flagging it would be the repaired defect returning as a
+ * caution label.
+ *
+ * The fallback path is sound, not lucky: tramos 1-7 map a RANGE of retribución
+ * to a FIXED base, so an edit inside one tramo changes nothing on the receipt.
+ * The apparent false negative is a true negative. A cross-tramo edit, or any
+ * edit in the open-ended 8º tramo, moves the cuota and is caught.
  *
  * Rules, evaluated in this order:
  *   1. No `RatesConfig`: nothing to recompute with.
  *   2. `daysInMonth === 0`: a provable legacy run. The engine never emits 0
  *      (always 28-31), so this is a pre-migration-0002 row backfilled to 0,
- *      whose persisted cuota was typed by hand. The comparison would be
- *      meaningless, not merely wrong.
+ *      whose persisted cuota was typed by hand and never came from
+ *      `computeWorkerSs` at all. The comparison would be meaningless, not
+ *      merely wrong -- and it stays meaningless however the base is resolved,
+ *      so this guard runs BEFORE any recompute and outranks any anchor.
  *   3. Persisted cuota 0 while the recompute is positive: every tramo has a
- *      positive base, so a zero persisted cuota is an absent input, not a
- *      moved base.
+ *      positive base, so a zero persisted cuota is an absent input.
  *   4. Equal: verified. 5. Otherwise: drifted.
  *
- * Known and accepted, not suppressed:
- *   - A correction to `SS_RATES_BY_YEAR` for an already-run year also trips
- *     this. That is correct: the printed figures no longer match what was filed.
- *   - A residual band of manual-era runs (typed cuota, but real day data)
- *     falls to `drifted`. Their worker cuota above the employer block came from
- *     a different source than the block, so "does not match" is still true.
- *
- * Detection is not repair: the worker rows still drift silently (contingencias
- * comunes absorbs the residual). Only a persisted anchor on `PayrollRun`
- * (separate slice `payroll-run-base-anchor`) fixes that. What this buys is that
- * the NEW employer block never prints confident wrong numbers.
+ * A residual band of manual-era runs (typed cuota, but real day data) still
+ * falls to `drifted`. Their worker cuota came from a different source than the
+ * block below it, so "does not match" remains true.
  */
-function resolveBaseDriftStatus(run: PayrollRun, employee: Employee, ratesConfig: RatesConfig | null): BaseDriftStatus {
-  if (ratesConfig === null) {
+function resolveBaseDriftStatus(
+  run: PayrollRun,
+  cotizacion: ResolvedCotizacionInputs | null,
+  ratesConfig: RatesConfig | null,
+): BaseDriftStatus {
+  if (ratesConfig === null || cotizacion === null) {
     return 'not_verifiable';
   }
   if (run.daysInMonth === 0) {
     return 'not_verifiable';
   }
 
-  const recomputedWorkerSsCents = computeWorkerSs(
+  const recomputedWorkerSsCents = computeWorkerSsFromBase(
     ratesConfig,
-    employee.baseGrossCents,
+    cotizacion.baseCotizacionCents,
     resolveSsDaysWorked(run),
-    employee.contractType,
+    cotizacion.contractType,
   ).proratedWorkerSsCents;
 
   if (run.ssDeductionCents === 0 && recomputedWorkerSsCents > 0) {
@@ -214,8 +275,11 @@ const NOTA_TIPOS_NO_DISPONIBLES =
 
 // Both notes below replace the rows and totals, they do not accompany them: a
 // run whose base cannot be trusted shows no employer figure at all.
+// Wording covers both paths this note now serves: an anchored run whose YEAR
+// RATES have since been corrected, and a pre-anchor run whose base has moved.
+// Naming only the base would be false for the first.
 const NOTA_BASE_DESAJUSTADA =
-  'No se muestran las cifras de cotización a cargo de la parte empleadora porque la base de cotización actual no coincide con la utilizada en la liquidación de este período. Consulte la liquidación original.';
+  'No se muestran las cifras de cotización a cargo de la parte empleadora porque los datos de cotización actuales no coinciden con los utilizados en la liquidación de este período. Consulte la liquidación original.';
 
 const NOTA_BASE_NO_COMPROBABLE =
   'Este período no permite comprobar la base de cotización utilizada en su día, por lo que no se muestran las cifras de cotización a cargo de la parte empleadora.';
@@ -228,14 +292,14 @@ const NOTA_BASE_NO_COMPROBABLE =
  */
 function buildEmpleadorCotizacion(
   run: PayrollRun,
-  employee: Employee,
+  cotizacion: ResolvedCotizacionInputs | null,
   ratesConfig: RatesConfig | null,
 ): ReceiptEmpleadorCotizacion {
-  if (ratesConfig === null) {
+  if (ratesConfig === null || cotizacion === null) {
     return { kind: 'unavailable', reason: 'rates_unavailable', nota: NOTA_TIPOS_NO_DISPONIBLES };
   }
 
-  const driftStatus = resolveBaseDriftStatus(run, employee, ratesConfig);
+  const driftStatus = resolveBaseDriftStatus(run, cotizacion, ratesConfig);
   if (driftStatus === 'drifted') {
     return { kind: 'unavailable', reason: 'base_drifted', nota: NOTA_BASE_DESAJUSTADA };
   }
@@ -243,7 +307,12 @@ function buildEmpleadorCotizacion(
     return { kind: 'unavailable', reason: 'base_not_verifiable', nota: NOTA_BASE_NO_COMPROBABLE };
   }
 
-  const breakdown = computeEmployerSs(ratesConfig, employee.baseGrossCents, resolveSsDaysWorked(run), employee.contractType);
+  const breakdown = computeEmployerSsFromBase(
+    ratesConfig,
+    cotizacion.baseCotizacionCents,
+    resolveSsDaysWorked(run),
+    cotizacion.contractType,
+  );
   const { employer } = ratesConfig;
   const basePeriodo = formatEuros(breakdown.basePeriodoCents);
 
@@ -265,7 +334,7 @@ function buildEmpleadorCotizacion(
       {
         concepto: 'Desempleo',
         basePeriodo,
-        tipo: formatRatePercent(employer.desempleoPer10000[employee.contractType]),
+        tipo: formatRatePercent(employer.desempleoPer10000[cotizacion.contractType]),
         cuota: formatEuros(breakdown.desempleoCents),
       },
       {
@@ -314,8 +383,13 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
     { label: 'Cuota Seguridad Social (persona trabajadora)', amount: formatEuros(run.ssDeductionCents) },
   ];
 
+  // Resolved once, threaded everywhere the base is needed (see
+  // `resolveCotizacionInputs`): the desglose, the employer block and the
+  // detector must agree by construction, not by coincidence.
+  const cotizacion = ratesConfig === null ? null : resolveCotizacionInputs(run, employee, ratesConfig);
+
   const deduccionesDesglose: readonly ReceiptDeduccionDesglose[] =
-    ratesConfig === null ? [] : computeDeduccionesDesglose(run, employee, ratesConfig);
+    ratesConfig === null || cotizacion === null ? [] : computeDeduccionesDesglose(run, cotizacion, ratesConfig);
 
   const rango: string | null =
     run.periodStartDate === null || run.periodEndDate === null
@@ -358,7 +432,7 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
     deduccionesDesglose,
     totalDeducciones: formatEuros(run.ssDeductionCents),
     liquidoTotal: formatEuros(run.netCents),
-    empleadorCotizacion: buildEmpleadorCotizacion(run, employee, ratesConfig),
+    empleadorCotizacion: buildEmpleadorCotizacion(run, cotizacion, ratesConfig),
     lugarYFecha,
     firmaLabel: 'Firma de la persona trabajadora',
     empleadorFirmaImagenBase64: employerSignatureBase64,

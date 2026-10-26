@@ -128,6 +128,16 @@ export interface PayrollResult {
   readonly extraCents: Cents;
   readonly daysWorked: number;
   readonly daysInMonth: number;
+  /**
+   * The base de cotización this run was computed from, surfaced so the caller
+   * can persist it as the run's anchor. It is the SAME value `computeWorkerSs`
+   * already resolved for `ssDeductionCents` above -- read off the breakdown,
+   * never resolved a second time, so no new rounding point exists and the
+   * anchor cannot disagree with the cuota it produced.
+   */
+  readonly baseCotizacionCents: Cents;
+  /** Echo of the input contract type, which fixes the desempleo rate, for the caller to persist alongside the base. */
+  readonly contractType: ContractType;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -345,8 +355,8 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
   const devengoDays = effective.prorated ? effective.daysWorked : SALARY_DEVENGO_DIVISOR;
   const proratedBaseCents = proratedAmount(baseGrossCents, devengoDays, SALARY_DEVENGO_DIVISOR);
   const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;
-  const ssDeductionCents = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType)
-    .proratedWorkerSsCents;
+  const workerSs = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType);
+  const ssDeductionCents = workerSs.proratedWorkerSsCents;
   const extraCents = resolveExtraPayCents(input);
 
   const grossCents = addCents(proratedBaseCents, extraCents);
@@ -360,5 +370,7 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
     extraCents,
     daysWorked: effective.daysWorked,
     daysInMonth: effective.daysInMonth,
+    baseCotizacionCents: workerSs.baseCotizacionCents,
+    contractType,
   };
 }

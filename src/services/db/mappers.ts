@@ -10,6 +10,7 @@
 import { cents, type Cents } from '@/types/money';
 import type {
   AppSetting,
+  ContractType,
   Employee,
   Employer,
   NewEmployee,
@@ -27,6 +28,22 @@ import type {
   PayrollRunInsertRow,
   PayrollRunRow,
 } from './schema';
+
+/**
+ * Narrows a stored contract-type string, treating anything unrecognised as
+ * `null` -- i.e. as "this run is not anchored", which every reader already
+ * handles.
+ *
+ * Drizzle's `enum` is a compile-time type only and the column carries no SQL
+ * CHECK, so the value is whatever is on disk: a row written by a newer build
+ * and read back after a downgrade, or a hand-edited database. Passing it
+ * through unchecked would make `desempleoPer10000[value]` undefined, then
+ * `NaN`, and `cents()` would throw while generating a receipt. Falling back is
+ * strictly better than crashing on a document the user is trying to print.
+ */
+function toContractTypeOrNull(value: string | null): ContractType | null {
+  return value === 'INDEFINIDO' || value === 'TEMPORAL' ? value : null;
+}
 
 // ---------------------------------------------------------------------------
 // Employer
@@ -109,11 +126,18 @@ export function payrollRunRowToDomain(row: PayrollRunRow): PayrollRun {
     daysInMonth: row.daysInMonth,
     periodStartDate: row.periodStartDate,
     periodEndDate: row.periodEndDate,
+    baseCotizacionCents: row.baseCotizacionCents === null ? null : cents(row.baseCotizacionCents),
+    contractType: toContractTypeOrNull(row.contractType),
     createdAt: row.createdAt,
   };
 }
 
 export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, createdAt: number): PayrollRunInsertRow {
+  // Both cotización anchors default to null, NOT to the employee-side
+  // `?? 'INDEFINIDO'` used above: an absent anchor means "this run was never
+  // anchored", which is not the same as "this run was INDEFINIDO".
+  const baseCotizacionCents = input.baseCotizacionCents ?? null;
+
   return {
     id,
     employeeId: input.employeeId,
@@ -128,6 +152,8 @@ export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, create
     daysInMonth: input.daysInMonth,
     periodStartDate: input.periodStartDate ?? null,
     periodEndDate: input.periodEndDate ?? null,
+    baseCotizacionCents: baseCotizacionCents === null ? null : unbrand(baseCotizacionCents),
+    contractType: input.contractType ?? null,
     createdAt,
   };
 }

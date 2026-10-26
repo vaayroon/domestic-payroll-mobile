@@ -63,6 +63,8 @@ export class InMemoryPayrollRunRepository implements PayrollRunRepository {
       daysInMonth: input.daysInMonth,
       periodStartDate: input.periodStartDate ?? null,
       periodEndDate: input.periodEndDate ?? null,
+      baseCotizacionCents: input.baseCotizacionCents ?? null,
+      contractType: input.contractType ?? null,
       createdAt: Date.now(),
     };
     this.rows.push(payrollRun);

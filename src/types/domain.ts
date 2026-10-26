@@ -104,6 +104,19 @@ export interface PayrollRun {
    */
   readonly periodStartDate: string | null;
   readonly periodEndDate: string | null;
+  /**
+   * The base de cotización this run was actually computed from, so a reprint
+   * reproduces the period's own figures instead of recomputing them from the
+   * employee's current salary. `null` for runs saved before this field
+   * existed (no backfill) — those fall back to the current recompute.
+   */
+  readonly baseCotizacionCents: Cents | null;
+  /**
+   * The contract type in force for this run, which fixes the desempleo rate.
+   * `null` for runs saved before this field existed (no backfill); null is
+   * the "not anchored" signal, never a default.
+   */
+  readonly contractType: ContractType | null;
   readonly createdAt: number;
 }
 
@@ -121,6 +134,8 @@ export interface NewPayrollRun {
   readonly daysInMonth: number;
   readonly periodStartDate?: string | null;
   readonly periodEndDate?: string | null;
+  readonly baseCotizacionCents?: Cents | null;
+  readonly contractType?: ContractType | null;
 }
 
 /** A single free-form app-level setting, stored as a string value (e.g. the smoke-screen round-trip key). */

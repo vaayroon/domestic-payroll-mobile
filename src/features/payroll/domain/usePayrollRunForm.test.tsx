@@ -129,8 +129,35 @@ describe('usePayrollRunForm', () => {
       daysInMonth: harness.current.preview?.daysInMonth,
       periodStartDate: harness.current.periodStartDate,
       periodEndDate: harness.current.periodEndDate,
+      // Cotización anchors: 970,00 EUR is the tramo base behind the 62,08 EUR
+      // cuota above (97000 x 640/10000), so the run records the very inputs
+      // its own figures came from.
+      baseCotizacionCents: cents(97000),
+      contractType: FAKE_EMPLOYEE.contractType,
     });
     expect(harness.current.error).toBeNull();
+  });
+
+  it('persists the employee TEMPORAL contract type, not a hardcoded INDEFINIDO', async () => {
+    // Without this, a regression that pinned the anchor to 'INDEFINIDO' would
+    // pass every other test in this file, and every TEMPORAL run would reprint
+    // at the wrong desempleo rate once the employee changed.
+    const temporal: Employee = { ...FAKE_EMPLOYEE, contractType: 'TEMPORAL' };
+    const payrollRunRepository = new InMemoryPayrollRunRepository();
+    const createSpy = jest.spyOn(payrollRunRepository, 'create');
+    const harness = await renderUsePayrollRunForm([temporal], payrollRunRepository);
+
+    await act(async () => {
+      await harness.current.submit();
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractType: 'TEMPORAL',
+        baseCotizacionCents: cents(97000), // same tramo base; only the rate differs
+        ssDeductionCents: cents(6257), // 6,45 % x 970,00, distinct from the INDEFINIDO 62,08
+      }),
+    );
   });
 
   it('blocks create() and shows a Spanish message when a run already exists for the period', async () => {
@@ -154,6 +181,8 @@ describe('usePayrollRunForm', () => {
         daysInMonth: 30,
         periodStartDate: null,
         periodEndDate: null,
+        baseCotizacionCents: null,
+        contractType: null,
         createdAt: 0,
       },
     ]);
