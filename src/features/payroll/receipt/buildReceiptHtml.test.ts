@@ -1,10 +1,19 @@
 import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { buildReceiptHtml } from './buildReceiptHtml';
 import type {
+  ReceiptBaseCotizacion,
   ReceiptEmpleadorCotizacion,
   ReceiptEmpleadorCotizacionNoDisponibleReason,
   ReceiptViewModel,
 } from './ReceiptViewModel';
+
+// The SMI vector: base 1.424,50 = 1.221,00 + 203,50, decomposable (tramo 8).
+const FAKE_BASE_DESGLOSADA: ReceiptBaseCotizacion = {
+  kind: 'desglosada',
+  remuneracionMensual: '1221,00 €',
+  prorrataPagasExtraordinarias: '203,50 €',
+  total: '1424,50 €',
+};
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
 const FAKE_VIEW_MODEL: ReceiptViewModel = {
@@ -32,6 +41,7 @@ const FAKE_VIEW_MODEL: ReceiptViewModel = {
   liquidoTotal: '1.005,00 €',
   empleadorCotizacion: {
     kind: 'figures',
+    baseCotizacion: FAKE_BASE_DESGLOSADA,
     filas: [
       { concepto: 'Contingencias comunes', basePeriodo: '1424,50 €', tipo: '23,60 %', cuota: '336,18 €' },
       { concepto: 'Contingencias profesionales (AT y EP)', basePeriodo: '1424,50 €', tipo: '1,50 %', cuota: '21,37 €' },
@@ -82,6 +92,7 @@ const FAKE_VIEW_MODEL_TEMPORAL: ReceiptViewModel = {
   ...FAKE_VIEW_MODEL,
   empleadorCotizacion: {
     kind: 'figures',
+    baseCotizacion: FAKE_BASE_DESGLOSADA,
     filas: [
       { concepto: 'Contingencias comunes', basePeriodo: '1424,50 €', tipo: '23,60 %', cuota: '336,18 €' },
       { concepto: 'Contingencias profesionales (AT y EP)', basePeriodo: '1424,50 €', tipo: '1,50 %', cuota: '21,37 €' },
@@ -672,6 +683,7 @@ describe('buildReceiptHtml', () => {
       ];
       const cotizacion: ReceiptEmpleadorCotizacion = {
         kind: 'figures',
+        baseCotizacion: FAKE_BASE_DESGLOSADA,
         filas: [{ concepto: concepto.raw, basePeriodo: basePeriodo.raw, tipo: tipo.raw, cuota: cuota.raw }],
         beneficios: [],
         totalNominal: totalNominal.raw,
@@ -695,6 +707,7 @@ describe('buildReceiptHtml', () => {
       ];
       const cotizacion: ReceiptEmpleadorCotizacion = {
         kind: 'figures',
+        baseCotizacion: FAKE_BASE_DESGLOSADA,
         filas: [],
         beneficios: [{ concepto: concepto.raw, cuotaAfectada: cuotaAfectada.raw, tipo: tipo.raw, importe: importe.raw }],
         totalNominal: '0,00 €',

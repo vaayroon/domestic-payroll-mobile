@@ -17,6 +17,7 @@ import { type Cents, multiplyByRatio, subtractCents } from '@/types/money';
 import {
   computeEmployerSsFromBase,
   computeWorkerSsFromBase,
+  resolveBaseCotizacionDesglose,
   resolveBaseCotizacionForGross,
   SS_DIVISOR,
   type EmployerSsBreakdown,
@@ -24,6 +25,7 @@ import {
 } from '../domain/ssContribution';
 import {
   GRUPO_PROFESIONAL,
+  type ReceiptBaseCotizacion,
   type ReceiptDeduccionDesglose,
   type ReceiptEmpleadorCotizacion,
   type ReceiptLineItem,
@@ -341,6 +343,36 @@ const NOTA_BASE_DESAJUSTADA =
 const NOTA_BASE_NO_COMPROBABLE =
   'Este período no permite comprobar la base de cotización utilizada en su día, por lo que no se muestran las cifras de cotización a cargo de la parte empleadora.';
 
+const NOTA_BASE_POR_TRAMO =
+  'La base de cotización de este período procede del tramo de retribución que le corresponde en la escala del Sistema Especial para Empleados de Hogar, por lo que no coincide con la retribución mensual y no se desglosa en remuneración y prorrata de pagas extraordinarias.';
+
+const NOTA_BASE_EN_TOPE_MAXIMO =
+  'La base de cotización de este período coincide con el tope máximo de cotización, por lo que no es posible determinar si corresponde a la retribución mensual íntegra y no se desglosa.';
+
+/**
+ * The annex's base de cotización decomposition for a VERIFIED run. Decomposes
+ * the full-month base the receipt already resolved from the run's own anchor
+ * (`ResolvedCotizacionInputs`), never the prorated `basePeriodo` and never the
+ * employee's current salary: reading `employee.baseGrossCents` here would
+ * reprint an old period from today's pay, the drift the anchor exists to stop.
+ */
+function buildBaseCotizacion(baseCotizacionCents: Cents, ratesConfig: RatesConfig): ReceiptBaseCotizacion {
+  const desglose = resolveBaseCotizacionDesglose(ratesConfig, baseCotizacionCents);
+
+  if (desglose.kind === 'not_decomposable') {
+    return desglose.reason === 'tope_maximo'
+      ? { kind: 'no_desglosable', motivo: 'base_en_tope_maximo', nota: NOTA_BASE_EN_TOPE_MAXIMO }
+      : { kind: 'no_desglosable', motivo: 'base_por_tramo', nota: NOTA_BASE_POR_TRAMO };
+  }
+
+  return {
+    kind: 'desglosada',
+    remuneracionMensual: formatEuros(desglose.remuneracionMensualCents),
+    prorrataPagasExtraordinarias: formatEuros(desglose.prorrataPagasCents),
+    total: formatEuros(desglose.totalCents),
+  };
+}
+
 /**
  * Employer "determinación de bases y cuotas" block: maps the flat
  * `EmployerSsBreakdown` record from `computeReceiptEmployerSs` to ordered,
@@ -370,6 +402,7 @@ function buildEmpleadorCotizacion(
 
   return {
     kind: 'figures',
+    baseCotizacion: buildBaseCotizacion(breakdown.baseCotizacionCents, ratesConfig),
     filas: [
       {
         concepto: 'Contingencias comunes',
