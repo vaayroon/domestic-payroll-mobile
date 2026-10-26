@@ -154,6 +154,32 @@ const FAKE_VIEW_MODEL_WITH_SIGNATURE: ReceiptViewModel = {
   empleadorFirmaImagenBase64: SYNTHETIC_SIGNATURE_PNG_BASE64,
 };
 
+// Distinct fake note, so a test can tell it reached the document.
+const FAKE_BASE_NO_DESGLOSABLE: ReceiptBaseCotizacion = {
+  kind: 'no_desglosable',
+  motivo: 'base_por_tramo',
+  nota: 'Nota de prueba: la base procede de un tramo.',
+};
+
+/** A `figures` view-model carrying the given decomposition; everything else stays the default fixture. */
+function withBaseCotizacion(baseCotizacion: ReceiptBaseCotizacion, base: ReceiptViewModel = FAKE_VIEW_MODEL): ReceiptViewModel {
+  if (base.empleadorCotizacion.kind !== 'figures') {
+    throw new Error('fixture must carry employer figures');
+  }
+  return { ...base, empleadorCotizacion: { ...base.empleadorCotizacion, baseCotizacion } };
+}
+
+/** The decomposition block only, from its own wrapper to its first closing `</div>` (it holds no nested div). */
+function baseCotizacionBlock(document: string): string {
+  const start = document.indexOf('<div class="base-cotizacion">');
+  expect(start).toBeGreaterThan(-1);
+  const end = document.indexOf('</div>', start);
+  expect(end).toBeGreaterThan(start);
+  return document.slice(start, end + '</div>'.length);
+}
+
+const BASE_ROW_LABELS = ['Importe remuneración mensual', 'Importe prorrata pagas extraordinarias', 'TOTAL'] as const;
+
 describe('buildReceiptHtml', () => {
   const html = buildReceiptHtml(FAKE_VIEW_MODEL);
 
@@ -735,6 +761,145 @@ describe('buildReceiptHtml', () => {
     });
   });
 
+  describe('base de cotización block (spec R4-R7, X1, X3)', () => {
+    describe('desglosada (R5.1)', () => {
+      const document = buildReceiptHtml(FAKE_VIEW_MODEL);
+      const block = baseCotizacionBlock(document);
+      const rows = [...block.matchAll(/<tr[^>]*><td>([^<]*)<\/td><td class="amount">([^<]*)<\/td><\/tr>/g)].map((match) => ({
+        label: match[1],
+        value: match[2],
+      }));
+
+      it('renders the three annex denominations once each, in order, under its own heading', () => {
+        expect(block).toContain('<h2>Base de cotización</h2>');
+        expect(rows.map((row) => row.label)).toEqual([...BASE_ROW_LABELS]);
+        for (const label of BASE_ROW_LABELS) {
+          expect(document.split(`<td>${label}</td>`)).toHaveLength(2);
+        }
+      });
+
+      it('carries each value from the view-model beside its label', () => {
+        expect(rows.map((row) => row.value)).toEqual(['1221,00 €', '203,50 €', '1424,50 €']);
+      });
+
+      it('keeps TOTAL as the bare uppercase annex denomination', () => {
+        expect(block).toContain('<tr class="total-row"><td>TOTAL</td>');
+        expect(document).not.toContain('Total base de cotización');
+      });
+    });
+
+    describe('no_desglosable (R6.1, R6.2)', () => {
+      const document = buildReceiptHtml(withBaseCotizacion(FAKE_BASE_NO_DESGLOSABLE));
+      const block = baseCotizacionBlock(document);
+
+      it('renders the note inside the same block, under the same heading', () => {
+        expect(block).toContain('<h2>Base de cotización</h2>');
+        expect(block).toContain('<p class="nota">Nota de prueba: la base procede de un tramo.</p>');
+      });
+
+      it('renders no rows, no table and none of the three denominations anywhere in the document', () => {
+        expect(block).not.toContain('<table');
+        expect(block).not.toContain('<tr');
+        for (const label of BASE_ROW_LABELS) {
+          expect(document).not.toContain(label);
+        }
+        for (const figure of ['1221,00', '203,50']) {
+          expect(document).not.toContain(figure);
+        }
+      });
+
+      it('still renders the cuota table below it normally', () => {
+        expect(employerBlock(document)).toContain('Total a ingresar por la parte empleadora');
+        expect(document).toContain('317,23 €');
+      });
+
+      it('renders the tope note the same way', () => {
+        const tope = buildReceiptHtml(
+          withBaseCotizacion({ kind: 'no_desglosable', motivo: 'base_en_tope_maximo', nota: 'Nota de prueba: tope máximo.' }),
+        );
+        expect(baseCotizacionBlock(tope)).toContain('<p class="nota">Nota de prueba: tope máximo.</p>');
+        expect(tope).not.toContain('Importe remuneración mensual');
+      });
+    });
+
+    it.each(['rates_unavailable', 'base_drifted', 'base_not_verifiable'] as const)(
+      'R4.1 %s: no Base de cotización heading, block or rows',
+      (reason) => {
+        const document = buildReceiptHtml(unavailableViewModel(reason));
+
+        expect(document).not.toContain('Base de cotización');
+        expect(document).not.toContain('class="base-cotizacion"');
+        for (const label of BASE_ROW_LABELS) {
+          expect(document).not.toContain(label);
+        }
+      },
+    );
+
+    it.each([
+      ['desglosada', FAKE_VIEW_MODEL],
+      ['no_desglosable', withBaseCotizacion(FAKE_BASE_NO_DESGLOSABLE)],
+    ] as const)('R7.1 %s: sits between Líquido total and the employer block, as a closed sibling', (_variant, viewModel) => {
+      const document = buildReceiptHtml(viewModel);
+      const liquido = document.indexOf('Líquido total a percibir');
+      const base = document.indexOf('class="base-cotizacion"');
+      const baseClose = document.indexOf('</div>', base);
+      const empleador = document.indexOf('class="empleador-cotizacion"');
+      const determinacion = document.indexOf('Determinación de bases y cuotas');
+
+      expect(liquido).toBeGreaterThan(-1);
+      expect(base).toBeGreaterThan(liquido);
+      // Sibling, not nested: the decomposition has closed before the employer block opens.
+      expect(baseClose).toBeGreaterThan(base);
+      expect(empleador).toBeGreaterThan(baseClose);
+      expect(determinacion).toBeGreaterThan(empleador);
+      // Its heading is inside its own wrapper, so it cannot be stranded.
+      expect(document.indexOf('<h2>Base de cotización</h2>')).toBeGreaterThan(base);
+      expect(document.indexOf('<h2>Base de cotización</h2>')).toBeLessThan(baseClose);
+    });
+
+    it('R7.2 scopes three rules to .base-cotizacion and never puts page-break-inside on a bare table', () => {
+      const document = buildReceiptHtml(FAKE_VIEW_MODEL);
+
+      expect(document).toMatch(/\.base-cotizacion \{[^}]*page-break-inside: avoid/);
+      expect(document).toMatch(/\.base-cotizacion td:first-child \{[^}]*width: 46%/);
+      expect(document).toMatch(/\.base-cotizacion \.amount \{[^}]*white-space: nowrap/);
+      expect(document).not.toMatch(/(^|[\s,}])table\s*\{[^}]*page-break-inside/);
+    });
+
+    it('X1.1 escapes the three decomposition values', () => {
+      const [remuneracion, prorrata, total] = [hostile('rem'), hostile('pro'), hostile('tot')];
+      const document = buildReceiptHtml(
+        withBaseCotizacion({
+          kind: 'desglosada',
+          remuneracionMensual: remuneracion.raw,
+          prorrataPagasExtraordinarias: prorrata.raw,
+          total: total.raw,
+        }),
+      );
+
+      for (const field of [remuneracion, prorrata, total]) {
+        expect(document).toContain(field.escaped);
+        expect(document).not.toContain(field.raw);
+      }
+      expect(document).not.toMatch(/<script\b/i);
+    });
+
+    it('X1.1 escapes the no_desglosable note', () => {
+      const nota = hostile('nota-base');
+      const document = buildReceiptHtml(withBaseCotizacion({ kind: 'no_desglosable', motivo: 'base_por_tramo', nota: nota.raw }));
+
+      expect(document).toContain(nota.escaped);
+      expect(document).not.toContain(nota.raw);
+      expect(document).not.toMatch(/<script\b/i);
+    });
+
+    it('is deterministic for both variants', () => {
+      for (const viewModel of [FAKE_VIEW_MODEL, withBaseCotizacion(FAKE_BASE_NO_DESGLOSABLE)]) {
+        expect(buildReceiptHtml(viewModel)).toBe(buildReceiptHtml(viewModel));
+      }
+    });
+  });
+
   describe('print-layout guards on the new markup (spec V7.1, design §6)', () => {
     it('keeps the employer block whole via page-break-inside: avoid on the wrapper div, never on the table', () => {
       expect(html).toMatch(/\.empleador-cotizacion \{[^}]*page-break-inside: avoid/);
@@ -749,11 +914,15 @@ describe('buildReceiptHtml', () => {
     it('protects the whole .firma block, so lugarYFecha cannot be orphaned from the grid', () => {
       expect(html).toMatch(/\.firma \{[^}]*page-break-inside: avoid/);
       expect(html).toMatch(/\.firma-grid \{[^}]*page-break-inside: avoid/);
+      // X3.1: the decomposition's own avoid rule coexists with them.
+      expect(html).toMatch(/\.base-cotizacion \{[^}]*page-break-inside: avoid/);
     });
 
     const matrix: readonly (readonly [string, ReceiptViewModel])[] = [
       ['figures, no signature', FAKE_VIEW_MODEL],
       ['figures, saved signature', FAKE_VIEW_MODEL_WITH_SIGNATURE],
+      ['figures, no_desglosable, no signature', withBaseCotizacion(FAKE_BASE_NO_DESGLOSABLE)],
+      ['figures, no_desglosable, saved signature', withBaseCotizacion(FAKE_BASE_NO_DESGLOSABLE, FAKE_VIEW_MODEL_WITH_SIGNATURE)],
       ['TEMPORAL figures', FAKE_VIEW_MODEL_TEMPORAL],
       ['rates_unavailable', FAKE_VIEW_MODEL_NO_BREAKDOWN],
       ['base_drifted', unavailableViewModel('base_drifted')],

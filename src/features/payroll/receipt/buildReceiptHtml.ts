@@ -36,6 +36,12 @@
  * 1.a), and art. 18.1 gives natural and legal persons a single NIF. `NIF` is a
  * label in BOTH header boxes.
  *
+ * The `Base de cotización` block (`Importe remuneración mensual` + `Importe
+ * prorrata pagas extraordinarias` = `TOTAL`, the annex's own denominations) is
+ * its own avoid-break div, a SIBLING of the employer block so a tight page can
+ * break between the two. It renders either its rows or a note, never both, and
+ * only when the employer block has figures.
+ *
  * ============================================================================
  * ANDROID MARGIN QUIRK -- DO NOT MODIFY WITHOUT DEVICE-VERIFYING AGAIN
  * ============================================================================
@@ -54,6 +60,7 @@
 
 import { escapeHtml } from './escapeHtml';
 import type {
+  ReceiptBaseCotizacion,
   ReceiptDeduccionDesglose,
   ReceiptEmpleadorBeneficioRow,
   ReceiptEmpleadorCotizacion,
@@ -121,6 +128,38 @@ function renderBeneficioRows(rows: readonly ReceiptEmpleadorBeneficioRow[]): str
 }
 
 /**
+ * The annex's base de cotización decomposition, as its own `<div>` with its own
+ * `<table>`. The heading lives INSIDE the div (the rule is unreliable on a
+ * `<table>` in the Android WebView) so it can never be stranded on the previous
+ * page. The non-decomposable case renders its note inside the same div, so it
+ * keeps the avoid-break behaviour, and renders no rows: a figure and a note
+ * saying there is none must never share the page.
+ *
+ * Labels are the annex's denominations, verbatim: `TOTAL` stays bare and
+ * uppercase because softening it would alter a denomination, and the `<h2>`
+ * supplies the context the bare word lacks.
+ */
+function renderBaseCotizacion(baseCotizacion: ReceiptBaseCotizacion): string {
+  const heading = '<h2>Base de cotización</h2>';
+
+  if (baseCotizacion.kind === 'no_desglosable') {
+    return `<div class="base-cotizacion">
+        ${heading}
+        <p class="nota">${escapeHtml(baseCotizacion.nota)}</p>
+      </div>`;
+  }
+
+  return `<div class="base-cotizacion">
+        ${heading}
+        <table>
+          <tr><td>Importe remuneración mensual</td><td class="amount">${escapeHtml(baseCotizacion.remuneracionMensual)}</td></tr>
+          <tr><td>Importe prorrata pagas extraordinarias</td><td class="amount">${escapeHtml(baseCotizacion.prorrataPagasExtraordinarias)}</td></tr>
+          <tr class="total-row"><td>TOTAL</td><td class="amount">${escapeHtml(baseCotizacion.total)}</td></tr>
+        </table>
+      </div>`;
+}
+
+/**
  * Employer "determinación de bases y cuotas" section. Wrapped in ONE div that
  * carries `page-break-inside: avoid` (the rule is unreliable on a `<table>` in
  * the Android WebView), and the heading lives INSIDE that div so it can never
@@ -131,6 +170,11 @@ function renderBeneficioRows(rows: readonly ReceiptEmpleadorBeneficioRow[]): str
  * The `unavailable` branch renders its note and no rows or totals, for every
  * reason: retiring the old disclaimer must not turn an honest admission into a
  * silent omission.
+ *
+ * On the `figures` branch the base decomposition is emitted FIRST, as a sibling
+ * of this div and not inside it, so the document reads bases before cuotas, as
+ * the annex does. It is reachable only from `figures`, so a drifted or
+ * unverifiable base can never print one.
  */
 function renderEmpleadorCotizacion(cotizacion: ReceiptEmpleadorCotizacion): string {
   const heading = '<h2>Determinación de bases y cuotas a cargo de la parte empleadora</h2>';
@@ -142,7 +186,9 @@ function renderEmpleadorCotizacion(cotizacion: ReceiptEmpleadorCotizacion): stri
       </div>`;
   }
 
-  return `<div class="empleador-cotizacion">
+  return `${renderBaseCotizacion(cotizacion.baseCotizacion)}
+
+      <div class="empleador-cotizacion">
         ${heading}
         <table>
           <tr><th>Concepto</th><th class="amount">Base del periodo</th><th class="amount">Tipo</th><th class="amount">Cuota</th></tr>
@@ -207,7 +253,10 @@ export function buildReceiptHtml(viewModel: ReceiptViewModel): string {
       .empleador-cotizacion { page-break-inside: avoid; }
       .empleador-cotizacion td:first-child { width: 46%; }
       .empleador-cotizacion .amount { white-space: nowrap; }
-      .empleador-cotizacion .nota { margin: 4px 0 0; font-size: 11px; }
+      .base-cotizacion { page-break-inside: avoid; }
+      .base-cotizacion td:first-child { width: 46%; }
+      .base-cotizacion .amount { white-space: nowrap; }
+      .empleador-cotizacion .nota, .base-cotizacion .nota { margin: 4px 0 0; font-size: 11px; }
       .firma { margin-top: 40px; page-break-inside: avoid; }
       .firma-grid { border: none; page-break-inside: avoid; }
       .firma-grid td { width: 50%; border: none; vertical-align: bottom; padding: 0 8px 0 0; }
