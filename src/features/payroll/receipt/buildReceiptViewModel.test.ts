@@ -585,4 +585,317 @@ describe('buildReceiptViewModel', () => {
       expect(withoutSignature.firmaLabel).toBe('Firma de la persona trabajadora');
     });
   });
+
+  describe('employer contribution block (REQ-V1, V3, V4, V5)', () => {
+    // Real monetary amounts are fine in fixtures (CLAUDE.md §5); identifiers stay fake.
+    // G-1221: baseGross 1.221,00 -> retribución 1.424,50 -> tramo 8, base 1.424,50.
+    // Worker cuota full month = 6,40 % x 1.424,50 = 91,17 (TGSS golden vector).
+    const eur = (amount: string): string => `${amount}${NBSP}€`;
+
+    const employeeG1221: Employee = { ...FAKE_EMPLOYEE, baseGrossCents: cents(122100) };
+    const employeeG800: Employee = { ...FAKE_EMPLOYEE, baseGrossCents: cents(80000) };
+
+    const runG1221FullMonth: PayrollRun = {
+      ...FAKE_RUN,
+      grossCents: cents(122100),
+      ssDeductionCents: cents(9117),
+      netCents: cents(122100 - 9117),
+      extraCents: cents(0),
+      prorated: false,
+      daysWorked: 30,
+      daysInMonth: 30,
+    };
+    // G-800: retribución 933,33 -> tramo 5 -> base 970,00; worker cuota 6,40 % = 62,08.
+    const runG800FullMonth: PayrollRun = {
+      ...runG1221FullMonth,
+      grossCents: cents(80000),
+      ssDeductionCents: cents(6208),
+      netCents: cents(80000 - 6208),
+    };
+    // G-1221 prorated 9/30 (real month 31 days): worker cuota 27,35.
+    const runG1221Partial9: PayrollRun = {
+      ...runG1221FullMonth,
+      grossCents: cents(36630),
+      ssDeductionCents: cents(2735),
+      netCents: cents(36630 - 2735),
+      prorated: true,
+      daysWorked: 9,
+      daysInMonth: 31,
+    };
+
+    const build = (run: PayrollRun, employee: Employee, ratesConfig: RatesConfig | null = RATES_2026) =>
+      buildReceiptViewModel({
+        run,
+        employee,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig,
+        employerSignatureBase64: null,
+      }).empleadorCotizacion;
+
+    describe('with verified figures', () => {
+      it('renders the golden vector in display order with labels, tipos and cuotas (D3.1, V1.1)', () => {
+        const block = build(runG1221FullMonth, employeeG1221);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas).toEqual([
+          { concepto: 'Contingencias comunes', basePeriodo: eur('1424,50'), tipo: '23,60 %', cuota: eur('336,18') },
+          { concepto: 'Contingencias profesionales (AT y EP)', basePeriodo: eur('1424,50'), tipo: '1,50 %', cuota: eur('21,37') },
+          { concepto: 'Desempleo', basePeriodo: eur('1424,50'), tipo: '5,50 %', cuota: eur('78,35') },
+          { concepto: 'FOGASA (Fondo de Garantía Salarial)', basePeriodo: eur('1424,50'), tipo: '0,20 %', cuota: eur('2,85') },
+          {
+            concepto: 'MEI (Mecanismo de Equidad Intergeneracional)',
+            basePeriodo: eur('1424,50'),
+            tipo: '0,75 %',
+            cuota: eur('10,68'),
+          },
+        ]);
+        expect(block.totalNominal).toBe(eur('449,43'));
+        expect(block.totalEfectivo).toBe(eur('317,23'));
+      });
+
+      it('puts the minus sign on the benefit rows only, and the operand of each is a cuota (V1.2)', () => {
+        const block = build(runG1221FullMonth, employeeG1221);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.beneficios).toEqual([
+          { concepto: 'Reducción por contingencias comunes', cuotaAfectada: eur('336,18'), tipo: '20 %', importe: `-${eur('67,24')}` },
+          { concepto: 'Bonificación por desempleo y FOGASA', cuotaAfectada: eur('81,20'), tipo: '80 %', importe: `-${eur('64,96')}` },
+        ]);
+        // MEI and AT y EP carry no benefit: no benefit row names them.
+        for (const row of block.beneficios) {
+          expect(row.concepto).not.toMatch(/MEI|AT y EP/);
+        }
+        // No nominal amount, and neither total, is negative.
+        for (const row of block.filas) {
+          expect(row.cuota.startsWith('-')).toBe(false);
+        }
+        expect(block.totalNominal.startsWith('-')).toBe(false);
+        expect(block.totalEfectivo.startsWith('-')).toBe(false);
+      });
+
+      it('uses the TEMPORAL desempleo tipo and figures (D5.1, V1.3)', () => {
+        // Worker cuota TEMPORAL: (4,70 + 1,60 + 0,15) % x 1.424,50 = 91,88.
+        const block = build(
+          { ...runG1221FullMonth, ssDeductionCents: cents(9188), netCents: cents(122100 - 9188) },
+          { ...employeeG1221, contractType: 'TEMPORAL' },
+        );
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas[2]).toEqual({
+          concepto: 'Desempleo',
+          basePeriodo: eur('1424,50'),
+          tipo: '6,70 %',
+          cuota: eur('95,44'),
+        });
+        expect(block.totalNominal).toBe(eur('466,52'));
+        expect(block.beneficios[1]?.importe).toBe(`-${eur('78,63')}`);
+        expect(block.totalEfectivo).toBe(eur('320,65'));
+      });
+
+      it('shows the prorated base and the 9/30 figures on a partial month (D6.1, V4.4)', () => {
+        const block = build(runG1221Partial9, employeeG1221);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas.map((row) => row.basePeriodo)).toEqual(Array(5).fill(eur('427,35')));
+        expect(block.filas.map((row) => row.cuota)).toEqual([
+          eur('100,85'),
+          eur('6,41'),
+          eur('23,50'),
+          eur('0,85'),
+          eur('3,21'),
+        ]);
+        expect(block.totalNominal).toBe(eur('134,82'));
+        // R-B2: 80 % of the PRINTED 23,50 + 0,85 = 24,35 is 19,48 (R-B1 would print 19,49).
+        expect(block.beneficios[0]).toMatchObject({ cuotaAfectada: eur('100,85'), importe: `-${eur('20,17')}` });
+        expect(block.beneficios[1]).toMatchObject({ cuotaAfectada: eur('24,35'), importe: `-${eur('19,48')}` });
+        expect(block.totalEfectivo).toBe(eur('95,17'));
+      });
+
+      it('uses 30/30 for a non-prorated run in a 31-day month, never 31/30 (D6.2)', () => {
+        const block = build(
+          { ...runG1221FullMonth, daysWorked: 31, daysInMonth: 31 },
+          employeeG1221,
+        );
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas[0]?.cuota).toBe(eur('336,18'));
+        expect(block.totalNominal).toBe(eur('449,43'));
+        expect(block.totalEfectivo).toBe(eur('317,23'));
+      });
+
+      it('is verified on a same-base run: G-800 yields the D3.4 figures (V4.1)', () => {
+        const block = build(runG800FullMonth, employeeG800);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas.map((row) => row.cuota)).toEqual([
+          eur('228,92'),
+          eur('14,55'),
+          eur('53,35'),
+          eur('1,94'),
+          eur('7,28'),
+        ]);
+        expect(block.totalNominal).toBe(eur('306,04'));
+        expect(block.beneficios.map((row) => row.importe)).toEqual([`-${eur('45,78')}`, `-${eur('44,23')}`]);
+        expect(block.totalEfectivo).toBe(eur('216,03'));
+      });
+
+      it('treats a same-tramo salary edit as a true negative: base 970,00 figures stay (V4.3)', () => {
+        // 800,00 -> 850,00: retribución 991,67, still tramo 5, so base 970,00
+        // and every receipt figure is genuinely unchanged.
+        const block = build(runG800FullMonth, { ...FAKE_EMPLOYEE, baseGrossCents: cents(85000) });
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas[0]?.basePeriodo).toBe(eur('970,00'));
+        expect(block.totalEfectivo).toBe(eur('216,03'));
+      });
+
+      it('never prints "-0,00" on a zero-day run, which is still verified (persisted 0 and recompute 0)', () => {
+        const zeroDaysRun: PayrollRun = {
+          ...runG1221Partial9,
+          grossCents: cents(0),
+          ssDeductionCents: cents(0),
+          netCents: cents(0),
+          daysWorked: 0,
+        };
+        const block = build(zeroDaysRun, employeeG1221);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.beneficios.map((row) => row.importe)).toEqual([eur('0,00'), eur('0,00')]);
+        expect(block.totalEfectivo).toBe(eur('0,00'));
+      });
+    });
+
+    describe('with no employer figures', () => {
+      it('carries a note and NO rows or totals when ratesConfig is null; the lump line still renders (V3.1)', () => {
+        const vm = buildReceiptViewModel({
+          run: runG1221FullMonth,
+          employee: employeeG1221,
+          employer: FAKE_EMPLOYER,
+          issuedOnIso: '2026-08-04',
+          ratesConfig: null,
+          employerSignatureBase64: null,
+        });
+
+        expect(vm.empleadorCotizacion.kind).toBe('unavailable');
+        if (vm.empleadorCotizacion.kind !== 'unavailable') return;
+        expect(vm.empleadorCotizacion.reason).toBe('rates_unavailable');
+        expect(vm.empleadorCotizacion.nota).not.toBe('');
+        expect(vm.empleadorCotizacion).not.toHaveProperty('filas');
+        expect(vm.empleadorCotizacion).not.toHaveProperty('totalEfectivo');
+        expect(vm.deducciones).toEqual([
+          { label: 'Cuota Seguridad Social (persona trabajadora)', amount: eur('91,17') },
+        ]);
+      });
+
+      it('flags drift across a tramo and shows a note instead of any figure (V4.2, V5.2)', () => {
+        // The run was created from G-800 (cuota 62,08); the employee is then
+        // edited to G-1221, whose current worker cuota is 91,17.
+        const block = build(runG800FullMonth, employeeG1221);
+
+        expect(block.kind).toBe('unavailable');
+        if (block.kind !== 'unavailable') return;
+        expect(block.reason).toBe('base_drifted');
+        expect(block.nota).not.toBe('');
+        expect(block).not.toHaveProperty('filas');
+        expect(block).not.toHaveProperty('beneficios');
+        expect(JSON.stringify(block)).not.toContain('317,23');
+        // The drift note does not claim any figure is shown.
+        expect(block.nota).not.toContain('recalcul');
+      });
+
+      it('flags drift on a prorated run whose persisted cuota is the full-month one (detector mirrors the days normalization)', () => {
+        // Same persisted 91,17 as a full month, but the run says 9 days worked:
+        // the recompute at 9/30 gives 27,35, so this is a real mismatch.
+        const block = build({ ...runG1221FullMonth, prorated: true, daysWorked: 9, daysInMonth: 31 }, employeeG1221);
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+      });
+
+      it('does not mistake a non-prorated run for a prorated one because daysWorked is not 30', () => {
+        // A non-prorated run normalizes to 30 whatever `daysWorked` holds, so it
+        // must stay verified; a detector reading `daysWorked` raw would drift.
+        const block = build({ ...runG1221FullMonth, daysWorked: 31, daysInMonth: 31 }, employeeG1221);
+
+        expect(block.kind).toBe('figures');
+      });
+
+      it('also flags drift when a rate for an already-run year is corrected (accepted behaviour)', () => {
+        // A correction to SS_RATES_BY_YEAR means the printed figures no longer
+        // match what was filed. The detector reports it rather than hiding it.
+        const correctedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
+
+        const block = build(runG1221FullMonth, employeeG1221, correctedRates);
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+      });
+    });
+
+    describe('legacy runs (V5.1)', () => {
+      // A pre-migration-0002 run: SS cuota typed by hand (7,94), day columns
+      // backfilled to 0. `daysInMonth: 0` is what makes it PROVABLY legacy
+      // (the engine never emits 0); without it the same run is `drifted`.
+      const legacyRun: PayrollRun = {
+        ...runG1221FullMonth,
+        grossCents: cents(36630),
+        ssDeductionCents: cents(794),
+        netCents: cents(36630 - 794),
+        prorated: true,
+        daysWorked: 0,
+        daysInMonth: 0,
+      };
+
+      it('is not verifiable: no drift note, no employer rows or totals', () => {
+        const block = build(legacyRun, employeeG1221);
+
+        expect(block.kind).toBe('unavailable');
+        if (block.kind !== 'unavailable') return;
+        expect(block.reason).toBe('base_not_verifiable');
+        expect(block).not.toHaveProperty('filas');
+        expect(block).not.toHaveProperty('totalEfectivo');
+        // The recompute differs from the typed 7,94, which is exactly the
+        // condition that must NOT be reported as drift.
+        const driftNota = build(runG800FullMonth, employeeG1221);
+        expect(driftNota.kind === 'unavailable' && driftNota.nota).not.toBe(block.nota);
+        // Wording must not imply that figures were recalculated and printed.
+        expect(block.nota).not.toContain('recalcul');
+      });
+
+      it('is identical across repeated builds', () => {
+        expect(build(legacyRun, employeeG1221)).toEqual(build(legacyRun, employeeG1221));
+      });
+
+      it('falls to drifted, not legacy, once it carries day data (the accepted residual band)', () => {
+        // Manual-era run that does carry real day data: the typed cuota cannot
+        // be told from a moved base, and the employer block would be computed
+        // from a different source than the worker cuota above it.
+        const block = build({ ...legacyRun, daysWorked: 9, daysInMonth: 31 }, employeeG1221);
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+      });
+
+      it('treats a persisted cuota of 0 as an absent input, not a moved base', () => {
+        const block = build({ ...runG1221FullMonth, ssDeductionCents: cents(0) }, employeeG1221);
+
+        expect(block.kind === 'unavailable' && block.reason).toBe('base_not_verifiable');
+      });
+    });
+
+    it('does not change the worker desglose rows on a non-prorated run (resolveSsDaysWorked extraction)', () => {
+      const vm = buildReceiptViewModel({
+        run: { ...runG1221FullMonth, daysWorked: 31, daysInMonth: 31 },
+        employee: employeeG1221,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: RATES_2026,
+        employerSignatureBase64: null,
+      });
+
+      expect(vm.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
+    });
+
+    it('is deterministic with figures present', () => {
+      expect(build(runG1221FullMonth, employeeG1221)).toEqual(build(runG1221FullMonth, employeeG1221));
+    });
+  });
 });
