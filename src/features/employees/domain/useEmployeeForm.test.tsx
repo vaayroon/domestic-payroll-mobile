@@ -141,6 +141,7 @@ describe('useEmployeeForm', () => {
       altaDate: null,
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
@@ -180,6 +181,7 @@ describe('useEmployeeForm', () => {
       altaDate: '2026-07-23',
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
@@ -222,6 +224,7 @@ describe('useEmployeeForm', () => {
       altaDate: null,
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     };
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');

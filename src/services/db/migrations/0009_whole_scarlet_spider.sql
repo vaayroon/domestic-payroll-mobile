@@ -1,0 +1,1 @@
+ALTER TABLE `employees` ADD `grupo_cotizacion` text;

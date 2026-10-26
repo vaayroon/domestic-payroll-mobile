@@ -50,6 +50,8 @@ export class EmployeeRepositoryDrizzle implements EmployeeRepository {
         ...(patch.altaDate !== undefined ? { altaDate: patch.altaDate } : {}),
         ...(patch.bajaDate !== undefined ? { bajaDate: patch.bajaDate } : {}),
         ...(patch.contractType !== undefined ? { contractType: patch.contractType } : {}),
+        // `null` is a real value here (it clears the field); only `undefined` means "leave it alone".
+        ...(patch.grupoCotizacion !== undefined ? { grupoCotizacion: patch.grupoCotizacion } : {}),
       })
       .where(eq(employees.id, id))
       .returning();

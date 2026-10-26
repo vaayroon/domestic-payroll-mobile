@@ -39,6 +39,12 @@ export const employees = sqliteTable(
     altaDate: text('alta_date'),
     bajaDate: text('baja_date'),
     contractType: text('contract_type', { enum: ['INDEFINIDO', 'TEMPORAL'] }).notNull().default('INDEFINIDO'),
+    // Grupo de cotización, as assigned by the TGSS. Deliberately nullable with NO
+    // default: the value is not derivable from any norm, so the app can neither
+    // compute nor verify it, and a default would print an invented group on a
+    // legal receipt. null means "not on file" (every row created before this
+    // column existed), never a default group.
+    grupoCotizacion: text('grupo_cotizacion'),
   },
   (table) => [index('employees_employer_id_idx').on(table.employerId)],
 );
