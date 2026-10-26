@@ -1040,6 +1040,129 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('317,23'));
       });
 
+      describe('the employer total anchor', () => {
+        // The same anchored G-1221 month, now also recording the employer
+        // cuota efectiva it was settled with: 449,43 nominal - 67,24 - 64,96.
+        const employerAnchoredRun: PayrollRun = { ...anchoredRun, employerTotalEfectivoCents: cents(31723) };
+
+        // A correction to the employer contingencias comunes rate for an
+        // already-settled year: 23,60 % -> 23,70 %. The WORKER cuota is
+        // untouched by it, which is what made this invisible before.
+        const correctedEmployerRates: RatesConfig = {
+          ...RATES_2026,
+          employer: { ...RATES_2026.employer, ccPer10000: 2370 },
+        };
+
+        it('reports drift when an employer rate for an already-settled year is corrected', () => {
+          const block = vm(employerAnchoredRun, employeeG1221, correctedEmployerRates).empleadorCotizacion;
+
+          expect(block.kind).toBe('unavailable');
+          if (block.kind !== 'unavailable') return;
+          expect(block.reason).toBe('base_drifted');
+          // Neither the old figure nor the one the corrected rates would print.
+          expect(JSON.stringify(block)).not.toContain('317,23');
+          expect(JSON.stringify(block)).not.toContain('318,38'); // what 23,70 % would have printed
+        });
+
+        it('is exactly what the worker comparison cannot see: that same run still verifies on the worker side', () => {
+          // The run WITHOUT the employer anchor, same corrected employer rates:
+          // the worker recompute still matches 91,17, so the figures reprint --
+          // silently, at the new rates. This is the defect, pinned on both sides.
+          const block = vm(anchoredRun, employeeG1221, correctedEmployerRates).empleadorCotizacion;
+
+          expect(block.kind).toBe('figures');
+          expect(block.kind === 'figures' && block.filas[0]?.tipo).toBe('23,70 %');
+          expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('318,38')); // not the 317,23 that was filed
+        });
+
+        it('prints the figures when the anchor still agrees with the recompute', () => {
+          const block = vm(employerAnchoredRun, employeeG1221).empleadorCotizacion;
+
+          expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('317,23'));
+        });
+
+        it('leaves the receipt byte-identical to the same run without the employer anchor', () => {
+          // The anchor is a check, not an input: it must change nothing on a
+          // receipt that was already correct.
+          expect(vm(employerAnchoredRun, employeeG1221)).toEqual(vm(anchoredRun, employeeG1221));
+        });
+
+        it('reports drift when the stored employer total simply does not match, worker side notwithstanding', () => {
+          const wrongTotal: PayrollRun = { ...employerAnchoredRun, employerTotalEfectivoCents: cents(31722) };
+
+          const block = vm(wrongTotal, employeeG1221).empleadorCotizacion;
+
+          expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+        });
+
+        it('treats a zero employer total as a real value, not an absent one', () => {
+          // A zero-day run costs the employer nothing and recomputes to zero,
+          // so the two agree and the run stays verified -- unlike a persisted
+          // worker cuota of 0, which rule 3 reads as an absent input.
+          const zeroDaysRun: PayrollRun = {
+            ...anchoredRun,
+            grossCents: cents(0),
+            ssDeductionCents: cents(0),
+            netCents: cents(0),
+            prorated: true,
+            daysWorked: 0,
+            daysInMonth: 31,
+            employerTotalEfectivoCents: cents(0),
+          };
+
+          const block = vm(zeroDaysRun, employeeG1221).empleadorCotizacion;
+
+          expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('0,00'));
+        });
+
+        it('does not override the provable-legacy guard either', () => {
+          // daysInMonth 0 still outranks every anchor: the comparison is
+          // meaningless there, not merely wrong.
+          const legacyWithEmployerAnchor: PayrollRun = {
+            ...employerAnchoredRun,
+            ssDeductionCents: cents(794),
+            prorated: true,
+            daysWorked: 0,
+            daysInMonth: 0,
+          };
+
+          const block = vm(legacyWithEmployerAnchor, employeeG1221).empleadorCotizacion;
+
+          expect(block.kind === 'unavailable' && block.reason).toBe('base_not_verifiable');
+        });
+
+        it('still reports a WORKER rate correction, as it did before the employer anchor existed', () => {
+          const correctedWorkerRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
+
+          const block = vm(employerAnchoredRun, employeeG1221, correctedWorkerRates).empleadorCotizacion;
+
+          expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+        });
+
+        it('follows the employer anchor through a TEMPORAL contract anchor, not the employee current one', () => {
+          const temporalRun: PayrollRun = {
+            ...employerAnchoredRun,
+            contractType: 'TEMPORAL',
+            ssDeductionCents: cents(9188),
+            netCents: cents(122100 - 9188),
+            employerTotalEfectivoCents: cents(32065), // the 6,70 % desempleo variant
+          };
+
+          const block = vm(temporalRun, employeeG1221).empleadorCotizacion; // employee is INDEFINIDO
+
+          expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('320,65'));
+        });
+
+        it('checks a pre-anchor run exactly as before: no employer anchor, no employer comparison', () => {
+          // A run saved before the column existed holds null (no backfill), so
+          // the corrected employer rates reprint just as they did yesterday.
+          // Documenting the residual, not endorsing it.
+          const block = vm(runG1221FullMonth, employeeG1221, correctedEmployerRates).empleadorCotizacion;
+
+          expect(block.kind).toBe('figures');
+        });
+      });
+
       it('anchoring a run to the values it already recomputed to changes nothing (B3.1)', () => {
         // An un-edited employee makes the fallback and the anchor agree, so the
         // two builds must be indistinguishable. This is what makes the anchor a

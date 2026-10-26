@@ -208,16 +208,17 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  *     already-run year -- an inconsistency an anchor cannot fix, and a real
  *     one: the printed figures would no longer match what was filed.
  *
- * KNOWN BLIND SPOT, pre-existing and not closed here: the comparison runs
- * through the WORKER cuota, because `run.ssDeductionCents` is the only
- * persisted figure to compare against. Correct an EMPLOYER rate or
- * `topeMaxBaseCents` for an already-run year and the worker recompute still
- * matches, so the run reports `verified` and the employer block reprints with
- * the new rates. Closing that needs a persisted employer total, which is a
- * change of its own.
  *   - **Pre-anchor run** (either column null): the inputs fall back to the
  *     employee's current values, so this remains the original indirect check,
  *     the only drift signal those rows have.
+ *
+ * The worker comparison alone used to have a blind spot on exactly the figures
+ * this block prints: `run.ssDeductionCents` is a WORKER total, so correcting an
+ * EMPLOYER rate for an already-run year left it matching and the employer rows
+ * reprinted silently at the new rates. A run carrying
+ * `employerTotalEfectivoCents` closes that -- its own employer figure is
+ * checked the same way, against a recompute at today's rates. A run without it
+ * keeps the worker check alone and the blind spot it has always had.
  *
  * A salary edit no longer produces a note on an anchored run, and that is the
  * point, not an oversight: the reprint is now reproduced from its own period
@@ -239,7 +240,12 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  *      so this guard runs BEFORE any recompute and outranks any anchor.
  *   3. Persisted cuota 0 while the recompute is positive: every tramo has a
  *      positive base, so a zero persisted cuota is an absent input.
- *   4. Equal: verified. 5. Otherwise: drifted.
+ *   4. Worker recompute unequal to the persisted cuota: drifted.
+ *   5. Employer anchor present and unequal to its recompute: drifted. A zero
+ *      anchor is NOT treated as absent the way rule 3 treats a zero cuota: a
+ *      zero-day run really does cost the employer nothing, and such a run
+ *      recomputes to zero as well, so the two still agree.
+ *   6. Otherwise: verified.
  *
  * A residual band of manual-era runs (typed cuota, but real day data) still
  * falls to `drifted`. Their worker cuota came from a different source than the
@@ -267,7 +273,27 @@ function resolveBaseDriftStatus(
   if (run.ssDeductionCents === 0 && recomputedWorkerSsCents > 0) {
     return 'not_verifiable';
   }
-  return recomputedWorkerSsCents === run.ssDeductionCents ? 'verified' : 'drifted';
+  if (recomputedWorkerSsCents !== run.ssDeductionCents) {
+    return 'drifted';
+  }
+
+  if (run.employerTotalEfectivoCents !== null) {
+    // The same pure call `buildEmpleadorCotizacion` makes below, on the same
+    // resolved inputs, so what is checked here is what would be printed there
+    // -- mirroring how the worker recompute above relates to the desglose.
+    const recomputedEmployerTotalCents = computeEmployerSsFromBase(
+      ratesConfig,
+      cotizacion.baseCotizacionCents,
+      resolveSsDaysWorked(run),
+      cotizacion.contractType,
+    ).totalEfectivoCents;
+
+    if (recomputedEmployerTotalCents !== run.employerTotalEfectivoCents) {
+      return 'drifted';
+    }
+  }
+
+  return 'verified';
 }
 
 const NOTA_TIPOS_NO_DISPONIBLES =
