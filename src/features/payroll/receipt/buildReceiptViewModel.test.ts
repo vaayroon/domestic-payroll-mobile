@@ -1081,7 +1081,7 @@ describe('buildReceiptViewModel', () => {
           expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('317,23'));
         });
 
-        it('leaves the receipt byte-identical to the same run without the employer anchor', () => {
+        it('leaves the view-model identical to the same run without the employer anchor', () => {
           // The anchor is a check, not an input: it must change nothing on a
           // receipt that was already correct.
           expect(vm(employerAnchoredRun, employeeG1221)).toEqual(vm(anchoredRun, employeeG1221));
@@ -1091,6 +1091,21 @@ describe('buildReceiptViewModel', () => {
           const wrongTotal: PayrollRun = { ...employerAnchoredRun, employerTotalEfectivoCents: cents(31722) };
 
           const block = vm(wrongTotal, employeeG1221).empleadorCotizacion;
+
+          expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
+        });
+
+        it('compares a zero employer anchor instead of skipping it (pins `!== null`, not a truthy check)', () => {
+          // A full month whose stored employer total is 0 against a recompute
+          // of 317,23. Only `run.employerTotalEfectivoCents !== null` reports
+          // this; `if (run.employerTotalEfectivoCents)` would read 0 as falsy,
+          // skip the comparison entirely and reprint the figures.
+          //
+          // The zero-day case below cannot pin that choice, because there the
+          // anchor and the recompute are both 0 and either reading verifies.
+          const zeroAnchorFullMonth: PayrollRun = { ...anchoredRun, employerTotalEfectivoCents: cents(0) };
+
+          const block = vm(zeroAnchorFullMonth, employeeG1221).empleadorCotizacion;
 
           expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
         });

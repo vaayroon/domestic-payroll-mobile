@@ -386,7 +386,7 @@ describe('calculatePayrollRun', () => {
     expect(result.baseCotizacionCents).toBe(cents(142450)); // 1221,00 x14/12 -> tramo 8, uncapped
   });
 
-  it('surfaces the employer cuota efectiva, computed from the SAME base as ssDeductionCents', () => {
+  it('surfaces the TGSS golden-vector employer cuota efectiva', () => {
     const result = calculatePayrollRun(
       baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: null, bajaDate: null }),
     );
@@ -394,7 +394,9 @@ describe('calculatePayrollRun', () => {
     // The TGSS golden vector: base 1.424,50 INDEFINIDO full month -> 449,43
     // nominal, 317,23 efectivo (engram payroll/tgss-recibo-golden-vector).
     expect(result.employerTotalEfectivoCents).toBe(cents(31723));
-    // Fed the run's OWN base anchor, not a base resolved a second time.
+    // The surfaced figure equals the pure employer computation on the
+    // surfaced base anchor. The golden-vector assertion above is the real
+    // guard; this one pins the engine to the domain function's output.
     expect(result.employerTotalEfectivoCents).toBe(
       computeEmployerSsFromBase(RATES_2026, result.baseCotizacionCents, SS_DIVISOR, 'INDEFINIDO').totalEfectivoCents,
     );

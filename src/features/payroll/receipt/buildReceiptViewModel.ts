@@ -19,6 +19,7 @@ import {
   computeWorkerSsFromBase,
   resolveBaseCotizacionForGross,
   SS_DIVISOR,
+  type EmployerSsBreakdown,
   type RatesConfig,
 } from '../domain/ssContribution';
 import type {
@@ -192,11 +193,38 @@ function computeDeduccionesDesglose(
   ];
 }
 
+/**
+ * The employer SS breakdown this receipt is computed from: the resolved
+ * cotización inputs and the SS days normalization, fed to the pure domain
+ * function.
+ *
+ * The one place THIS MODULE writes that argument list. The drift detector
+ * checks `run.employerTotalEfectivoCents` against this and the employer block
+ * prints from it, so the figure that is verified and the figure that is
+ * printed agree by construction -- not because two hand-written call sites
+ * happen to match.
+ *
+ * The anchor's other half lives in `engine.ts`, which writes the same call to
+ * produce the stored figure in the first place. Those two cannot be unified:
+ * one runs at payroll time from a `PayrollInput`, the other at print time from
+ * a `PayrollRun`. That pairing is what the detector exists to check, which is
+ * why a mismatch between them is a finding and not an assertion failure.
+ */
+function computeReceiptEmployerSs(
+  run: PayrollRun,
+  cotizacion: ResolvedCotizacionInputs,
+  ratesConfig: RatesConfig,
+): EmployerSsBreakdown {
+  return computeEmployerSsFromBase(ratesConfig, cotizacion.baseCotizacionCents, resolveSsDaysWorked(run), cotizacion.contractType);
+}
+
 type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
 
 /**
  * Reprint drift detector: does the receipt's own recompute still agree with
- * the authoritative persisted `run.ssDeductionCents`?
+ * the persisted figures it can be checked against -- always the worker cuota
+ * `run.ssDeductionCents`, and also the employer cuota efectiva
+ * `run.employerTotalEfectivoCents` when the run carries it?
  *
  * ONE formulation, whose meaning narrows as anchors become available, because
  * it always recomputes from `cotizacion` -- the resolved inputs, anchors
@@ -206,19 +234,34 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  *     later salary or contract edit cannot move the recompute. What stays
  *     detectable is a change to the WORKER side of `SS_RATES_BY_YEAR` for an
  *     already-run year -- an inconsistency an anchor cannot fix, and a real
- *     one: the printed figures would no longer match what was filed.
+ *     one: the printed figures would no longer match what was filed. A run that
+ *     also carries the employer anchor extends this to the EMPLOYER side, up to
+ *     the limit described below.
  *
  *   - **Pre-anchor run** (either column null): the inputs fall back to the
  *     employee's current values, so this remains the original indirect check,
  *     the only drift signal those rows have.
  *
- * The worker comparison alone used to have a blind spot on exactly the figures
- * this block prints: `run.ssDeductionCents` is a WORKER total, so correcting an
- * EMPLOYER rate for an already-run year left it matching and the employer rows
- * reprinted silently at the new rates. A run carrying
- * `employerTotalEfectivoCents` closes that -- its own employer figure is
- * checked the same way, against a recompute at today's rates. A run without it
- * keeps the worker check alone and the blind spot it has always had.
+ * The worker comparison alone has a blind spot on exactly the figures this
+ * block prints: `run.ssDeductionCents` is a WORKER total, so correcting an
+ * EMPLOYER rate for an already-run year leaves it matching and the employer
+ * rows reprint silently at the new rates. A run carrying
+ * `employerTotalEfectivoCents` narrows that -- its own employer figure is
+ * checked the same way, against a recompute at today's rates. The anchor is a
+ * SINGLE rounded scalar, so the check detects any correction that MOVES the
+ * rounded cuota efectiva, and nothing else. Two residuals remain: a correction
+ * whose effect rounds away at the total (most plausibly on a very short
+ * partial-month run), and offsetting corrections across components that cancel
+ * in the total. A zero-day run anchors 0 and recomputes 0, so it can never
+ * detect anything; that is harmless, since such a receipt prints zero cuotas
+ * anyway, but it is agreement, not detection. A run without the anchor keeps
+ * the worker check alone and the full blind spot it has always had.
+ *
+ * Those two residuals are not a weakness of the employer side specifically.
+ * `run.ssDeductionCents` is one rounded scalar over a SUMMED rate, so the
+ * worker comparison above is limited the same way and always has been; it is
+ * spelled out here rather than beside it only because this is where a reader
+ * asks the question.
  *
  * A salary edit no longer produces a note on an anchored run, and that is the
  * point, not an oversight: the reprint is now reproduced from its own period
@@ -278,15 +321,13 @@ function resolveBaseDriftStatus(
   }
 
   if (run.employerTotalEfectivoCents !== null) {
-    // The same pure call `buildEmpleadorCotizacion` makes below, on the same
-    // resolved inputs, so what is checked here is what would be printed there
-    // -- mirroring how the worker recompute above relates to the desglose.
-    const recomputedEmployerTotalCents = computeEmployerSsFromBase(
-      ratesConfig,
-      cotizacion.baseCotizacionCents,
-      resolveSsDaysWorked(run),
-      cotizacion.contractType,
-    ).totalEfectivoCents;
+    // The same helper `buildEmpleadorCotizacion` prints from, so what is
+    // checked here is what would be printed there -- by construction, one call
+    // site for the argument list. The worker side above has no such helper on
+    // purpose: `computeDeduccionesDesglose` does not recompute the cuota at
+    // all, it reconciles its rows to the persisted total, so there is no
+    // second derivation there to unify with this one.
+    const recomputedEmployerTotalCents = computeReceiptEmployerSs(run, cotizacion, ratesConfig).totalEfectivoCents;
 
     if (recomputedEmployerTotalCents !== run.employerTotalEfectivoCents) {
       return 'drifted';
@@ -312,9 +353,9 @@ const NOTA_BASE_NO_COMPROBABLE =
 
 /**
  * Employer "determinación de bases y cuotas" block: maps the flat
- * `computeEmployerSs` record to ordered, labelled rows (the domain knows no
- * labels or order). Only a verified run gets figures; every other state yields
- * a note and no figures.
+ * `EmployerSsBreakdown` record from `computeReceiptEmployerSs` to ordered,
+ * labelled rows (the domain knows no labels or order). Only a verified run
+ * gets figures; every other state yields a note and no figures.
  */
 function buildEmpleadorCotizacion(
   run: PayrollRun,
@@ -333,12 +374,7 @@ function buildEmpleadorCotizacion(
     return { kind: 'unavailable', reason: 'base_not_verifiable', nota: NOTA_BASE_NO_COMPROBABLE };
   }
 
-  const breakdown = computeEmployerSsFromBase(
-    ratesConfig,
-    cotizacion.baseCotizacionCents,
-    resolveSsDaysWorked(run),
-    cotizacion.contractType,
-  );
+  const breakdown = computeReceiptEmployerSs(run, cotizacion, ratesConfig);
   const { employer } = ratesConfig;
   const basePeriodo = formatEuros(breakdown.basePeriodoCents);
 

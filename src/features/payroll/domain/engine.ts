@@ -40,6 +40,11 @@
  * (guarded by a drift-lock test) but remain distinct named constants because
  * they rest on different legal bases -- see `SALARY_DEVENGO_DIVISOR`'s
  * doc-comment.
+ *
+ * Employer figure: the same run also yields the employer's cuota efectiva
+ * (`PayrollResult.employerTotalEfectivoCents`), computed from the base the
+ * worker cuota resolved. It is not part of the net; it exists to be persisted
+ * as the run's employer anchor.
  */
 
 import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
@@ -142,14 +147,14 @@ export interface PayrollResult {
    * The employer's cuota efectiva for this run, surfaced so the caller can
    * persist it as the run's third anchor.
    *
-   * This is the one figure here that is NOT part of the worker's net, and it
-   * is computed in the engine on purpose. The alternative -- having the run
-   * form compute it after the fact -- would force the form to re-derive the
-   * SS days normalization (`prorated ? daysWorked : SS_DIVISOR`) that lives
-   * below, and a second derivation is exactly the disagreement an anchor
-   * exists to prevent. Here it is computed from the base
-   * `computeWorkerSs` ALREADY resolved, so the employer anchor and the worker
-   * cuota provably describe the same period on the same base.
+   * This is the only EMPLOYER-SIDE figure here, and it is computed in the
+   * engine on purpose. The alternative, having the run form compute it after the
+   * fact, would force the form to re-derive the SS days normalization
+   * (`prorated ? daysWorked : SS_DIVISOR`) that lives below, and a second
+   * derivation is exactly the disagreement an anchor exists to prevent. Here it
+   * is computed from the base `computeWorkerSs` ALREADY resolved, so the
+   * employer anchor and the worker cuota provably describe the same period on
+   * the same base.
    */
   readonly employerTotalEfectivoCents: Cents;
 }
@@ -335,7 +340,8 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * Thin orchestrator: resolves the effective run-month period, prorates base
  * gross by the /30 mes-comercial devengo ratio, computes the worker SS cuota
  * via its own /30 ratio, adds the pagas extra component, and derives the net
- * via one exact subtraction.
+ * via one exact subtraction. It also computes the employer's cuota efectiva
+ * from the same resolved base; that figure never enters the net.
  *
  * Devengo days-worked normalization (salary AND SS share the same pattern,
  * spec "SS proration decoupled from salary proration" + this change's spec):
@@ -353,8 +359,9 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * (`PayrollResult.daysInMonth`), never again as a devengo divisor.
  *
  * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
- * when the run month has zero overlapping days, `grossCents`/`ssDeductionCents`
- * safely resolve to zero (never `NaN`/throw) -- but the `INCLUDE_IN_MONTH`
+ * when the run month has zero overlapping days,
+ * `grossCents`/`ssDeductionCents`/`employerTotalEfectivoCents` safely resolve
+ * to zero (never `NaN`/throw) -- but the `INCLUDE_IN_MONTH`
  * semester extra is NOT forced to zero, because it accrues independently of
  * the run month's own day-count.
  */
