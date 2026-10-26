@@ -12,7 +12,7 @@ import {
   semesterBounds,
   type PayrollInput,
 } from './engine';
-import { computeWorkerSs, SS_DIVISOR, SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
+import { computeEmployerSsFromBase, computeWorkerSs, SS_DIVISOR, SS_RATES_BY_YEAR, type RatesConfig } from './ssContribution';
 
 // All amounts below are obviously-fake placeholders (CLAUDE.md §5) -- never
 // real salary figures. `RATES_2026` itself is public BOE data, not PII.
@@ -384,6 +384,63 @@ describe('calculatePayrollRun', () => {
     // resolution could introduce a rounding point the cuota never saw.
     expect(result.baseCotizacionCents).toBe(breakdown.baseCotizacionCents);
     expect(result.baseCotizacionCents).toBe(cents(142450)); // 1221,00 x14/12 -> tramo 8, uncapped
+  });
+
+  it('surfaces the employer cuota efectiva, computed from the SAME base as ssDeductionCents', () => {
+    const result = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: null, bajaDate: null }),
+    );
+
+    // The TGSS golden vector: base 1.424,50 INDEFINIDO full month -> 449,43
+    // nominal, 317,23 efectivo (engram payroll/tgss-recibo-golden-vector).
+    expect(result.employerTotalEfectivoCents).toBe(cents(31723));
+    // Fed the run's OWN base anchor, not a base resolved a second time.
+    expect(result.employerTotalEfectivoCents).toBe(
+      computeEmployerSsFromBase(RATES_2026, result.baseCotizacionCents, SS_DIVISOR, 'INDEFINIDO').totalEfectivoCents,
+    );
+  });
+
+  it('prorates the employer anchor by the SS days, like the worker cuota beside it', () => {
+    const partial = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-07-23' }),
+    );
+
+    expect(partial.daysWorked).toBe(9);
+    expect(partial.employerTotalEfectivoCents).toBe(cents(9517)); // 95,17 EUR at 9/30
+  });
+
+  it('normalizes a non-prorated run to 30/30 for the employer anchor too, never 31/30', () => {
+    // July has 31 days; an unclipped run must still anchor the full-month figure.
+    const full = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: null, bajaDate: null }),
+    );
+
+    expect(full.daysInMonth).toBe(31);
+    expect(full.prorated).toBe(false);
+    expect(full.employerTotalEfectivoCents).toBe(cents(31723));
+  });
+
+  it('anchors the TEMPORAL employer figure when the contract type says so', () => {
+    const result = calculatePayrollRun(
+      baseInput({
+        baseGrossCents: FAKE_BASE_GROSS_SS_PROOF,
+        contractType: 'TEMPORAL',
+        periodMonth: 7,
+        altaDate: null,
+        bajaDate: null,
+      }),
+    );
+
+    expect(result.employerTotalEfectivoCents).toBe(cents(32065)); // 320,65 EUR: the 6,70 % desempleo variant
+  });
+
+  it('anchors a zero employer total on a zero-day run, which is a real value and not an absent one', () => {
+    const noOverlap = calculatePayrollRun(
+      baseInput({ baseGrossCents: FAKE_BASE_GROSS_SS_PROOF, periodMonth: 7, altaDate: '2026-08-01', extraPayMode: 'EXCLUDE' }),
+    );
+
+    expect(noOverlap.daysWorked).toBe(0);
+    expect(noOverlap.employerTotalEfectivoCents).toBe(cents(0));
   });
 
   it('echoes the contract type it was given, so the caller can persist it as the run anchor', () => {

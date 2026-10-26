@@ -88,6 +88,7 @@ describe('PayrollRunForm', () => {
         daysInMonth: 30,
         baseCotizacionCents: cents(97000),
         contractType: 'INDEFINIDO',
+        employerTotalEfectivoCents: cents(21603),
       },
     });
 
@@ -109,6 +110,7 @@ describe('PayrollRunForm', () => {
         daysInMonth: 30,
         baseCotizacionCents: cents(97000),
         contractType: 'INDEFINIDO',
+        employerTotalEfectivoCents: cents(21603),
       },
     });
     expect(rendererProrated.root.findByProps({ testID: 'payroll-run-form-preview-prorated' })).toBeTruthy();
@@ -125,6 +127,7 @@ describe('PayrollRunForm', () => {
         daysInMonth: 30,
         baseCotizacionCents: cents(97000),
         contractType: 'INDEFINIDO',
+        employerTotalEfectivoCents: cents(21603),
       },
     });
     expect(() => rendererFull.root.findByProps({ testID: 'payroll-run-form-preview-prorated' })).toThrow();

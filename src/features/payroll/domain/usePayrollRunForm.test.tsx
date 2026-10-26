@@ -131,9 +131,11 @@ describe('usePayrollRunForm', () => {
       periodEndDate: harness.current.periodEndDate,
       // Cotización anchors: 970,00 EUR is the tramo base behind the 62,08 EUR
       // cuota above (97000 x 640/10000), so the run records the very inputs
-      // its own figures came from.
+      // its own figures came from -- plus the employer cuota efectiva those
+      // same inputs produce (306,04 nominal - 45,78 - 44,23).
       baseCotizacionCents: cents(97000),
       contractType: FAKE_EMPLOYEE.contractType,
+      employerTotalEfectivoCents: cents(21603),
     });
     expect(harness.current.error).toBeNull();
   });
@@ -156,6 +158,7 @@ describe('usePayrollRunForm', () => {
         contractType: 'TEMPORAL',
         baseCotizacionCents: cents(97000), // same tramo base; only the rate differs
         ssDeductionCents: cents(6257), // 6,45 % x 970,00, distinct from the INDEFINIDO 62,08
+        employerTotalEfectivoCents: cents(21836), // the 6,70 % desempleo variant, not the INDEFINIDO 216,03
       }),
     );
   });

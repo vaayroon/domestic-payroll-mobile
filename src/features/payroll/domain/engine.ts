@@ -44,7 +44,7 @@
 
 import { type Cents, addCents, cents, multiplyByRatio, subtractCents } from '@/types/money';
 
-import { computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
+import { computeEmployerSsFromBase, computeWorkerSs, SS_DIVISOR, type ContractType, type RatesConfig } from './ssContribution';
 
 /**
  * Divisor for the salary (and pagas-extra PRORATE) devengo proration: /30,
@@ -138,6 +138,20 @@ export interface PayrollResult {
   readonly baseCotizacionCents: Cents;
   /** Echo of the input contract type, which fixes the desempleo rate, for the caller to persist alongside the base. */
   readonly contractType: ContractType;
+  /**
+   * The employer's cuota efectiva for this run, surfaced so the caller can
+   * persist it as the run's third anchor.
+   *
+   * This is the one figure here that is NOT part of the worker's net, and it
+   * is computed in the engine on purpose. The alternative -- having the run
+   * form compute it after the fact -- would force the form to re-derive the
+   * SS days normalization (`prorated ? daysWorked : SS_DIVISOR`) that lives
+   * below, and a second derivation is exactly the disagreement an anchor
+   * exists to prevent. Here it is computed from the base
+   * `computeWorkerSs` ALREADY resolved, so the employer anchor and the worker
+   * cuota provably describe the same period on the same base.
+   */
+  readonly employerTotalEfectivoCents: Cents;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -357,6 +371,9 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
   const ssDaysWorked = effective.prorated ? effective.daysWorked : SS_DIVISOR;
   const workerSs = computeWorkerSs(ratesConfig, baseGrossCents, ssDaysWorked, contractType);
   const ssDeductionCents = workerSs.proratedWorkerSsCents;
+  // `*FromBase`, fed the base the worker computation just resolved: the
+  // employer anchor must not re-resolve a base of its own.
+  const employerSs = computeEmployerSsFromBase(ratesConfig, workerSs.baseCotizacionCents, ssDaysWorked, contractType);
   const extraCents = resolveExtraPayCents(input);
 
   const grossCents = addCents(proratedBaseCents, extraCents);
@@ -372,5 +389,6 @@ export function calculatePayrollRun(input: PayrollInput): PayrollResult {
     daysInMonth: effective.daysInMonth,
     baseCotizacionCents: workerSs.baseCotizacionCents,
     contractType,
+    employerTotalEfectivoCents: employerSs.totalEfectivoCents,
   };
 }
