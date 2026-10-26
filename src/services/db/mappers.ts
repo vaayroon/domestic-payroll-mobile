@@ -10,6 +10,7 @@
 import { cents, type Cents } from '@/types/money';
 import type {
   AppSetting,
+  ContractType,
   Employee,
   Employer,
   NewEmployee,
@@ -27,6 +28,22 @@ import type {
   PayrollRunInsertRow,
   PayrollRunRow,
 } from './schema';
+
+/**
+ * Narrows a stored contract-type string, treating anything unrecognised as
+ * `null` -- i.e. as "this run is not anchored", which every reader already
+ * handles.
+ *
+ * Drizzle's `enum` is a compile-time type only and the column carries no SQL
+ * CHECK, so the value is whatever is on disk: a row written by a newer build
+ * and read back after a downgrade, or a hand-edited database. Passing it
+ * through unchecked would make `desempleoPer10000[value]` undefined, then
+ * `NaN`, and `cents()` would throw while generating a receipt. Falling back is
+ * strictly better than crashing on a document the user is trying to print.
+ */
+function toContractTypeOrNull(value: string | null): ContractType | null {
+  return value === 'INDEFINIDO' || value === 'TEMPORAL' ? value : null;
+}
 
 // ---------------------------------------------------------------------------
 // Employer
@@ -110,7 +127,7 @@ export function payrollRunRowToDomain(row: PayrollRunRow): PayrollRun {
     periodStartDate: row.periodStartDate,
     periodEndDate: row.periodEndDate,
     baseCotizacionCents: row.baseCotizacionCents === null ? null : cents(row.baseCotizacionCents),
-    contractType: row.contractType,
+    contractType: toContractTypeOrNull(row.contractType),
     createdAt: row.createdAt,
   };
 }

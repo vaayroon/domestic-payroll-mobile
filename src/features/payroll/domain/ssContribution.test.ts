@@ -432,6 +432,26 @@ describe('from-base entry points (design ADR-3)', () => {
     expect(computeEmployerSsFromBase(RATES_2026, BASE_1221, 30, 'INDEFINIDO')).toEqual(anchored);
   });
 
+  it('the WORKER tope máximo cap also applies through the wrapper, not the core', () => {
+    const huge = cents(1_000_000);
+    expect(computeWorkerSs(RATES_2026, huge, 30, 'INDEFINIDO')).toEqual(
+      computeWorkerSsFromBase(RATES_2026, RATES_2026.topeMaxBaseCents, 30, 'INDEFINIDO'),
+    );
+  });
+
+  it('agrees with the wrapper inside a FIXED-base tramo, not just the open-ended 8º', () => {
+    // Tramo 5 maps a RANGE of retribución to one fixed base, which is why a
+    // salary edit inside a tramo moves nothing on the receipt.
+    const g800 = cents(80000); // retribución 933,33 -> tramo 5 -> base 970,00
+    expect(resolveBaseCotizacionForGross(RATES_2026, g800)).toBe(cents(97000));
+    expect(computeWorkerSs(RATES_2026, g800, 30, 'INDEFINIDO')).toEqual(
+      computeWorkerSsFromBase(RATES_2026, cents(97000), 30, 'INDEFINIDO'),
+    );
+    expect(computeEmployerSs(RATES_2026, g800, 9, 'TEMPORAL')).toEqual(
+      computeEmployerSsFromBase(RATES_2026, cents(97000), 9, 'TEMPORAL'),
+    );
+  });
+
   it('the employer tope máximo cap still applies through the wrapper, not the core', () => {
     const huge = cents(1_000_000); // retribución far above the 5.101,20 tope
     expect(resolveBaseCotizacionForGross(RATES_2026, huge)).toBe(RATES_2026.topeMaxBaseCents);

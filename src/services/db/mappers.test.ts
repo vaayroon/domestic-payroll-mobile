@@ -337,6 +337,21 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     expect(domain.contractType).toBe('TEMPORAL');
   });
 
+  it('degrades an unrecognised stored contract type to null instead of letting it reach the rate tables', () => {
+    // The Drizzle enum is compile-time only and the column has no SQL CHECK,
+    // so this is whatever is on disk -- e.g. a row written by a newer build and
+    // read back after a downgrade. Unanchored is a safe answer; a rate lookup
+    // on an unknown key would produce NaN and throw mid-receipt.
+    const domain = payrollRunRowToDomain({
+      ...row,
+      baseCotizacionCents: 115100,
+      contractType: 'FIJO_DISCONTINUO' as unknown as PayrollRunRow['contractType'],
+    });
+
+    expect(domain.contractType).toBeNull();
+    expect(domain.baseCotizacionCents).toBe(cents(115100)); // the base anchor survives on its own
+  });
+
   it('payrollRunInsertFromNew defaults both anchors to null when omitted -- never to INDEFINIDO (design ADR-1)', () => {
     const insertRow = payrollRunInsertFromNew(
       {
@@ -379,7 +394,9 @@ describe('payrollRunRowToDomain / payrollRunInsertFromNew', () => {
     expect(insertRow.contractType).toBe('TEMPORAL');
   });
 
-  it('payrollRunInsertFromNew keeps a zero base as 0, not null (a zero-day run is still anchored)', () => {
+  // Every tramo base is positive, so a real run never carries base 0 -- this
+  // pins the `??` against a `||` that would silently turn 0 into null.
+  it('payrollRunInsertFromNew keeps a zero base as 0, not null (guards ?? against ||)', () => {
     const insertRow = payrollRunInsertFromNew(
       {
         employeeId: 'employee-1',

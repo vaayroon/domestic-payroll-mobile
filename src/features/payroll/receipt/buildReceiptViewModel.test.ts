@@ -947,11 +947,48 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('5,50 %');
       });
 
-      it('without the anchor the SAME edits would move every figure (proves the fixtures bite)', () => {
+      it('without the anchor the SAME edit pins the figures to the EMPLOYEE current base (the defect)', () => {
         const raised: Employee = { ...employeeG1221, baseGrossCents: cents(200000) };
         const unanchored = vm(runG1221FullMonth, raised); // run has null anchors
 
-        expect(unanchored).not.toEqual(vm(runG1221FullMonth, employeeG1221));
+        // Not merely "different": the fallback follows the employee to base
+        // 2.333,33, so the desglose rows are that base's figures while the
+        // total still foots to the period's persisted 91,17.
+        expect(unanchored.deduccionesDesglose[0]?.baseMensual).toBe(eur('2333,33'));
+        expect(unanchored.totalDeducciones).toBe(eur('91,17'));
+        // The anchored build of the same run stays on the period's own base.
+        expect(vm(anchoredRun, raised).deduccionesDesglose[0]?.baseMensual).toBe(eur('1424,50'));
+      });
+
+      it('reprints unchanged from a TEMPORAL anchor even when the employee is now INDEFINIDO', () => {
+        // The reverse of B1.2: the anchor must supply the 6,70 % employer
+        // desempleo rate, not the employee's current 5,50 %.
+        const temporalRun: PayrollRun = {
+          ...anchoredRun,
+          contractType: 'TEMPORAL',
+          ssDeductionCents: cents(9188), // 6,45 % x 1.424,50, the TEMPORAL cuota
+          netCents: cents(122100 - 9188),
+        };
+
+        const block = vm(temporalRun, employeeG1221).empleadorCotizacion; // employee is INDEFINIDO
+
+        expect(block.kind).toBe('figures');
+        expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('6,70 %');
+      });
+
+      it('falls back per input in the other direction too: a contract anchor alone still uses it', () => {
+        const contractOnly: PayrollRun = {
+          ...runG1221FullMonth,
+          baseCotizacionCents: null,
+          contractType: 'TEMPORAL',
+          ssDeductionCents: cents(9188),
+          netCents: cents(122100 - 9188),
+        };
+
+        // Base falls back to the employee's current G-1221 (same 1.424,50),
+        // while the TEMPORAL anchor drives the rate.
+        const block = vm(contractOnly, employeeG1221).empleadorCotizacion;
+        expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('6,70 %');
       });
 
       it('stops the contingencias comunes row from absorbing base drift (B2.1)', () => {
@@ -1002,11 +1039,13 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'figures' && block.totalEfectivo).toBe(eur('317,23'));
       });
 
-      it('leaves a pre-anchor run byte-identical to today (B3.1)', () => {
+      it('anchoring a run to the values it already recomputed to changes nothing (B3.1)', () => {
+        // An un-edited employee makes the fallback and the anchor agree, so the
+        // two builds must be indistinguishable. This is what makes the anchor a
+        // no-op for every receipt that was already correct.
         const nullAnchors = vm(runG1221FullMonth, employeeG1221);
         const anchoredWithTheSameValues = vm(anchoredRun, employeeG1221);
 
-        // Anchoring a run to the values it already recomputed to changes nothing.
         expect(nullAnchors).toEqual(anchoredWithTheSameValues);
       });
     });

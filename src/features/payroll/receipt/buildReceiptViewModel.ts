@@ -127,11 +127,20 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * so the column always foots exactly to the authoritative persisted total --
  * never independently re-rounded into a ±1-2 cent drift.
  *
- * The residual is a ROUNDING reconciliation, at most a cent or two. It used to
- * do double duty, silently absorbing base drift as well whenever the employee's
- * salary had moved since the run -- an arbitrary amount, invisible on the page.
- * Now that `cotizacion` carries the period's own base, the rows and the
- * persisted total come from the same inputs and only the rounding remains.
+ * The residual is meant to be a ROUNDING reconciliation, at most a cent or two.
+ * It used to do double duty, silently absorbing base drift as well whenever the
+ * employee's salary had moved since the run -- an arbitrary amount, invisible
+ * on the page. For an ANCHORED run that is now fixed: the rows and the
+ * persisted total come from the same base, so only the rounding is left.
+ *
+ * Two cases still absorb more than rounding, both pre-existing and neither
+ * made worse here:
+ *   - A pre-anchor run (null columns) whose employee has since been edited.
+ *   - Any run, anchored or not, after a WORKER rate in `SS_RATES_BY_YEAR` is
+ *     corrected for that year: the `tipo` column prints the current rate while
+ *     the cuota is reconciled to the old persisted total, so rate x base no
+ *     longer reproduces the printed figure. The employer block is suppressed
+ *     in that case (see `resolveBaseDriftStatus`); these worker rows are not.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
@@ -195,9 +204,17 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  *
  *   - **Anchored run**: base and contract type come from the run itself, so a
  *     later salary or contract edit cannot move the recompute. What stays
- *     detectable is a change to `SS_RATES_BY_YEAR` for an already-run year --
- *     the one inconsistency an anchor cannot fix, and a real one: the printed
- *     figures would no longer match what was filed.
+ *     detectable is a change to the WORKER side of `SS_RATES_BY_YEAR` for an
+ *     already-run year -- an inconsistency an anchor cannot fix, and a real
+ *     one: the printed figures would no longer match what was filed.
+ *
+ * KNOWN BLIND SPOT, pre-existing and not closed here: the comparison runs
+ * through the WORKER cuota, because `run.ssDeductionCents` is the only
+ * persisted figure to compare against. Correct an EMPLOYER rate or
+ * `topeMaxBaseCents` for an already-run year and the worker recompute still
+ * matches, so the run reports `verified` and the employer block reprints with
+ * the new rates. Closing that needs a persisted employer total, which is a
+ * change of its own.
  *   - **Pre-anchor run** (either column null): the inputs fall back to the
  *     employee's current values, so this remains the original indirect check,
  *     the only drift signal those rows have.
