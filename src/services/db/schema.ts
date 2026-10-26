@@ -62,6 +62,12 @@ export const payrollRuns = sqliteTable(
     daysInMonth: integer('days_in_month').notNull().default(0),
     periodStartDate: text('period_start_date'),
     periodEndDate: text('period_end_date'),
+    // Cotización anchors. Deliberately nullable with NO default, unlike
+    // `employees.contract_type` above: nullability IS the "was this run
+    // anchored?" signal, and a default would make every pre-existing row
+    // read back as an anchored INDEFINIDO run.
+    baseCotizacionCents: integer('base_cotizacion_cents'),
+    contractType: text('contract_type', { enum: ['INDEFINIDO', 'TEMPORAL'] }),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [

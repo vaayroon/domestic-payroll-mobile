@@ -109,11 +109,18 @@ export function payrollRunRowToDomain(row: PayrollRunRow): PayrollRun {
     daysInMonth: row.daysInMonth,
     periodStartDate: row.periodStartDate,
     periodEndDate: row.periodEndDate,
+    baseCotizacionCents: row.baseCotizacionCents === null ? null : cents(row.baseCotizacionCents),
+    contractType: row.contractType,
     createdAt: row.createdAt,
   };
 }
 
 export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, createdAt: number): PayrollRunInsertRow {
+  // Both cotización anchors default to null, NOT to the employee-side
+  // `?? 'INDEFINIDO'` used above: an absent anchor means "this run was never
+  // anchored", which is not the same as "this run was INDEFINIDO".
+  const baseCotizacionCents = input.baseCotizacionCents ?? null;
+
   return {
     id,
     employeeId: input.employeeId,
@@ -128,6 +135,8 @@ export function payrollRunInsertFromNew(input: NewPayrollRun, id: string, create
     daysInMonth: input.daysInMonth,
     periodStartDate: input.periodStartDate ?? null,
     periodEndDate: input.periodEndDate ?? null,
+    baseCotizacionCents: baseCotizacionCents === null ? null : unbrand(baseCotizacionCents),
+    contractType: input.contractType ?? null,
     createdAt,
   };
 }
