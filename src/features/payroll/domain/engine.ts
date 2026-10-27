@@ -8,9 +8,12 @@
  * and unit-testable without a clock.
  *
  * Day-count rule (actual/actual): `daysInMonth(year, month)` returns the real
- * number of days in that month (28-31), so proration ratios are always exact
- * fractions of the calendar, with leap years handled automatically. All ISO
- * date parsing goes through `Date.UTC` on the individual year/month/day parts
+ * number of days in that month (28-31), so every day COUNT in this module is
+ * an exact calendar count, leap years handled automatically. Counting only --
+ * the divisor those counts are divided BY is /30, never `daysInMonth` (see
+ * "SS decoupled proration" below), so a proration ratio is a commercial-month
+ * fraction with a calendar numerator, not a fraction of the real month. All
+ * ISO date parsing goes through `Date.UTC` on the individual year/month/day parts
  * -- never `new Date(str)` (which is local-timezone-dependent) and never a
  * relative "now".
  *
