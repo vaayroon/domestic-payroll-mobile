@@ -129,25 +129,20 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * never independently re-rounded into a ±1-2 cent drift.
  *
  * The residual is meant to be a ROUNDING reconciliation, at most a cent or two.
- * It used to do double duty, silently absorbing base drift as well whenever the
- * employee's salary had moved since the run -- an arbitrary amount, invisible
- * on the page. An ANCHORED run no longer has that problem for the BASE: the
- * rows and the persisted total are computed from the same base.
+ * It used to do double duty, silently absorbing base drift as well -- an
+ * arbitrary amount, invisible on the page. An ANCHORED run no longer has that
+ * problem for the BASE: the rows and the persisted total are computed from the
+ * same base.
  *
- * The residual still absorbs more than rounding whenever the rows are computed
- * from inputs the persisted total was not. Known cases, not an exhaustive
- * list, all pre-existing and none made worse here:
- *   - A pre-anchor run (null columns) whose employee has since been edited.
- *   - A run with no stored `contractType` whose employee's contract has since
- *     changed: the desempleo rate moves while the base does not.
- *   - Any run after a WORKER rate in `SS_RATES_BY_YEAR` is corrected for that
- *     year: the `tipo` column prints the current rate while the cuota is
- *     reconciled to the old persisted total.
- *   - A legacy run (`daysInMonth === 0`) whose persisted cuota was typed by
- *     hand rather than computed, so the rows and the total never shared a
- *     source. `resolveBaseDriftStatus` rule 2 is that same population.
- * These worker rows have no drift guard of their own; the employer block has
- * one (`resolveBaseDriftStatus`).
+ * What the residual cannot do is say which of the two it is. It is
+ * `run.ssDeductionCents` minus the desempleo and MEI rows, and those are
+ * derived from `cotizacion`, the run's SS days and today's `ratesConfig`. When
+ * those are the inputs the persisted total was computed from, what is left is
+ * rounding. When they are not, the difference lands in contingencias comunes at
+ * whatever size it turns out to be, possibly none, and the printed page looks
+ * the same either way. `resolveCotizacionInputs` above decides which inputs
+ * this run gets; `resolveBaseDriftStatus` below withholds the employer block
+ * when it can tell, while these rows are built whenever a `ratesConfig` exists.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,

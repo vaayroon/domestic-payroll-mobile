@@ -15,9 +15,9 @@
  * divides BY depends on the path and is documented at each site: /30 for the
  * run-month salary and SS proration, /180 for the PRORATE pagas extra, and the
  * real semester length for the INCLUDE_IN_MONTH pagas extra. All ISO date
- * parsing goes through `Date.UTC`
- * on the individual year/month/day parts -- never `new Date(str)` (which is
- * local-timezone-dependent) and never a relative "now".
+ * parsing goes through `Date.UTC` on the individual year/month/day parts --
+ * never `new Date(str)` (which is local-timezone-dependent) and never a
+ * relative "now".
  *
  * Semester-accrual convention (see design ADR-1 / decision #674): the pagas
  * extra (June and December) are legally accrued over a natural half-year --
