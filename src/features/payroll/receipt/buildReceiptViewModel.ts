@@ -132,11 +132,14 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * It used to do double duty, silently absorbing base drift as well whenever the
  * employee's salary had moved since the run -- an arbitrary amount, invisible
  * on the page. For an ANCHORED run that is now fixed: the rows and the
- * persisted total come from the same base, so only the rounding is left.
+ * persisted total come from the same base, so only the rounding is left --
+ * barring a worker-rate correction for that year, the second case below.
  *
  * Three cases still absorb more than rounding, all pre-existing and none made
  * worse here:
- *   - A pre-anchor run (null columns) whose employee has since been edited.
+ *   - A pre-anchor run (null columns) whose employee has since been edited in
+ *     a way that MOVES the resolved base. An edit within one tramo, or between
+ *     two above-tope salaries, resolves the same base and absorbs nothing.
  *   - Any run, anchored or not, after a WORKER rate in `SS_RATES_BY_YEAR` is
  *     corrected for that year: the `tipo` column prints the current rate while
  *     the cuota is reconciled to the old persisted total, so rate x base no
@@ -147,7 +150,8 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  *     the employee needed. `resolveBaseDriftStatus` rule 2 is that same
  *     population, and suppresses the employer block for it.
  * Where the employer block can tell, it suppresses itself (see
- * `resolveBaseDriftStatus`); these worker rows never do.
+ * `resolveBaseDriftStatus`); these worker rows have no drift guard of their
+ * own.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,

@@ -8,14 +8,15 @@
  * and unit-testable without a clock.
  *
  * Day-count rule (actual/actual): `daysInMonth(year, month)` returns the real
- * number of days in that month (28-31), so every day COUNT in this module is
- * an exact calendar count, leap years handled automatically. Counting only --
- * the divisor those counts are divided BY is /30, never `daysInMonth` (see
- * "SS decoupled proration" below), so a proration ratio is a commercial-month
- * fraction with a calendar numerator, not a fraction of the real month. All
- * ISO date parsing goes through `Date.UTC` on the individual year/month/day parts
- * -- never `new Date(str)` (which is local-timezone-dependent) and never a
- * relative "now".
+ * number of days in that month (28-31), leap years included. It bounds the run
+ * month -- `clipIntervalToMonth` clamps the interval against it and derives
+ * `prorated` from it -- but it is never a devengo divisor (see "SS decoupled
+ * proration" below). What a ratio divides BY depends on the path and is
+ * documented at each site: /30 for the run-month salary and SS proration,
+ * /180 for the PRORATE pagas extra, and the real semester length for the
+ * INCLUDE_IN_MONTH pagas extra. All ISO date parsing goes through `Date.UTC`
+ * on the individual year/month/day parts -- never `new Date(str)` (which is
+ * local-timezone-dependent) and never a relative "now".
  *
  * Semester-accrual convention (see design ADR-1 / decision #674): the pagas
  * extra (June and December) are legally accrued over a natural half-year --
@@ -37,8 +38,9 @@
  * `RatesConfig`, and `contractType`, and prorated by its own
  * `daysWorked/SS_DIVISOR` (always /30, per TGSS mechanics) ratio. Salary
  * devengo proration (see `SALARY_DEVENGO_DIVISOR` below) now uses the SAME
- * /30 mes-comercial ratio -- the real calendar `daysInMonth` (28-31) is
- * display-only and is NEVER a devengo divisor for either salary or SS.
+ * /30 mes-comercial ratio -- the real calendar `daysInMonth` (28-31) is NEVER
+ * a devengo divisor for either salary or SS, though it does bound the run
+ * month and decide `prorated`.
  * `SALARY_DEVENGO_DIVISOR` and `SS_DIVISOR` are numerically equal by design
  * (guarded by a drift-lock test) but remain distinct named constants because
  * they rest on different legal bases -- see `SALARY_DEVENGO_DIVISOR`'s
@@ -358,8 +360,9 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * example: 9 días feeds BOTH the salary /30 and the SS /30 ratios with the
  * identical numerator AND denominator -- they share the same ratio on
  * partial months, not just the same numerator). The real calendar
- * `daysInMonth` (28-31) survives only as informational display
- * (`PayrollResult.daysInMonth`), never again as a devengo divisor.
+ * `daysInMonth` (28-31) is persisted as `PayrollResult.daysInMonth` and bounds
+ * the month in `clipIntervalToMonth`, but never again acts as a devengo
+ * divisor.
  *
  * Zero-days-worked safety (design ADR-2 / spec "Zero-Days-Worked Safety"):
  * when the run month has zero overlapping days,
