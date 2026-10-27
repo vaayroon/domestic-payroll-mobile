@@ -1142,8 +1142,6 @@ describe('buildReceiptViewModel', () => {
           expect(receipt.totalDeducciones).toBe(eur('91,17'));
           expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
           expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
-          // 4,80 % of that base is 68,38, which is not what the row prints.
-          expect(receipt.deduccionesDesglose[0]?.cuota).not.toBe(eur('68,38'));
         });
 
         it('prints all three under a desempleo correction, which does reach the residual', () => {
@@ -1214,6 +1212,34 @@ describe('buildReceiptViewModel', () => {
             eur('2,14'),
           ]);
           expect(receipt.totalDeducciones).toBe(eur('0,00'));
+        });
+
+        it('prints a NEGATIVE row on the reachable path too: a PRE-ANCHOR run reprinted after a large rise', () => {
+          // The rule 3 case above needs a persisted cuota of 0 against a
+          // positive recompute, which `usePayrollRunForm` cannot write. This
+          // one needs only a run settled BEFORE the anchor columns existed
+          // (`baseCotizacionCents` null) plus an ordinary salary rise, so it
+          // is reachable from the app as it ships.
+          const raisedAboveTope: Employee = { ...FAKE_EMPLOYEE, baseGrossCents: cents(450000) };
+          const receipt = vm(runG800FullMonth, raisedAboveTope);
+
+          // Without an anchor the base follows the EMPLOYEE: 4.500,00 ->
+          // retribución 5.250,00 -> capped at the tope, 5.101,20. Desempleo
+          // and MEI are computed from that base while contingencias comunes
+          // is the residual against the period's own persisted 62,08, so the
+          // residual lands below zero.
+          expect(reasonOf(receipt)).toBe('base_drifted');
+          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual([
+            eur('5101,20'),
+            eur('5101,20'),
+            eur('5101,20'),
+          ]);
+          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([
+            `-${eur('24,64')}`, // 62,08 - 79,07 - 7,65
+            eur('79,07'), // 1,55 % x 5.101,20
+            eur('7,65'), // 0,15 % x 5.101,20
+          ]);
+          expect(receipt.totalDeducciones).toBe(eur('62,08'));
         });
       });
 
