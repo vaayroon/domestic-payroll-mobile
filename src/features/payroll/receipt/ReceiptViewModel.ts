@@ -71,9 +71,49 @@ export interface ReceiptEmpleadorBeneficioRow {
   readonly importe: string;
 }
 
+/**
+ * The annex's base de cotización decomposition: `Importe remuneración mensual`
+ * + `Importe prorrata pagas extraordinarias` = `TOTAL`. Monthly figures, the
+ * same full-month base the worker desglose prints as `Base mensual`. Formatted
+ * display strings only.
+ */
+export interface ReceiptBaseCotizacionDesglosada {
+  readonly kind: 'desglosada';
+  /** Already formatted via `formatEuros`. */
+  readonly remuneracionMensual: string;
+  /** Already formatted via `formatEuros`. */
+  readonly prorrataPagasExtraordinarias: string;
+  /** The base de cotización itself; `remuneracionMensual` + `prorrataPagasExtraordinarias` foots to it exactly. */
+  readonly total: string;
+}
+
+/**
+ * The base is not a retribución (it came from a fixed tramo, or sits on the
+ * tope máximo), so splitting it would print figures that are not true. A note
+ * stands in for the rows and carries no amounts.
+ */
+export interface ReceiptBaseCotizacionNoDesglosable {
+  readonly kind: 'no_desglosable';
+  readonly motivo: 'base_por_tramo' | 'base_en_tope_maximo';
+  /** Spanish note rendered instead of the rows. */
+  readonly nota: string;
+}
+
+/**
+ * A discriminated union so that decomposition rows and the "cannot decompose"
+ * note can never coexist, mirroring `ReceiptEmpleadorCotizacion`.
+ */
+export type ReceiptBaseCotizacion = ReceiptBaseCotizacionDesglosada | ReceiptBaseCotizacionNoDesglosable;
+
 /** The employer block with confident figures: rates present and the base verified. */
 export interface ReceiptEmpleadorCotizacionCifras {
   readonly kind: 'figures';
+  /**
+   * REQUIRED, nested here and nowhere else: the `unavailable` variant cannot
+   * carry a decomposition, so a drifted or unverifiable base can never print
+   * one. Required rather than optional so the builder is forced to decide.
+   */
+  readonly baseCotizacion: ReceiptBaseCotizacion;
   /** The five nominal rows, in display order. */
   readonly filas: readonly ReceiptEmpleadorCuotaRow[];
   /** The two benefit rows, always after the nominal rows. */
