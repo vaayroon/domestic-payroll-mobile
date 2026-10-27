@@ -807,6 +807,27 @@ describe('buildReceiptViewModel', () => {
         expect(block.totalEfectivo).toBe(eur('216,03'));
       });
 
+      it('treats an above-tope salary edit as a true negative too: both retribuciones cap to the same base', () => {
+        // Pre-anchor run (null columns), so the detector recomputes from the
+        // employee's CURRENT salary. 4.500,00 -> retribución 5.250,00 and
+        // 6.000,00 -> retribución 7.000,00 both exceed topeMaxBaseCents
+        // (5.101,20), so `resolveBaseCotizacion` caps both to the same base:
+        // nothing on the receipt moved and there is nothing to flag. Pins the
+        // cap -- without it the edited salary would resolve a larger base and
+        // the run would reprint as `base_drifted`.
+        const runAboveTope: PayrollRun = {
+          ...runG1221FullMonth,
+          grossCents: cents(450000),
+          ssDeductionCents: cents(32648), // 6,40 % x 5.101,20 = 326,48
+          netCents: cents(450000 - 32648),
+        };
+        const block = build(runAboveTope, { ...FAKE_EMPLOYEE, baseGrossCents: cents(600000) });
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.filas[0]?.basePeriodo).toBe(eur('5101,20'));
+        expect(block).toEqual(build(runAboveTope, { ...FAKE_EMPLOYEE, baseGrossCents: cents(450000) }));
+      });
+
       it('never prints "-0,00" on a zero-day run, which is still verified (persisted 0 and recompute 0)', () => {
         const zeroDaysRun: PayrollRun = {
           ...runG1221Partial9,

@@ -57,6 +57,14 @@ describe('resolveBaseCotizacion (tramo boundaries)', () => {
     expect(resolveBaseCotizacion(tramos, topeMaxBaseCents, cents(600000))).toBe(cents(510120));
   });
 
+  it('collapses two different above-tope retribuciones onto the SAME base, so the 8º tramo is not injective', () => {
+    // The open-ended tramo maps retribución to itself only up to the tope.
+    // Above it the mapping is constant, which is why a salary edit between two
+    // above-tope values changes no receipt figure (see `resolveBaseDriftStatus`).
+    expect(resolveBaseCotizacion(tramos, topeMaxBaseCents, cents(525000))).toBe(cents(510120));
+    expect(resolveBaseCotizacion(tramos, topeMaxBaseCents, cents(700000))).toBe(cents(510120));
+  });
+
   it('resolves every intermediate tramo boundary correctly', () => {
     expect(resolveBaseCotizacion(tramos, topeMaxBaseCents, cents(51000))).toBe(cents(43600));
     expect(resolveBaseCotizacion(tramos, topeMaxBaseCents, cents(51001))).toBe(cents(60200));
