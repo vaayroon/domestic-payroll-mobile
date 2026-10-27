@@ -71,7 +71,7 @@ describe('EmployeeForm', () => {
     const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
     expect(texts).toContainEqual('Grupo de cotización (opcional)');
     expect(texts).toContainEqual(
-      'Cópialo del alta o del informe de datos de cotización (IDC) de la Tesorería General de la Seguridad Social. Si no lo conoces, déjalo en blanco.',
+      'En el Sistema Especial de Empleados de Hogar la Tesorería General no suele asignar grupo de cotización: lo normal es dejarlo en blanco. Rellénalo solo si aparece en tu documentación de la Seguridad Social.',
     );
     expect(renderer.root.findByProps({ testID: 'employee-form-grupo-cotizacion' }).props.value).toBe('7');
   });
