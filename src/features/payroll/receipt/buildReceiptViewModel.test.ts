@@ -1,7 +1,7 @@
 import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED } from '@/features/employees/testing/fixtures';
 import type { Employee, Employer, PayrollRun } from '@/types';
-import { cents, multiplyByRatio } from '@/types/money';
+import { cents } from '@/types/money';
 
 import { SS_RATES_BY_YEAR, type RatesConfig } from '../domain/ssContribution';
 import { buildReceiptViewModel } from './buildReceiptViewModel';
@@ -1084,6 +1084,27 @@ describe('buildReceiptViewModel', () => {
 
       const ccCorrectedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
 
+      // The same anchored G-1221 month, now also recording the employer cuota
+      // efectiva it was settled with: 449,43 nominal - 67,24 - 64,96.
+      const employerAnchoredRun: PayrollRun = { ...anchoredRun, employerTotalEfectivoCents: cents(31723) };
+
+      // A correction to the employer contingencias comunes rate for an
+      // already-settled year: 23,60 % -> 23,70 %. The WORKER cuota is
+      // untouched by it, which is what made this invisible before.
+      const correctedEmployerRates: RatesConfig = {
+        ...RATES_2026,
+        employer: { ...RATES_2026.employer, ccPer10000: 2370 },
+      };
+
+      // daysInMonth 0 means the persisted cuota was typed by hand.
+      const legacyAnchored: PayrollRun = {
+        ...anchoredRun,
+        ssDeductionCents: cents(794),
+        prorated: true,
+        daysWorked: 0,
+        daysInMonth: 0,
+      };
+
       it('still reports a rate correction for an already-run year (B4.2)', () => {
         const block = vm(anchoredRun, employeeG1221, ccCorrectedRates).empleadorCotizacion;
 
@@ -1093,6 +1114,9 @@ describe('buildReceiptViewModel', () => {
       // Characterization of current behaviour, not of desired behaviour.
       describe('worker rows while the employer block is withheld', () => {
         const CONCEPTOS = ['Contingencias comunes', 'Desempleo', 'MEI (Mecanismo de Equidad Intergeneracional)'];
+        // The anchored base, full month: every row repeats it in both columns.
+        const BASES_MENSUALES = [eur('1424,50'), eur('1424,50'), eur('1424,50')];
+        const BASES_PERIODO = BASES_MENSUALES;
 
         const desempleoCorrectedRates: RatesConfig = {
           ...RATES_2026,
@@ -1102,18 +1126,8 @@ describe('buildReceiptViewModel', () => {
           },
         };
         const meiCorrectedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, meiPer10000: 25 } };
-        const employerCorrectedRates: RatesConfig = {
-          ...RATES_2026,
-          employer: { ...RATES_2026.employer, ccPer10000: 2370 },
-        };
-        const employerAnchored: PayrollRun = { ...anchoredRun, employerTotalEfectivoCents: cents(31723) };
-        const legacyAnchored: PayrollRun = {
-          ...anchoredRun,
-          ssDeductionCents: cents(794),
-          prorated: true,
-          daysWorked: 0,
-          daysInMonth: 0,
-        };
+        // Detector rule 3: a persisted cuota of 0 against a positive recompute.
+        const zeroCuotaRun: PayrollRun = { ...anchoredRun, ssDeductionCents: cents(0) };
 
         const reasonOf = (receipt: ReceiptViewModel): string | null =>
           receipt.empleadorCotizacion.kind === 'unavailable' ? receipt.empleadorCotizacion.reason : null;
@@ -1126,10 +1140,10 @@ describe('buildReceiptViewModel', () => {
           expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,80 %', '1,55 %', '0,15 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
           expect(receipt.totalDeducciones).toBe(eur('91,17'));
-          expect(receipt.deduccionesDesglose[0]?.baseMensual).toBe(eur('1424,50'));
-          // What the printed 4,80 % tipo would yield on that same base, which
-          // is not what the row beside it prints.
-          expect(multiplyByRatio(cents(142450), 480, 10000)).toBe(cents(6838));
+          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
+          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
+          // 4,80 % of that base is 68,38, which is not what the row prints.
+          expect(receipt.deduccionesDesglose[0]?.cuota).not.toBe(eur('68,38'));
         });
 
         it('prints all three under a desempleo correction, which does reach the residual', () => {
@@ -1138,6 +1152,7 @@ describe('buildReceiptViewModel', () => {
           expect(reasonOf(receipt)).toBe('base_drifted');
           expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,65 %', '0,15 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('65,53'), eur('23,50'), eur('2,14')]);
+          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
           expect(receipt.totalDeducciones).toBe(eur('91,17'));
         });
 
@@ -1147,15 +1162,23 @@ describe('buildReceiptViewModel', () => {
           expect(reasonOf(receipt)).toBe('base_drifted');
           expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,25 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('65,53'), eur('22,08'), eur('3,56')]);
+          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
           expect(receipt.totalDeducciones).toBe(eur('91,17'));
         });
 
         it('prints all three when only the EMPLOYER anchor drifts (detector rule 5)', () => {
-          const receipt = vm(employerAnchored, employeeG1221, employerCorrectedRates);
+          // The worker side of the same run verifies against the same rates,
+          // so the withheld state below comes from the employer anchor alone.
+          expect(vm(anchoredRun, employeeG1221, correctedEmployerRates).empleadorCotizacion.kind).toBe('figures');
+
+          const receipt = vm(employerAnchoredRun, employeeG1221, correctedEmployerRates);
 
           expect(reasonOf(receipt)).toBe('base_drifted');
+          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
           expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
+          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
+          expect(receipt.totalDeducciones).toBe(eur('91,17'));
         });
 
         it('prints all three on a provable-legacy run, where the residual takes the whole typed cuota', () => {
@@ -1163,23 +1186,58 @@ describe('buildReceiptViewModel', () => {
 
           expect(reasonOf(receipt)).toBe('base_not_verifiable');
           expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
+          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('7,94'), eur('0,00'), eur('0,00')]);
+          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
+          // Zero SS days, so the prorated column collapses while the monthly
+          // base above it does not.
+          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual([
+            eur('0,00'),
+            eur('0,00'),
+            eur('0,00'),
+          ]);
           expect(receipt.totalDeducciones).toBe(eur('7,94'));
+        });
+
+        it('prints a NEGATIVE contingencias comunes row when the persisted cuota is 0 (detector rule 3)', () => {
+          const receipt = vm(zeroCuotaRun, employeeG1221);
+
+          expect(reasonOf(receipt)).toBe('base_not_verifiable');
+          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
+          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
+          // Desempleo and MEI are computed from the base, and the residual is
+          // 0 minus both, so the row goes below zero and the minus sign
+          // reaches the page.
+          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([
+            `-${eur('24,22')}`,
+            eur('22,08'),
+            eur('2,14'),
+          ]);
+          expect(receipt.totalDeducciones).toBe(eur('0,00'));
         });
       });
 
-      it('an anchor does NOT override the provable-legacy guard (B5.1)', () => {
-        // daysInMonth 0 means the persisted cuota was typed by hand. That stays
-        // true however the base is resolved, so the guard outranks the anchor.
-        const legacyWithAnchor: PayrollRun = {
+      it('carries the TEMPORAL anchor into the worker rows, not just the employer block (B1.2)', () => {
+        const temporalAnchored: PayrollRun = {
           ...anchoredRun,
-          ssDeductionCents: cents(794),
-          prorated: true,
-          daysWorked: 0,
-          daysInMonth: 0,
+          contractType: 'TEMPORAL',
+          ssDeductionCents: cents(9188), // 6,45 % x 1.424,50
+          netCents: cents(122100 - 9188),
         };
 
-        const block = vm(legacyWithAnchor, employeeG1221).empleadorCotizacion;
+        // The employee is INDEFINIDO; the run's own TEMPORAL anchor must drive
+        // the worker desempleo row, as it does the employer one.
+        const receipt = vm(temporalAnchored, employeeG1221);
+
+        expect(receipt.empleadorCotizacion.kind).toBe('figures');
+        expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,60 %', '0,15 %']);
+        expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,79'), eur('2,14')]);
+      });
+
+      it('an anchor does NOT override the provable-legacy guard (B5.1)', () => {
+        // The typed-cuota provenance stays true however the base is resolved,
+        // so the guard outranks the anchor.
+        const block = vm(legacyAnchored, employeeG1221).empleadorCotizacion;
 
         expect(block.kind === 'unavailable' && block.reason).toBe('base_not_verifiable');
       });
@@ -1194,18 +1252,6 @@ describe('buildReceiptViewModel', () => {
       });
 
       describe('the employer total anchor', () => {
-        // The same anchored G-1221 month, now also recording the employer
-        // cuota efectiva it was settled with: 449,43 nominal - 67,24 - 64,96.
-        const employerAnchoredRun: PayrollRun = { ...anchoredRun, employerTotalEfectivoCents: cents(31723) };
-
-        // A correction to the employer contingencias comunes rate for an
-        // already-settled year: 23,60 % -> 23,70 %. The WORKER cuota is
-        // untouched by it, which is what made this invisible before.
-        const correctedEmployerRates: RatesConfig = {
-          ...RATES_2026,
-          employer: { ...RATES_2026.employer, ccPer10000: 2370 },
-        };
-
         it('reports drift when an employer rate for an already-settled year is corrected', () => {
           const block = vm(employerAnchoredRun, employeeG1221, correctedEmployerRates).empleadorCotizacion;
 
