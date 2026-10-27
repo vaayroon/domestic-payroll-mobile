@@ -27,8 +27,17 @@ const GRUPO_COTIZACION_ERROR_MESSAGES: Record<
   too_long: 'Usa como máximo 40 caracteres.',
 };
 
+/**
+ * The previous wording sent users to look for the group on their alta or IDC, where this
+ * Sistema Especial does not put one: its base comes from the retribution tramo scale, not
+ * from a contribution group (Orden PJC/297/2026 art. 15 never mentions "grupo", and
+ * art. 34 bis of the Reglamento General sobre Cotización is derogado). Confirmed against a
+ * real TGSS "Resolución sobre reconocimiento de alta", which carries the NAF and the CCC
+ * but no group at all. Blank is therefore the expected value here, not a missing one, so
+ * the copy says so instead of framing it as something the user failed to find.
+ */
 const GRUPO_COTIZACION_HELPER_TEXT =
-  'Cópialo del alta o del informe de datos de cotización (IDC) de la Tesorería General de la Seguridad Social. Si no lo conoces, déjalo en blanco.';
+  'En el Sistema Especial de Empleados de Hogar la Tesorería General no suele asignar grupo de cotización: lo normal es dejarlo en blanco. Rellénalo solo si aparece en tu documentación de la Seguridad Social.';
 
 const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGross']>, string> = {
   empty: 'Introduce el salario bruto.',
