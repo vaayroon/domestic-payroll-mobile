@@ -1090,6 +1090,61 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
       });
 
+      // Characterization. `computeDeduccionesDesglose` used to carry these two
+      // facts as prose, and five rounds of review found five versions of that
+      // prose false. They are asserted here instead: a test cannot go false
+      // without failing. None of this is desired behaviour -- it is the
+      // behaviour, recorded so a change to it is visible.
+      describe('what the worker rows do while the employer block is withheld', () => {
+        const ccCorrectedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
+        const desempleoCorrectedRates: RatesConfig = {
+          ...RATES_2026,
+          worker: {
+            ...RATES_2026.worker,
+            desempleoPer10000: { ...RATES_2026.worker.desempleoPer10000, INDEFINIDO: 165 },
+          },
+        };
+
+        it('keeps printing all three rows on the very run whose employer block is withheld', () => {
+          const receipt = vm(anchoredRun, employeeG1221, ccCorrectedRates);
+
+          // The asymmetry: `resolveBaseDriftStatus` gates the employer block
+          // only. These rows have no such gate and are built whenever a
+          // `ratesConfig` exists.
+          expect(receipt.empleadorCotizacion.kind).toBe('unavailable');
+          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual([
+            'Contingencias comunes',
+            'Desempleo',
+            'MEI (Mecanismo de Equidad Intergeneracional)',
+          ]);
+        });
+
+        it('prints the corrected contingencias comunes tipo beside the cuota the OLD rate produced', () => {
+          const rows = vm(anchoredRun, employeeG1221, ccCorrectedRates).deduccionesDesglose;
+
+          // The tipo column follows the rates table while the cuota is the
+          // residual, and the residual is total - desempleo - MEI. A
+          // contingencias comunes correction moves neither of those, so it
+          // absorbs NOTHING: the cuota is still exactly what 4,70 % produced.
+          expect(rows.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
+          // 4,80 % x 1.424,50 = 68,38, so the printed row no longer
+          // reproduces itself from the tipo and base beside it.
+          expect(rows[0]?.tipo).toBe('4,80 %');
+          expect(rows[0]?.baseMensual).toBe(eur('1424,50'));
+        });
+
+        it('does push a desempleo correction into the contingencias comunes row', () => {
+          const rows = vm(anchoredRun, employeeG1221, desempleoCorrectedRates).deduccionesDesglose;
+
+          // 1,55 % -> 1,65 % moves desempleo 22,08 -> 23,50, and the column
+          // still foots to the persisted 91,17, so contingencias comunes gives
+          // up 1,42 against its own 4,70 % figure of 66,95. Only desempleo and
+          // MEI corrections reach the residual this way.
+          expect(rows.map((row) => row.cuota)).toEqual([eur('65,53'), eur('23,50'), eur('2,14')]);
+          expect(rows[0]?.tipo).toBe('4,70 %');
+        });
+      });
+
       it('an anchor does NOT override the provable-legacy guard (B5.1)', () => {
         // daysInMonth 0 means the persisted cuota was typed by hand. That stays
         // true however the base is resolved, so the guard outranks the anchor.
