@@ -130,19 +130,8 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  *
  * The residual is meant to be a ROUNDING reconciliation, at most a cent or two.
  * It used to do double duty, silently absorbing base drift as well -- an
- * arbitrary amount, invisible on the page. An ANCHORED run no longer has that
- * problem for the BASE: the rows and the persisted total are computed from the
- * same base.
- *
- * What the residual cannot do is say which of the two it is. It is
- * `run.ssDeductionCents` minus the desempleo and MEI rows, and those are
- * derived from `cotizacion`, the run's SS days and today's `ratesConfig`. When
- * those are the inputs the persisted total was computed from, what is left is
- * rounding. When they are not, the difference lands in contingencias comunes at
- * whatever size it turns out to be, possibly none, and the printed page looks
- * the same either way. `resolveCotizacionInputs` above decides which inputs
- * this run gets; `resolveBaseDriftStatus` below withholds the employer block
- * when it can tell, while these rows are built whenever a `ratesConfig` exists.
+ * arbitrary amount. An ANCHORED run no longer has that problem for the BASE:
+ * the rows and the persisted total are computed from the same base.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
