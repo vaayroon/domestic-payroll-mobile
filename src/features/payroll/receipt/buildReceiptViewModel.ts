@@ -134,14 +134,20 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * on the page. For an ANCHORED run that is now fixed: the rows and the
  * persisted total come from the same base, so only the rounding is left.
  *
- * Two cases still absorb more than rounding, both pre-existing and neither
- * made worse here:
+ * Three cases still absorb more than rounding, all pre-existing and none made
+ * worse here:
  *   - A pre-anchor run (null columns) whose employee has since been edited.
  *   - Any run, anchored or not, after a WORKER rate in `SS_RATES_BY_YEAR` is
  *     corrected for that year: the `tipo` column prints the current rate while
  *     the cuota is reconciled to the old persisted total, so rate x base no
- *     longer reproduces the printed figure. The employer block is suppressed
- *     in that case (see `resolveBaseDriftStatus`); these worker rows are not.
+ *     longer reproduces the printed figure.
+ *   - A legacy run (`daysInMonth === 0`) whose persisted cuota was typed by
+ *     hand rather than computed, so the rows and the total never shared a
+ *     source: the residual absorbs an arbitrary difference, with no edit to
+ *     the employee needed. `resolveBaseDriftStatus` rule 2 is that same
+ *     population, and suppresses the employer block for it.
+ * Where the employer block can tell, it suppresses itself (see
+ * `resolveBaseDriftStatus`); these worker rows never do.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
@@ -264,13 +270,20 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  * and is correct. Flagging it would be the repaired defect returning as a
  * caution label.
  *
- * The fallback path is sound, not lucky: tramos 1-7 map a RANGE of retribución
- * to a FIXED base, so an edit inside one tramo changes nothing on the receipt.
- * The apparent false negative is a true negative. A cross-tramo edit, or any
- * edit in the open-ended 8º tramo, moves the cuota and is caught.
+ * The fallback path's apparent false negatives are true negatives, not luck.
+ * `resolveBaseCotizacion` maps a RANGE of retribución to one base twice over:
+ * tramos 1-7 each map their whole range to a FIXED base, and every result is
+ * then capped at `topeMaxBaseCents`. So a salary edit within a single tramo --
+ * or between two retribuciones that BOTH exceed the tope, the open-ended 8º
+ * tramo included -- resolves to the same base, and the reprint it produces is
+ * still the correct one. An edit that does move the resolved base is caught
+ * when it moves the rounded cuota, under the single-scalar limits above.
  *
  * Rules, evaluated in this order:
- *   1. No `RatesConfig`: nothing to recompute with.
+ *   1. No `RatesConfig`, hence no resolved `cotizacion`: nothing to recompute
+ *      with. The two are guarded together because they arrive together --
+ *      `buildReceiptViewModel` resolves `cotizacion` only when it has a
+ *      config.
  *   2. `daysInMonth === 0`: a provable legacy run. The engine never emits 0
  *      (always 28-31), so this is a pre-migration-0002 row backfilled to 0,
  *      whose persisted cuota was typed by hand and never came from
