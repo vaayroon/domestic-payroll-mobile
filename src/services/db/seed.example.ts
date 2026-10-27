@@ -27,5 +27,6 @@ export const DEV_SEED: DevSeed = {
     active: true,
     altaDate: null,
     bajaDate: null,
+    grupoCotizacion: 'GRUPO-EJEMPLO',
   },
 };

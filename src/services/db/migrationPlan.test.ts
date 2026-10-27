@@ -91,4 +91,16 @@ describe('generated migration bundle', () => {
     expect(anchorMigration).not.toMatch(/\bNOT\s+NULL\b/i);
     expect(anchorMigration).not.toMatch(/\bDEFAULT\b/i);
   });
+
+  it('adds grupo_cotizacion as a nullable column with no default and no backfill', () => {
+    // Located by content, not by migration number, so the test survives renumbering.
+    const grupoMigration = Object.values(migrations.migrations).find((sql) => sql.includes('grupo_cotizacion'));
+
+    expect(grupoMigration).toBeDefined();
+    expect(grupoMigration).toContain('ALTER TABLE `employees` ADD `grupo_cotizacion` text');
+    // null means "not on file"; a default or a backfill would invent a group.
+    expect(grupoMigration).not.toMatch(/\bNOT\s+NULL\b/i);
+    expect(grupoMigration).not.toMatch(/\bDEFAULT\b/i);
+    expect(grupoMigration).not.toMatch(/\bUPDATE\b/i);
+  });
 });

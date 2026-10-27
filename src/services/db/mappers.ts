@@ -89,6 +89,8 @@ export function employeeRowToDomain(row: EmployeeRow): Employee {
     altaDate: row.altaDate,
     bajaDate: row.bajaDate,
     contractType: row.contractType,
+    // Free text, so there is nothing to narrow it to: null stays null.
+    grupoCotizacion: row.grupoCotizacion,
   };
 }
 
@@ -104,6 +106,8 @@ export function employeeInsertFromNew(input: NewEmployee, id: string): EmployeeI
     altaDate: input.altaDate ?? null,
     bajaDate: input.bajaDate ?? null,
     contractType: input.contractType ?? 'INDEFINIDO',
+    // Absent means "not on file" (null), never '' and never a default group.
+    grupoCotizacion: input.grupoCotizacion ?? null,
   };
 }
 

@@ -67,6 +67,13 @@ export interface Employee {
   readonly altaDate: string | null;
   readonly bajaDate: string | null;
   readonly contractType: ContractType;
+  /**
+   * Grupo de cotización exactly as the TGSS assigned it (free text: a code, or a
+   * code plus a description). `null` means "not on file", which is what every
+   * employee created before this field existed reads back as. It is never
+   * derived, defaulted or backfilled.
+   */
+  readonly grupoCotizacion: string | null;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -81,6 +88,8 @@ export interface NewEmployee {
   readonly bajaDate?: string | null;
   /** Defaults to `'INDEFINIDO'` when omitted (matches the DB column's default; see `mappers.ts`). */
   readonly contractType?: ContractType;
+  /** Defaults to `null` ("not on file") when omitted; never to a group. */
+  readonly grupoCotizacion?: string | null;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

@@ -7,6 +7,17 @@
 import { parseEuroInput, validateNaf, validateNifNie, type EuroParseError } from '@/core';
 import type { ContractType, NewEmployee } from '@/types/domain';
 
+/**
+ * Longest `grupoCotizacion` the form accepts, in characters after trimming.
+ *
+ * This is a LAYOUT bound, not a legal rule: it only protects the boxed worker
+ * cell on the printed receipt from a pasted paragraph. No norm limits the
+ * length of the value, and a TGSS document commonly prints a code plus a
+ * description, which is why the bound is generous and nothing else about the
+ * value is checked.
+ */
+export const GRUPO_COTIZACION_MAX_LENGTH = 40;
+
 export interface EmployeeFormInput {
   readonly name: string;
   readonly nif: string;
@@ -14,6 +25,8 @@ export interface EmployeeFormInput {
   readonly baseGross: string;
   readonly alta: string;
   readonly baja: string;
+  /** Free text as the TGSS assigned it. Empty or whitespace-only means "not on file" (`null`). */
+  readonly grupoCotizacion: string;
   /** `''` means "not yet chosen" -- the form MUST require an explicit INDEFINIDO/TEMPORAL choice (spec "Employee.contractType"). */
   readonly contractType: ContractType | '';
 }
@@ -26,6 +39,7 @@ export interface EmployeeFormErrors {
   alta?: 'invalid_date';
   baja?: 'invalid_date' | 'before_alta';
   contractType?: 'required';
+  grupoCotizacion?: 'too_long';
 }
 
 export type ValidateEmployeeResult = { ok: true; value: NewEmployee } | { ok: false; errors: EmployeeFormErrors };
@@ -125,6 +139,14 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.contractType = 'required';
   }
 
+  // The value is assigned by the TGSS and cannot be derived or verified, so it
+  // is deliberately free text: no 1-11 check and no pattern. Only the layout
+  // bound applies (see `GRUPO_COTIZACION_MAX_LENGTH`).
+  const grupoCotizacionTrimmed = input.grupoCotizacion.trim();
+  if (grupoCotizacionTrimmed.length > GRUPO_COTIZACION_MAX_LENGTH) {
+    errors.grupoCotizacion = 'too_long';
+  }
+
   if (
     errors.name !== undefined ||
     errors.nif !== undefined ||
@@ -132,7 +154,8 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.baseGross !== undefined ||
     errors.alta !== undefined ||
     errors.baja !== undefined ||
-    errors.contractType !== undefined
+    errors.contractType !== undefined ||
+    errors.grupoCotizacion !== undefined
   ) {
     return { ok: false, errors };
   }
@@ -160,6 +183,7 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
       altaDate,
       bajaDate,
       contractType: input.contractType,
+      grupoCotizacion: grupoCotizacionTrimmed === '' ? null : grupoCotizacionTrimmed,
     },
   };
 }

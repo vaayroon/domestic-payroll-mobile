@@ -14,7 +14,7 @@ async function renderForm(props: EmployeeFormProps): Promise<ReactTestRenderer> 
 }
 
 const baseProps: EmployeeFormProps = {
-  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', contractType: 'INDEFINIDO' },
+  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
   errors: {},
   onChangeField: () => {},
   onSubmit: () => {},
@@ -60,6 +60,38 @@ describe('EmployeeForm', () => {
 
     const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
     expect(texts).toContainEqual('NAF no válido.');
+  });
+
+  it('renders the grupo de cotización field with its label, helper text and current value', async () => {
+    const renderer = await renderForm({
+      ...baseProps,
+      values: { ...baseProps.values, grupoCotizacion: '7' },
+    });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('Grupo de cotización (opcional)');
+    expect(texts).toContainEqual(
+      'Cópialo del alta o del informe de datos de cotización (IDC) de la Tesorería General de la Seguridad Social. Si no lo conoces, déjalo en blanco.',
+    );
+    expect(renderer.root.findByProps({ testID: 'employee-form-grupo-cotizacion' }).props.value).toBe('7');
+  });
+
+  it('fires onChangeField with the typed grupo de cotización', async () => {
+    const onChangeField = jest.fn();
+    const renderer = await renderForm({ ...baseProps, onChangeField });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'employee-form-grupo-cotizacion' }).props.onChangeText('7');
+    });
+
+    expect(onChangeField).toHaveBeenCalledWith('grupoCotizacion', '7');
+  });
+
+  it('maps the grupoCotizacion too_long error code to a Spanish message', async () => {
+    const renderer = await renderForm({ ...baseProps, errors: { grupoCotizacion: 'too_long' } });
+
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('Usa como máximo 40 caracteres.');
   });
 
   it('renders the alta/baja date inputs with their current values', async () => {

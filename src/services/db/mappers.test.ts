@@ -84,6 +84,7 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     altaDate: null,
     bajaDate: null,
     contractType: 'INDEFINIDO',
+    grupoCotizacion: null,
   };
 
   it('brands baseGrossCents as Cents on the way out of the DB', () => {
@@ -119,7 +120,24 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
       altaDate: null,
       bajaDate: null,
       contractType: 'INDEFINIDO',
+      grupoCotizacion: null,
     });
+  });
+
+  it('maps a null grupo_cotizacion (every pre-existing row) to null, not an empty string', () => {
+    expect(employeeRowToDomain({ ...row, grupoCotizacion: null }).grupoCotizacion).toBeNull();
+  });
+
+  it('passes a stored grupo_cotizacion through unchanged', () => {
+    expect(employeeRowToDomain({ ...row, grupoCotizacion: '7' }).grupoCotizacion).toBe('7');
+  });
+
+  it('defaults grupoCotizacion to null, not an empty string, on insert when omitted', () => {
+    const insertRow = employeeInsertFromNew(
+      { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100) },
+      'employee-1',
+    );
+    expect(insertRow.grupoCotizacion).toBeNull();
   });
 
   it('defaults contractType to INDEFINIDO and honors an explicit TEMPORAL', () => {

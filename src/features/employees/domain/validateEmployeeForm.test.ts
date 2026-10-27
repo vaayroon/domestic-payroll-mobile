@@ -1,6 +1,10 @@
 import { cents } from '@/types/money';
 
-import { parseIsoDate, validateEmployeeForm } from './validateEmployeeForm';
+import {
+  GRUPO_COTIZACION_MAX_LENGTH,
+  parseIsoDate,
+  validateEmployeeForm,
+} from './validateEmployeeForm';
 
 // Obviously-fake placeholder identifiers only (CLAUDE.md §6 — no real PII).
 const FAKE_EMPLOYER_ID = 'employer-fake-1';
@@ -8,7 +12,7 @@ const FAKE_EMPLOYER_ID = 'employer-fake-1';
 describe('validateEmployeeForm', () => {
   it('accepts a valid form with NIF/NAF blank', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -23,13 +27,14 @@ describe('validateEmployeeForm', () => {
         altaDate: null,
         bajaDate: null,
         contractType: 'INDEFINIDO',
+        grupoCotizacion: null,
       },
     });
   });
 
   it('accepts a valid form with contractType TEMPORAL', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'TEMPORAL' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'TEMPORAL' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -41,7 +46,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a blank contractType as required', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -57,6 +62,7 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '',
         baja: '',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
@@ -71,7 +77,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a malformed NIF as invalid', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '12345678A', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '12345678A', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -80,7 +86,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a malformed NAF as invalid', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '123', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '123', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -89,7 +95,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an empty name', () => {
     const result = validateEmployeeForm(
-      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -98,7 +104,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a zero base gross as not_positive', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -107,7 +113,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an invalid base gross and forwards the parse error', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -116,7 +122,7 @@ describe('validateEmployeeForm', () => {
 
   it('reports both errors when name and base gross are both invalid', () => {
     const result = validateEmployeeForm(
-      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -132,6 +138,7 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '2026-07-23',
         baja: '2026-12-31',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
@@ -148,6 +155,7 @@ describe('validateEmployeeForm', () => {
         altaDate: '2026-07-23',
         bajaDate: '2026-12-31',
         contractType: 'INDEFINIDO',
+        grupoCotizacion: null,
       },
     });
   });
@@ -161,6 +169,7 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '2026-07-23',
         baja: '2026-07-23',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
@@ -178,6 +187,7 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '2026-12-31',
         baja: '2026-07-23',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
@@ -188,7 +198,7 @@ describe('validateEmployeeForm', () => {
 
   it('accepts both alta and baja absent', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -208,6 +218,7 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '23-07-2026',
         baja: '',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
@@ -225,12 +236,87 @@ describe('validateEmployeeForm', () => {
         baseGross: '900',
         alta: '',
         baja: '2026-02-30',
+        grupoCotizacion: '',
         contractType: 'INDEFINIDO',
       },
       FAKE_EMPLOYER_ID,
     );
 
     expect(result).toEqual({ ok: false, errors: { baja: 'invalid_date' } });
+  });
+});
+
+describe('validateEmployeeForm grupoCotizacion', () => {
+  const validInput = {
+    name: 'Empleado de Prueba',
+    nif: '',
+    naf: '',
+    baseGross: '900',
+    alta: '',
+    baja: '',
+    grupoCotizacion: '',
+    contractType: 'INDEFINIDO',
+  } as const;
+
+  it.each([
+    ['', null],
+    ['   ', null],
+    ['  7  ', '7'],
+  ])('trims %j and maps empty to null (got %j)', (raw, expected) => {
+    const result = validateEmployeeForm({ ...validInput, grupoCotizacion: raw }, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.grupoCotizacion).toBe(expected);
+    }
+  });
+
+  it('accepts exactly the 40-character layout bound unchanged', () => {
+    const forty = 'x'.repeat(GRUPO_COTIZACION_MAX_LENGTH);
+    const result = validateEmployeeForm({ ...validInput, grupoCotizacion: forty }, FAKE_EMPLOYER_ID);
+
+    expect(GRUPO_COTIZACION_MAX_LENGTH).toBe(40);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.grupoCotizacion).toBe(forty);
+    }
+  });
+
+  it('rejects 41 characters with too_long', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, grupoCotizacion: 'x'.repeat(41) },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { grupoCotizacion: 'too_long' } });
+  });
+
+  it('measures the bound after trimming, not before', () => {
+    const padded = `  ${'x'.repeat(40)}  `;
+    const result = validateEmployeeForm({ ...validInput, grupoCotizacion: padded }, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it.each(['1', '11', 'Grupo 10 — Peones', 'abc'])(
+    'accepts %j: the value is free text, there is no format or 1-11 check',
+    (raw) => {
+      const result = validateEmployeeForm({ ...validInput, grupoCotizacion: raw }, FAKE_EMPLOYER_ID);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.grupoCotizacion).toBe(raw);
+      }
+    },
+  );
+
+  it('accumulates a too_long group with an invalid NIF', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, nif: '12345678A', grupoCotizacion: 'x'.repeat(41) },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { nif: 'invalid', grupoCotizacion: 'too_long' } });
   });
 });
 

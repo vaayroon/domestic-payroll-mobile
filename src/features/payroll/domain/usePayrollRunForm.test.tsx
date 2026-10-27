@@ -40,6 +40,7 @@ const FAKE_EMPLOYEE: Employee = {
   altaDate: null,
   bajaDate: null,
   contractType: 'INDEFINIDO',
+  grupoCotizacion: null,
 };
 
 function notImplemented(method: string): () => never {

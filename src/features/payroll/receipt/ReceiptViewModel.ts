@@ -5,6 +5,18 @@
  * already-formatted strings.
  */
 
+/**
+ * The worker's professional group, a fixed description of this regime printed
+ * under the annex's `Grupo profesional` denomination.
+ *
+ * `as const` is load-bearing: `ReceiptViewModel['trabajador']['grupoProfesional']`
+ * is typed as this literal, NOT `string`, so the employee's stored (free text)
+ * `grupoCotizacion` cannot be assigned into the professional-group slot. Both
+ * slots hold a string, so without the literal type a mis-wire would compile.
+ * Do not widen it to `string` for convenience; that silently removes the guard.
+ */
+export const GRUPO_PROFESIONAL = 'Empleado/a de Hogar' as const;
+
 export interface ReceiptLineItem {
   readonly label: string;
   /** Already formatted via `formatEuros` (e.g. "900,00 €"). */
@@ -59,9 +71,49 @@ export interface ReceiptEmpleadorBeneficioRow {
   readonly importe: string;
 }
 
+/**
+ * The annex's base de cotización decomposition: `Importe remuneración mensual`
+ * + `Importe prorrata pagas extraordinarias` = `TOTAL`. Monthly figures, the
+ * same full-month base the worker desglose prints as `Base mensual`. Formatted
+ * display strings only.
+ */
+export interface ReceiptBaseCotizacionDesglosada {
+  readonly kind: 'desglosada';
+  /** Already formatted via `formatEuros`. */
+  readonly remuneracionMensual: string;
+  /** Already formatted via `formatEuros`. */
+  readonly prorrataPagasExtraordinarias: string;
+  /** The base de cotización itself; `remuneracionMensual` + `prorrataPagasExtraordinarias` foots to it exactly. */
+  readonly total: string;
+}
+
+/**
+ * The base is not a retribución (it came from a fixed tramo, or sits on the
+ * tope máximo), so splitting it would print figures that are not true. A note
+ * stands in for the rows and carries no amounts.
+ */
+export interface ReceiptBaseCotizacionNoDesglosable {
+  readonly kind: 'no_desglosable';
+  readonly motivo: 'base_por_tramo' | 'base_en_tope_maximo';
+  /** Spanish note rendered instead of the rows. */
+  readonly nota: string;
+}
+
+/**
+ * A discriminated union so that decomposition rows and the "cannot decompose"
+ * note can never coexist, mirroring `ReceiptEmpleadorCotizacion`.
+ */
+export type ReceiptBaseCotizacion = ReceiptBaseCotizacionDesglosada | ReceiptBaseCotizacionNoDesglosable;
+
 /** The employer block with confident figures: rates present and the base verified. */
 export interface ReceiptEmpleadorCotizacionCifras {
   readonly kind: 'figures';
+  /**
+   * REQUIRED, nested here and nowhere else: the `unavailable` variant cannot
+   * carry a decomposition, so a drifted or unverifiable base can never print
+   * one. Required rather than optional so the builder is forced to decide.
+   */
+  readonly baseCotizacion: ReceiptBaseCotizacion;
   /** The five nominal rows, in display order. */
   readonly filas: readonly ReceiptEmpleadorCuotaRow[];
   /** The two benefit rows, always after the nominal rows. */
@@ -121,6 +173,12 @@ export interface ReceiptViewModel {
     readonly nif: string;
     /** `"—"` when the employee has no NAF on file. */
     readonly naf: string;
+    /** The annex's `Grupo profesional`: always `GRUPO_PROFESIONAL`, never the employee's own data. */
+    readonly grupoProfesional: typeof GRUPO_PROFESIONAL;
+    /**
+     * The annex's `Grupo de cotización`: the value stored on the employee, or
+     * `"—"` when none is on file. Never a default group.
+     */
     readonly grupoCotizacion: string;
   };
   readonly periodo: {

@@ -64,6 +64,13 @@
       "when": 1793022123455,
       "tag": "0008_woozy_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793039118406,
+      "tag": "0009_whole_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

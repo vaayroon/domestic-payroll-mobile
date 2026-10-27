@@ -5,6 +5,7 @@ import { cents } from '@/types/money';
 
 import { SS_RATES_BY_YEAR, type RatesConfig } from '../domain/ssContribution';
 import { buildReceiptViewModel } from './buildReceiptViewModel';
+import { GRUPO_PROFESIONAL, type ReceiptBaseCotizacion, type ReceiptEmpleadorCotizacion, type ReceiptViewModel } from './ReceiptViewModel';
 
 // `Intl.NumberFormat('es-ES', ...)` inserts a NON-BREAKING SPACE (U+00A0,
 // not a regular space) between the amount and the `€` symbol.
@@ -35,6 +36,7 @@ const FAKE_EMPLOYEE: Employee = {
   altaDate: null,
   bajaDate: null,
   contractType: 'INDEFINIDO',
+  grupoCotizacion: null,
 };
 
 const FAKE_RUN: PayrollRun = {
@@ -173,6 +175,58 @@ describe('buildReceiptViewModel', () => {
 
     expect(vm.trabajador.nif).toBe('—');
     expect(vm.trabajador.naf).toBe('—');
+  });
+
+  describe('worker group fields (spec W2, W3)', () => {
+    function buildFor(employee: Employee): ReceiptViewModel {
+      return buildReceiptViewModel({
+        run: FAKE_RUN,
+        employee,
+        employer: FAKE_EMPLOYER,
+        issuedOnIso: '2026-08-04',
+        ratesConfig: null,
+        employerSignatureBase64: null,
+      });
+    }
+
+    it('pins grupoProfesional to a literal type, so an employee string cannot enter that slot (W2.1)', () => {
+      const employeeString: string = FAKE_EMPLOYEE.grupoCotizacion ?? '';
+
+      // If `grupoProfesional` were ever widened to `string`, this suppression
+      // would itself fail to compile. That failure is the alarm: do not delete
+      // the directive to "fix" it, restore the literal type instead.
+      // @ts-expect-error -- a plain string must not be assignable to the professional-group slot
+      const slot: ReceiptViewModel['trabajador']['grupoProfesional'] = employeeString;
+
+      expect(slot).toBe(employeeString);
+    });
+
+    it.each([null, '7', 'Grupo 10 — Peones'])(
+      'always prints the fixed grupo profesional, whatever the stored grupo de cotización is (%j) (W2.2)',
+      (grupoCotizacion) => {
+        const vm = buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion });
+
+        expect(vm.trabajador.grupoProfesional).toBe(GRUPO_PROFESIONAL);
+        expect(vm.trabajador.grupoProfesional).toBe('Empleado/a de Hogar');
+      },
+    );
+
+    it('echoes the stored grupo de cotización (W3.1)', () => {
+      expect(buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: '7' }).trabajador.grupoCotizacion).toBe('7');
+    });
+
+    it('echoes a long mixed value untouched (W3.3)', () => {
+      expect(
+        buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: 'Grupo 10 — Peones' }).trabajador.grupoCotizacion,
+      ).toBe('Grupo 10 — Peones');
+    });
+
+    it('renders the placeholder, never a default group, when none is on file (W3.2)', () => {
+      const vm = buildFor({ ...FAKE_EMPLOYEE, grupoCotizacion: null });
+
+      expect(vm.trabajador.grupoCotizacion).toBe('—');
+      expect(vm.trabajador.grupoCotizacion).not.toBe(vm.trabajador.grupoProfesional);
+    });
   });
 
   it('injects the issue date into lugarYFecha and never reads the system clock (SC3)', () => {
@@ -1187,6 +1241,189 @@ describe('buildReceiptViewModel', () => {
         const anchoredWithTheSameValues = vm(anchoredRun, employeeG1221);
 
         expect(nullAnchors).toEqual(anchoredWithTheSameValues);
+      });
+    });
+
+    describe('base de cotización decomposition (spec R1-R4, R8, X5)', () => {
+      const NOTA_BASE_POR_TRAMO =
+        'La base de cotización de este período procede del tramo de retribución que le corresponde en la escala del Sistema Especial para Empleados de Hogar, por lo que no coincide con la retribución mensual y no se desglosa en remuneración y prorrata de pagas extraordinarias.';
+      const NOTA_BASE_EN_TOPE_MAXIMO =
+        'La base de cotización de este período coincide con el tope máximo de cotización, por lo que no es posible determinar si corresponde a la retribución mensual íntegra y no se desglosa.';
+
+      // Anchored runs whose worker cuota is consistent with the anchored base
+      // (INDEFINIDO, full month: 6,40 % of the base), so each one verifies.
+      const anchoredAt = (baseCents: number, ssDeductionCents: number): PayrollRun => ({
+        ...runG1221FullMonth,
+        baseCotizacionCents: cents(baseCents),
+        contractType: 'INDEFINIDO',
+        ssDeductionCents: cents(ssDeductionCents),
+        netCents: cents(122100 - ssDeductionCents),
+      });
+      const runBase142450 = anchoredAt(142450, 9117);
+      const runBase115100 = anchoredAt(115100, 7366); // 6,40 % x 1.151,00 = 73,664 -> 73,66
+      const runBase510120 = anchoredAt(510120, 32648); // 6,40 % x 5.101,20 = 326,4768 -> 326,48
+
+      const baseOf = (run: PayrollRun, employee: Employee, ratesConfig: RatesConfig | null = RATES_2026) => {
+        const block = build(run, employee, ratesConfig);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+        return block.baseCotizacion;
+      };
+
+      it('R1.1 maps each branch: desglosada at 142450, base_por_tramo at 115100, base_en_tope_maximo at 510120', () => {
+        expect(baseOf(runBase142450, employeeG1221)).toEqual({
+          kind: 'desglosada',
+          remuneracionMensual: eur('1221,00'),
+          prorrataPagasExtraordinarias: eur('203,50'),
+          total: eur('1424,50'),
+        });
+        expect(baseOf(runBase115100, employeeG1221)).toMatchObject({ kind: 'no_desglosable', motivo: 'base_por_tramo' });
+        expect(baseOf(runBase510120, employeeG1221)).toMatchObject({ kind: 'no_desglosable', motivo: 'base_en_tope_maximo' });
+      });
+
+      it('R1.2 the union is structural: the unavailable variant cannot carry a decomposition, and the two variants cannot mix', () => {
+        const unavailable: ReceiptEmpleadorCotizacion = {
+          kind: 'unavailable',
+          reason: 'rates_unavailable',
+          nota: 'x',
+          // @ts-expect-error -- only the figures variant carries a decomposition
+          baseCotizacion: { kind: 'no_desglosable', motivo: 'base_por_tramo', nota: 'x' },
+        };
+        const mixed: ReceiptBaseCotizacion = {
+          kind: 'desglosada',
+          remuneracionMensual: 'a',
+          prorrataPagasExtraordinarias: 'b',
+          total: 'c',
+          // @ts-expect-error -- a desglosada decomposition cannot carry a nota
+          nota: 'x',
+        };
+        expect(unavailable.kind).toBe('unavailable');
+        expect(mixed.kind).toBe('desglosada');
+      });
+
+      it('R2.1 ANTI-DRIFT LOCK: a run anchored at 142450 decomposes 1.221,00 / 203,50 / 1.424,50 whatever the employee earns now', () => {
+        // The employee is currently at 800,00 gross: retribución 933,33, tramo 5,
+        // base 970,00. The run's own anchor must win; nothing may come from 970,00.
+        const block = build(runBase142450, employeeG800);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.baseCotizacion).toEqual({
+          kind: 'desglosada',
+          remuneracionMensual: eur('1221,00'),
+          prorrataPagasExtraordinarias: eur('203,50'),
+          total: eur('1424,50'),
+        });
+        // 970,00 x 12/14 = 831,43 and the 138,57 prorrata: none may appear.
+        const serialized = JSON.stringify(block.baseCotizacion);
+        for (const forbidden of ['970,00', '831,43', '138,57']) {
+          expect(serialized).not.toContain(forbidden);
+        }
+      });
+
+      it('R2.2 reverse direction: a run anchored at 115100 stays a tramo base even if the employee now earns tramo 8 money', () => {
+        expect(baseOf(runBase115100, employeeG1221)).toMatchObject({ kind: 'no_desglosable', motivo: 'base_por_tramo' });
+      });
+
+      it('R3.2 the decomposition TOTAL is the full-month base the worker desglose already prints as Base mensual', () => {
+        const vm = buildReceiptViewModel({
+          run: runBase142450,
+          employee: employeeG800,
+          employer: FAKE_EMPLOYER,
+          issuedOnIso: '2026-08-04',
+          ratesConfig: RATES_2026,
+          employerSignatureBase64: null,
+        });
+        const cotizacion = vm.empleadorCotizacion;
+        expect(cotizacion.kind === 'figures' && cotizacion.baseCotizacion.kind === 'desglosada' && cotizacion.baseCotizacion.total).toBe(
+          vm.deduccionesDesglose[0]?.baseMensual,
+        );
+      });
+
+      it('R3.1 a prorated 9-day run decomposes the MONTHLY base, not the prorated Base del periodo', () => {
+        const prorated: PayrollRun = { ...runG1221Partial9, baseCotizacionCents: cents(142450), contractType: 'INDEFINIDO' };
+        const block = build(prorated, employeeG1221);
+        if (block.kind !== 'figures') throw new Error(`expected figures, got ${block.reason}`);
+
+        expect(block.baseCotizacion).toEqual({
+          kind: 'desglosada',
+          remuneracionMensual: eur('1221,00'),
+          prorrataPagasExtraordinarias: eur('203,50'),
+          total: eur('1424,50'),
+        });
+        // Unchanged: the cuota table still prints the prorated period base.
+        expect(block.filas.map((row) => row.basePeriodo)).toEqual(Array(5).fill(eur('427,35')));
+      });
+
+      describe('R4.1 absent on every unavailable branch', () => {
+        const unavailableCases: readonly (readonly [string, () => ReturnType<typeof build>])[] = [
+          ['rates_unavailable', () => build(runBase142450, employeeG1221, null)],
+          // The run says 45,00 but its anchored base recomputes to 91,17.
+          ['base_drifted', () => build({ ...runBase142450, ssDeductionCents: cents(4500) }, employeeG1221)],
+          // Provably legacy: day columns backfilled to 0, no anchors.
+          [
+            'base_not_verifiable',
+            () => build({ ...runG1221FullMonth, ssDeductionCents: cents(794), prorated: true, daysWorked: 0, daysInMonth: 0 }, employeeG1221),
+          ],
+        ];
+
+        it.each(unavailableCases)('%s: no decomposition field, no decomposition copy', (reason, make) => {
+          const block = make();
+          expect(block.kind === 'unavailable' && block.reason).toBe(reason);
+          expect(block).not.toHaveProperty('baseCotizacion');
+
+          const serialized = JSON.stringify(block);
+          for (const forbidden of [NOTA_BASE_POR_TRAMO, NOTA_BASE_EN_TOPE_MAXIMO, 'desglosada', '1221,00', '203,50']) {
+            expect(serialized).not.toContain(forbidden);
+          }
+        });
+      });
+
+      it('R8.1 each nota is the specified Spanish copy, character for character', () => {
+        const porTramo = baseOf(runBase115100, employeeG1221);
+        const enTope = baseOf(runBase510120, employeeG1221);
+
+        expect(porTramo.kind === 'no_desglosable' && porTramo.nota).toBe(NOTA_BASE_POR_TRAMO);
+        expect(enTope.kind === 'no_desglosable' && enTope.nota).toBe(NOTA_BASE_EN_TOPE_MAXIMO);
+        for (const nota of [NOTA_BASE_POR_TRAMO, NOTA_BASE_EN_TOPE_MAXIMO]) {
+          expect(nota).not.toMatch(/https?:\/\//i);
+          expect(nota.toLowerCase()).not.toContain('verificad');
+        }
+      });
+
+      it('X5.1 a null group and an anchored run are independent: placeholder in the worker box, decomposition intact', () => {
+        const vm = buildReceiptViewModel({
+          run: runBase142450,
+          employee: { ...employeeG1221, grupoCotizacion: null },
+          employer: FAKE_EMPLOYER,
+          issuedOnIso: '2026-08-04',
+          ratesConfig: RATES_2026,
+          employerSignatureBase64: null,
+        });
+
+        expect(vm.trabajador.grupoCotizacion).toBe('—');
+        expect(vm.empleadorCotizacion.kind === 'figures' && vm.empleadorCotizacion.baseCotizacion.kind).toBe('desglosada');
+      });
+
+      it('X5.2 a provably-legacy run with a stored group builds without throwing: unavailable, no decomposition, group kept', () => {
+        const legacyRun: PayrollRun = {
+          ...runG1221FullMonth,
+          ssDeductionCents: cents(794),
+          prorated: true,
+          daysWorked: 0,
+          daysInMonth: 0,
+          baseCotizacionCents: null,
+        };
+        const vm = buildReceiptViewModel({
+          run: legacyRun,
+          employee: { ...employeeG1221, grupoCotizacion: '7' },
+          employer: FAKE_EMPLOYER,
+          issuedOnIso: '2026-08-04',
+          ratesConfig: RATES_2026,
+          employerSignatureBase64: null,
+        });
+
+        expect(vm.empleadorCotizacion.kind === 'unavailable' && vm.empleadorCotizacion.reason).toBe('base_not_verifiable');
+        expect(vm.empleadorCotizacion).not.toHaveProperty('baseCotizacion');
+        expect(vm.trabajador.grupoCotizacion).toBe('7');
       });
     });
   });
