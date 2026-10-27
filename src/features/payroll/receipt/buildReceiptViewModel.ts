@@ -131,27 +131,23 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * The residual is meant to be a ROUNDING reconciliation, at most a cent or two.
  * It used to do double duty, silently absorbing base drift as well whenever the
  * employee's salary had moved since the run -- an arbitrary amount, invisible
- * on the page. For an ANCHORED run that is now fixed: the rows and the
- * persisted total come from the same base, so only the rounding is left --
- * barring a worker-rate correction for that year, the second case below.
+ * on the page. An ANCHORED run no longer has that problem for the BASE: the
+ * rows and the persisted total are computed from the same base.
  *
- * Three cases still absorb more than rounding, all pre-existing and none made
- * worse here:
- *   - A pre-anchor run (null columns) whose employee has since been edited in
- *     a way that MOVES the resolved base. An edit within one tramo, or between
- *     two above-tope salaries, resolves the same base and absorbs nothing.
- *   - Any run, anchored or not, after a WORKER rate in `SS_RATES_BY_YEAR` is
- *     corrected for that year: the `tipo` column prints the current rate while
- *     the cuota is reconciled to the old persisted total, so rate x base no
- *     longer reproduces the printed figure.
+ * The residual still absorbs more than rounding whenever the rows are computed
+ * from inputs the persisted total was not. Known cases, not an exhaustive
+ * list, all pre-existing and none made worse here:
+ *   - A pre-anchor run (null columns) whose employee has since been edited.
+ *   - A run with no stored `contractType` whose employee's contract has since
+ *     changed: the desempleo rate moves while the base does not.
+ *   - Any run after a WORKER rate in `SS_RATES_BY_YEAR` is corrected for that
+ *     year: the `tipo` column prints the current rate while the cuota is
+ *     reconciled to the old persisted total.
  *   - A legacy run (`daysInMonth === 0`) whose persisted cuota was typed by
  *     hand rather than computed, so the rows and the total never shared a
- *     source: the residual absorbs an arbitrary difference, with no edit to
- *     the employee needed. `resolveBaseDriftStatus` rule 2 is that same
- *     population, and suppresses the employer block for it.
- * Where the employer block can tell, it suppresses itself (see
- * `resolveBaseDriftStatus`); these worker rows have no drift guard of their
- * own.
+ *     source. `resolveBaseDriftStatus` rule 2 is that same population.
+ * These worker rows have no drift guard of their own; the employer block has
+ * one (`resolveBaseDriftStatus`).
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
@@ -274,14 +270,15 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  * and is correct. Flagging it would be the repaired defect returning as a
  * caution label.
  *
- * The fallback path's apparent false negatives are true negatives, not luck.
- * `resolveBaseCotizacion` maps a RANGE of retribución to one base twice over:
- * tramos 1-7 each map their whole range to a FIXED base, and every result is
- * then capped at `topeMaxBaseCents`. So a salary edit within a single tramo --
- * or between two retribuciones that BOTH exceed the tope, the open-ended 8º
- * tramo included -- resolves to the same base, and the reprint it produces is
- * still the correct one. An edit that does move the resolved base is caught
- * when it moves the rounded cuota, under the single-scalar limits above.
+ * Some of the fallback path's apparent false negatives are true negatives.
+ * `resolveBaseCotizacion` collapses a RANGE of retribución onto one base in
+ * two places: each of tramos 1-7 maps its whole range to a FIXED base, and
+ * every result is capped at `topeMaxBaseCents`. A salary edit that stays
+ * inside one of tramos 1-7, or that moves between two retribuciones which both
+ * exceed the tope, therefore resolves the same base and the reprint is still
+ * correct. Inside the 8º tramo BELOW the tope the base follows the retribución,
+ * so an edit there does move it. A moved base is caught when it moves the
+ * rounded cuota, under the single-scalar limits above.
  *
  * Rules, evaluated in this order:
  *   1. No `RatesConfig`, hence no resolved `cotizacion`: nothing to recompute
