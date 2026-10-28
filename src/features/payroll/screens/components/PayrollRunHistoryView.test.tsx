@@ -237,6 +237,22 @@ describe('PayrollRunHistoryView', () => {
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(false);
   });
 
+  it.each(['sharing', 'sending'] as const)(
+    'disables "Compartir" and "Enviar por correo" while dispatchStatus is "%s"',
+    async (dispatchStatus) => {
+      const renderer = await renderView({
+        ...baseProps,
+        runs: [FAKE_RUN],
+        lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+        dispatchStatus,
+      });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.disabled).toBe(true);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(true);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).not.toBe(true);
+    },
+  );
+
   it('shows the Spanish sent confirmation when dispatchStatus is "sent"', async () => {
     const renderer = await renderView({
       ...baseProps,

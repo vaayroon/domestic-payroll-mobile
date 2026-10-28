@@ -30,6 +30,7 @@ export interface ReceiptViewerScreenProps {
 }
 
 interface PdfOutcome {
+  readonly runId: string;
   readonly uri: string;
   readonly state: 'loaded' | 'failed';
 }
@@ -44,10 +45,12 @@ export function ReceiptViewerScreen({ params }: ReceiptViewerScreenProps) {
   const { status: runStatus, run } = useReceiptRun(employeeId, runId);
   const dispatch = useReceiptDispatch(run, uri);
 
-  // The outcome is keyed by uri so a new uri starts over in `loading`.
+  // The outcome is stored with the run id and uri it was reported for, and only
+  // applies while both still match the current params; any other pair is
+  // treated as not reported yet, so the screen shows `loading` again.
   const [outcome, setOutcome] = useState<PdfOutcome | null>(null);
   const pdfState: ReceiptViewerPdfState =
-    outcome !== null && outcome.uri === uri ? outcome.state : 'loading';
+    outcome !== null && outcome.runId === runId && outcome.uri === uri ? outcome.state : 'loading';
 
   let mailHint: string | null = null;
   if (!dispatch.mailAvailable) {
@@ -62,13 +65,13 @@ export function ReceiptViewerScreen({ params }: ReceiptViewerScreenProps) {
       uri={uri}
       pdfState={pdfState}
       onPdfLoad={() => {
-        if (uri !== null) {
-          setOutcome({ uri, state: 'loaded' });
+        if (runId !== null && uri !== null) {
+          setOutcome({ runId, uri, state: 'loaded' });
         }
       }}
       onPdfFailure={() => {
-        if (uri !== null) {
-          setOutcome({ uri, state: 'failed' });
+        if (runId !== null && uri !== null) {
+          setOutcome({ runId, uri, state: 'failed' });
         }
       }}
       onShare={() => void dispatch.shareReceipt()}

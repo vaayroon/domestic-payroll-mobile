@@ -183,6 +183,19 @@ describe('PayrollRunHistoryScreen', () => {
     expect(pdfSharer.shareCallCount).toBe(0);
   });
 
+  it('pushes the viewer only once when "Abrir recibo" is pressed twice in a row', async () => {
+    const { renderer } = await renderScreen();
+
+    await generate(renderer, RUN_B);
+    await act(async () => {
+      const open = renderer.root.findByProps({ testID: 'payroll-run-history-open' });
+      open.props.onPress();
+      open.props.onPress();
+    });
+
+    expect(mockRouterPush).toHaveBeenCalledTimes(1);
+  });
+
   it('shares the generated uri through the share sheet from "Compartir"', async () => {
     const { renderer, pdfSharer } = await renderScreen();
 

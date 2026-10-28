@@ -8,7 +8,8 @@
  * need the share sheet), "Compartir" (disabled, not hidden, when
  * `!sharingAvailable`) and "Enviar por correo" (disabled with a Spanish hint
  * when `!mailAvailable` -- disable-and-explain, not a silent share-sheet
- * fallback). Mirrors `EmployeeListView.tsx`'s structure.
+ * fallback). Both dispatch actions are also disabled while a dispatch is
+ * running (`dispatchStatus` `sharing`/`sending`). Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -53,6 +54,11 @@ export function PayrollRunHistoryView({
   dispatchStatus,
   dispatchError,
 }: PayrollRunHistoryViewProps) {
+  // Same rule as `ReceiptViewerView`: no second dispatch while one is running.
+  const busy = dispatchStatus === 'sharing' || dispatchStatus === 'sending';
+  const shareDisabled = busy || !sharingAvailable;
+  const sendDisabled = busy || !mailAvailable;
+
   return (
     <View className="flex-1 bg-slate-900">
       <View className="p-4">
@@ -80,13 +86,13 @@ export function PayrollRunHistoryView({
             <Pressable testID="payroll-run-history-open" onPress={onOpen}>
               <Text className="font-semibold text-emerald-400">Abrir recibo</Text>
             </Pressable>
-            <Pressable testID="payroll-run-history-share" disabled={!sharingAvailable} onPress={onShare}>
-              <Text className={`font-semibold ${sharingAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <Pressable testID="payroll-run-history-share" disabled={shareDisabled} onPress={onShare}>
+              <Text className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}>
                 Compartir
               </Text>
             </Pressable>
-            <Pressable testID="payroll-run-history-send" disabled={!mailAvailable} onPress={onSendMail}>
-              <Text className={`font-semibold ${mailAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <Pressable testID="payroll-run-history-send" disabled={sendDisabled} onPress={onSendMail}>
+              <Text className={`font-semibold ${sendDisabled ? 'text-slate-500' : 'text-emerald-400'}`}>
                 Enviar por correo
               </Text>
             </Pressable>

@@ -10,7 +10,7 @@
  * (a failed later generation keeps the previous pair).
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import type { PayrollRun } from '@/types';
@@ -33,9 +33,13 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
   const dispatch = useReceiptDispatch(lastReceipt?.run ?? null, lastReceipt?.uri ?? null);
   const router = useRouter();
+  // Two taps landing before the viewer screen takes focus would push it twice.
+  // Set on the first push, cleared when this screen regains focus.
+  const navigatingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      navigatingRef.current = false;
       void refresh();
     }, [refresh]),
   );
@@ -56,9 +60,10 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
         });
       }}
       onOpen={() => {
-        if (lastReceipt === null) {
+        if (lastReceipt === null || navigatingRef.current) {
           return;
         }
+        navigatingRef.current = true;
         // Object form on purpose: the uri contains `/` and must be encoded as a param.
         router.push({
           pathname: '/payroll/receipt/[employeeId]',
