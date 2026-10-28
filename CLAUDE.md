@@ -25,7 +25,7 @@ The app is **offline-first**: it must be fully usable with no network. All data 
 | Node version       | **v24.14.1** via `fnm`                                | Pin in `.nvmrc` / `.node-version`.                 |
 | UI styling         | **NativeWind v4** (Tailwind CSS for RN)               | Utility classes; no ad-hoc StyleSheet unless justified. |
 | Language           | **TypeScript, strict mode**                           | `strict: true`. **No `any`.** Prefer `unknown` + narrowing. |
-| Runtime            | **Expo** (managed workflow) + **EAS development build** for preview | Target platform: Android. Expo Go fallback: `expo start --go`. |
+| Runtime            | **Expo** (managed workflow) + **EAS development build** for preview | Target platform: Android. Expo Go is no longer supported: `react-native-pdf` (receipt viewer) requires the EAS development build. |
 
 ### pnpm + Expo/Metro gotcha (read this)
 
