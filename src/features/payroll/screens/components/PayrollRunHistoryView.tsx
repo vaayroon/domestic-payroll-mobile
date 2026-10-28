@@ -16,8 +16,7 @@ import type { PayrollRun } from '@/types';
 import type { DispatchStatus } from '../../domain';
 import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
-
-const MAIL_UNAVAILABLE_HINT = 'No hay ninguna app de correo configurada en este dispositivo.';
+import { MAIL_UNAVAILABLE_HINT } from './receiptDispatchCopy';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
