@@ -1,5 +1,5 @@
 /**
- * Receipt-dispatch flow hook (design ADR-8): open/share a just-generated
+ * Receipt-dispatch flow hook (design ADR-8): share a just-generated
  * receipt PDF via `PdfSharer`, or send it by email via `MailSender` using
  * the Spanish subject/body from `buildReceiptMailContent`. Sibling of
  * `useReceiptGenerator` -- that hook stays untouched; this one owns its own
@@ -20,7 +20,7 @@ import { buildReceiptMailContent } from '../receipt';
 export type DispatchStatus = 'idle' | 'sharing' | 'sending' | 'sent' | 'cancelled' | 'failed';
 
 export interface UseReceiptDispatchResult {
-  readonly openReceipt: () => Promise<void>;
+  readonly shareReceipt: () => Promise<void>;
   readonly sendReceiptByMail: () => Promise<void>;
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
@@ -64,7 +64,7 @@ export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): 
     };
   }, [mailSender]);
 
-  const openReceipt = async (): Promise<void> => {
+  const shareReceipt = async (): Promise<void> => {
     if (uri === null) {
       return;
     }
@@ -75,7 +75,7 @@ export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): 
       setStatus('idle');
     } catch {
       setStatus('failed');
-      setError('No se pudo abrir el recibo.');
+      setError('No se pudo compartir el recibo.');
     }
   };
 
@@ -108,5 +108,5 @@ export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): 
     }
   };
 
-  return { openReceipt, sendReceiptByMail, sharingAvailable, mailAvailable, status, error };
+  return { shareReceipt, sendReceiptByMail, sharingAvailable, mailAvailable, status, error };
 }

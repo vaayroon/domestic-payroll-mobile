@@ -41,7 +41,7 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
         setLastRun(run);
         void generate(run);
       }}
-      onOpen={() => void dispatch.openReceipt()}
+      onOpen={() => void dispatch.shareReceipt()}
       onSend={() => void dispatch.sendReceiptByMail()}
       sharingAvailable={dispatch.sharingAvailable}
       mailAvailable={dispatch.mailAvailable}
