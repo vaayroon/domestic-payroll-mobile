@@ -112,7 +112,7 @@ describe('PayrollRunHistoryView', () => {
   });
 
   it('shows the success banner once a receipt was generated', async () => {
-    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: 'file:///fake/recibo-1.pdf' });
+    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: 'file:///fake/cache/Print/recibo-1.pdf' });
 
     const success = renderer.root.findByProps({ testID: 'payroll-run-history-success' });
     expect(success.props.children).toBe('Recibo generado.');
@@ -130,7 +130,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       sharingAvailable: true,
       mailAvailable: true,
     });
@@ -165,7 +165,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       onOpen,
     });
 
@@ -181,7 +181,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       onShare,
     });
 
@@ -197,7 +197,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       onSendMail,
     });
 
@@ -212,7 +212,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       mailAvailable: false,
     });
 
@@ -228,7 +228,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       sharingAvailable: false,
     });
 
@@ -241,7 +241,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       dispatchStatus: 'sent',
     });
 
@@ -253,7 +253,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       dispatchStatus: 'failed',
       dispatchError: 'No se pudo enviar el recibo.',
     });
@@ -266,7 +266,7 @@ describe('PayrollRunHistoryView', () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
-      lastUri: 'file:///fake/recibo-1.pdf',
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       dispatchStatus: 'cancelled',
     });
 

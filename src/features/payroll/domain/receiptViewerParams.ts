@@ -18,16 +18,33 @@ export type ReceiptViewerParams =
   | { readonly ok: true; readonly employeeId: string; readonly runId: string; readonly uri: string }
   | { readonly ok: false };
 
-/** `file:///` + a path with no query/hash + `.pdf` (case-insensitive). */
+/** `file:///` (empty host) + a path with no query/hash + `.pdf` (case-insensitive). */
 const RECEIPT_PDF_URI = /^file:\/\/\/[^?#]+\.pdf$/i;
 
-/** True only for a local `file:///...pdf` uri with no query, hash or `..` path segment. */
+/** The Android app cache directory segment, where expo-print writes `Print/<name>.pdf`. */
+const APP_CACHE_SEGMENT = 'cache';
+
+/**
+ * True only for a local receipt uri: `file:///<...>/cache/<...>/<name>.pdf`.
+ *
+ * Why so strict: `react-native-pdf` runs `decodeURIComponent` on the path
+ * before handing it to native code, so a percent-encoded `%2e%2e` or `%2f`
+ * would slip past a literal `..` check and decode into a traversal. The uri
+ * expo-print produces (Android `Uri.fromFile` on `cacheDir/Print/<name>.pdf`)
+ * never contains percent-encoding, so any `%` is rejected outright. The
+ * receipt only ever lives in the app cache, so a path outside a `/cache/`
+ * directory segment is treated as a planted deep link. Also rejected: any
+ * host (`file://host/...`), query, fragment, and empty, `.` or `..` segments.
+ */
 export function isReceiptPdfUri(uri: string): boolean {
-  if (!RECEIPT_PDF_URI.test(uri)) {
+  if (uri.includes('%') || !RECEIPT_PDF_URI.test(uri)) {
     return false;
   }
-  const path = uri.slice('file:///'.length);
-  return !path.split('/').includes('..');
+  const segments = uri.slice('file:///'.length).split('/');
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    return false;
+  }
+  return segments.slice(0, -1).includes(APP_CACHE_SEGMENT);
 }
 
 function singleNonEmptyString(value: string | string[] | undefined): string | null {

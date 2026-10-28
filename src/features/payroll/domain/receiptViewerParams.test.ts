@@ -29,8 +29,25 @@ describe('isReceiptPdfUri', () => {
     ['a trailing parent-directory segment', 'file:///cache/a/../b.pdf'],
     ['an empty string', ''],
     ['only the scheme', 'file:///'],
+    ['a lowercase percent-encoded parent segment', 'file:///data/user/0/app/cache/%2e%2e/a.pdf'],
+    ['an uppercase percent-encoded parent segment', 'file:///data/user/0/app/cache/%2E%2E/a.pdf'],
+    ['a mixed literal and encoded parent segment', 'file:///data/user/0/app/cache/.%2e/a.pdf'],
+    ['an encoded slash', 'file:///data/user/0/app/cache%2f..%2fsecret/a.pdf'],
+    ['a lone malformed percent', 'file:///data/user/0/app/cache/a%.pdf'],
+    ['a path outside a cache directory', 'file:///data/user/0/app/files/receipt.pdf'],
+    ['a cache name that is only a prefix of a segment', 'file:///data/user/0/app/cache2/a.pdf'],
+    ['cache as the file name rather than a directory', 'file:///data/user/0/app/cache.pdf'],
+    ['an empty path segment', 'file:///data/user/0/app/cache//a.pdf'],
+    ['a current-directory segment', 'file:///data/user/0/app/cache/./a.pdf'],
+    ['a four-slash prefix', 'file:////data/user/0/app/cache/a.pdf'],
   ])('rejects %s', (_label, uri) => {
     expect(isReceiptPdfUri(uri)).toBe(false);
+  });
+
+  it('accepts the uri shape expo-print produces in the app cache', () => {
+    expect(isReceiptPdfUri('file:///data/user/0/com.example.app/cache/Print/receipt.pdf')).toBe(
+      true,
+    );
   });
 
   it('does not treat a file name containing dots as a parent-directory segment', () => {
@@ -68,6 +85,8 @@ describe('parseReceiptViewerParams', () => {
     ['a query suffix', 'file:///cache/a.pdf?x=1'],
     ['a hash suffix', 'file:///cache/a.pdf#x'],
     ['a parent-directory segment', 'file:///cache/../a.pdf'],
+    ['an encoded parent-directory segment', 'file:///cache/%2e%2e/a.pdf'],
+    ['a path outside the app cache', 'file:///data/user/0/app/files/a.pdf'],
   ])('rejects a uri with %s', (_label, uri) => {
     expect(parseReceiptViewerParams({ employeeId: 'emp-1', runId: 'run-1', uri })).toEqual({
       ok: false,

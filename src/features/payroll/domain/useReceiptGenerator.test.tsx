@@ -118,8 +118,8 @@ describe('useReceiptGenerator', () => {
       result = await harness.current.generate(FAKE_RUN);
     });
 
-    expect(result).toEqual({ uri: 'file:///fake/recibo-1.pdf' });
-    expect(harness.current.lastUri).toBe('file:///fake/recibo-1.pdf');
+    expect(result).toEqual({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+    expect(harness.current.lastUri).toBe('file:///fake/cache/Print/recibo-1.pdf');
     expect(harness.current.generating).toBe(false);
     expect(harness.current.error).toBeNull();
 
@@ -176,7 +176,7 @@ describe('useReceiptGenerator', () => {
       result = await harness.current.generate(FAKE_RUN);
     });
 
-    expect(result).toEqual({ uri: 'file:///fake/recibo-1.pdf' });
+    expect(result).toEqual({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
     expect(harness.current.error).toBeNull();
     expect(generator.lastHtml).not.toBeNull();
     expect(generator.lastHtml).not.toContain('<img');

@@ -59,7 +59,7 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
-const FAKE_URI = 'file:///fake/recibo-1.pdf';
+const FAKE_URI = 'file:///fake/cache/Print/recibo-1.pdf';
 
 function notImplemented(method: string): () => never {
   return () => {

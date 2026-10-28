@@ -65,7 +65,7 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
-const FAKE_URI = 'file:///fake/recibo-1.pdf';
+const FAKE_URI = 'file:///fake/cache/Print/recibo-1.pdf';
 
 const FAILURE_COPY =
   'No se pudo mostrar el recibo. Vuelve a generarlo desde el historial de nóminas.';

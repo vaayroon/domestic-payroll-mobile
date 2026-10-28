@@ -177,7 +177,7 @@ describe('PayrollRunHistoryScreen', () => {
       params: {
         employeeId: FAKE_EMPLOYEE.id,
         runId: RUN_B.id,
-        uri: 'file:///fake/recibo-1.pdf',
+        uri: 'file:///fake/cache/Print/recibo-1.pdf',
       },
     });
     expect(pdfSharer.shareCallCount).toBe(0);
@@ -189,7 +189,7 @@ describe('PayrollRunHistoryScreen', () => {
     await generate(renderer, RUN_B);
     await press(renderer, 'payroll-run-history-share');
 
-    expect(pdfSharer.lastSharedUri).toBe('file:///fake/recibo-1.pdf');
+    expect(pdfSharer.lastSharedUri).toBe('file:///fake/cache/Print/recibo-1.pdf');
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
@@ -206,7 +206,7 @@ describe('PayrollRunHistoryScreen', () => {
       params: {
         employeeId: FAKE_EMPLOYEE.id,
         runId: RUN_A.id,
-        uri: 'file:///fake/recibo-1.pdf',
+        uri: 'file:///fake/cache/Print/recibo-1.pdf',
       },
     });
   });
@@ -223,7 +223,7 @@ describe('PayrollRunHistoryScreen', () => {
       params: {
         employeeId: FAKE_EMPLOYEE.id,
         runId: RUN_B.id,
-        uri: 'file:///fake/recibo-2.pdf',
+        uri: 'file:///fake/cache/Print/recibo-2.pdf',
       },
     });
   });
