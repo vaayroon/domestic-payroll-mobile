@@ -44,7 +44,8 @@
           "defaultChannel": "payroll-reminder",
           "enableBackgroundRemoteNotifications": false
         }
-      ]
+      ],
+      "@config-plugins/react-native-pdf"
     ],
     "experiments": {
       "typedRoutes": true,
