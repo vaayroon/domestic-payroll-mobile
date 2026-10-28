@@ -40,6 +40,10 @@ module.exports = defineConfig([
               group: ['react-native-signature-canvas', 'react-native-signature-canvas/*', 'react-native-webview', 'react-native-webview/*'],
               message: 'react-native-signature-canvas/react-native-webview are only allowed inside src/services/signature/. Depend on the SignaturePadProps contract in src/types instead.',
             },
+            {
+              group: ['react-native-pdf', 'react-native-pdf/*', 'react-native-blob-util', 'react-native-blob-util/*'],
+              message: 'react-native-pdf/react-native-blob-util are only allowed inside src/services/pdfviewer/. Depend on the PdfViewerProps contract in src/types instead.',
+            },
           ],
         },
       ],
@@ -71,6 +75,12 @@ module.exports = defineConfig([
   },
   {
     files: ['src/services/signature/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    files: ['src/services/pdfviewer/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
     },
