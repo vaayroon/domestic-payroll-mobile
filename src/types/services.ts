@@ -7,9 +7,10 @@
  * (CLAUDE.md §3).
  *
  * This file holds two different contract shapes: behavioural interfaces
- * (the five above) and one PROPS contract (`SignaturePadProps` below) for a
- * sealed rendering surface. See design ADR-1/ADR-2 of
- * `sdd/saved-signature/design` for why the props-contract deviation is
+ * (the five above) and two PROPS contracts (`SignaturePadProps` and
+ * `PdfViewerProps` below) for sealed rendering surfaces. See design
+ * ADR-1/ADR-2 of `sdd/saved-signature/design` (and ADR-2 of
+ * `sdd/in-app-pdf-preview/design`) for why the props-contract deviation is
  * deliberate rather than an accident.
  */
 
@@ -112,5 +113,22 @@ export interface SignaturePadProps {
   readonly onEmpty: () => void;
   /** A CODE, never a message -- the library's raw error text must never reach the app (see design ADR-6). */
   readonly onFailure: (code: SignaturePadFailureCode) => void;
+  readonly testID?: string;
+}
+
+export type PdfViewerFailureCode = 'load_failed';
+
+/**
+ * Props contract for the sealed PDF surface (`src/services/pdfviewer`).
+ * Domain-free: no payroll, no employee, no library or React types. The
+ * adapter always fills its parent (flex: 1); the caller sizes the container.
+ */
+export interface PdfViewerProps {
+  /** Local `file://` PDF uri. Validated by the caller before mounting. */
+  readonly uri: string;
+  /** Fires once the document is rendered, with its page count. */
+  readonly onLoad: (pageCount: number) => void;
+  /** A CODE, never the library's error object or message text. */
+  readonly onFailure: (code: PdfViewerFailureCode) => void;
   readonly testID?: string;
 }
