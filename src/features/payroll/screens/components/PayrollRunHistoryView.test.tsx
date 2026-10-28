@@ -47,7 +47,8 @@ const baseProps: PayrollRunHistoryViewProps = {
   lastUri: null,
   onGenerate: () => {},
   onOpen: () => {},
-  onSend: () => {},
+  onShare: () => {},
+  onSendMail: () => {},
   sharingAvailable: true,
   mailAvailable: true,
   dispatchStatus: 'idle',
@@ -117,14 +118,15 @@ describe('PayrollRunHistoryView', () => {
     expect(success.props.children).toBe('Recibo generado.');
   });
 
-  it('does not show the open/send actions when no receipt was generated yet', async () => {
+  it('does not show the receipt actions when no receipt was generated yet', async () => {
     const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: null });
 
     expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-open' })).toThrow();
+    expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-share' })).toThrow();
     expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-send' })).toThrow();
   });
 
-  it('shows the open/send actions once lastUri is set, both enabled', async () => {
+  it('shows open, share and send once lastUri is set, in that order, all enabled', async () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
@@ -133,7 +135,27 @@ describe('PayrollRunHistoryView', () => {
       mailAvailable: true,
     });
 
-    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(false);
+    const actionIds = renderer.root
+      .findAll((node) => typeof node.props.testID === 'string' && node.props.onPress !== undefined)
+      .map((node) => node.props.testID as string)
+      .filter((id) => id.startsWith('payroll-run-history-') && !id.startsWith('payroll-run-history-generate'));
+    expect(actionIds).toEqual([
+      'payroll-run-history-open',
+      'payroll-run-history-share',
+      'payroll-run-history-send',
+    ]);
+
+    const label = (testID: string) =>
+      renderer.root
+        .findByProps({ testID })
+        .findAllByType(Text)
+        .map((node) => node.props.children);
+    expect(label('payroll-run-history-open')).toEqual(['Abrir recibo']);
+    expect(label('payroll-run-history-share')).toEqual(['Compartir']);
+    expect(label('payroll-run-history-send')).toEqual(['Enviar por correo']);
+
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).not.toBe(true);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.disabled).toBe(false);
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(false);
     expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-mail-unavailable' })).toThrow();
   });
@@ -154,20 +176,36 @@ describe('PayrollRunHistoryView', () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('fires onSend when "Enviar por correo" is pressed', async () => {
-    const onSend = jest.fn();
+  it('fires onShare when "Compartir" is pressed', async () => {
+    const onShare = jest.fn();
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
       lastUri: 'file:///fake/recibo-1.pdf',
-      onSend,
+      onShare,
+    });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.onPress();
+    });
+
+    expect(onShare).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onSendMail when "Enviar por correo" is pressed', async () => {
+    const onSendMail = jest.fn();
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/recibo-1.pdf',
+      onSendMail,
     });
 
     await act(async () => {
       renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.onPress();
     });
 
-    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSendMail).toHaveBeenCalledTimes(1);
   });
 
   it('disables "Enviar por correo" and shows the Spanish hint when mail is unavailable', async () => {
@@ -181,11 +219,12 @@ describe('PayrollRunHistoryView', () => {
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(true);
     const hint = renderer.root.findByProps({ testID: 'payroll-run-history-mail-unavailable' });
     expect(hint.props.children).toBe('No hay ninguna app de correo configurada en este dispositivo.');
-    // "Abrir recibo" remains the escape hatch (decision: disable-and-explain, not share-sheet fallback).
-    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(false);
+    // "Abrir recibo" and "Compartir" do not depend on mail availability.
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).not.toBe(true);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.disabled).toBe(false);
   });
 
-  it('disables "Abrir recibo" when sharing is unavailable', async () => {
+  it('disables "Compartir" but keeps "Abrir recibo" enabled when sharing is unavailable', async () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
@@ -193,7 +232,9 @@ describe('PayrollRunHistoryView', () => {
       sharingAvailable: false,
     });
 
-    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.disabled).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).not.toBe(true);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(false);
   });
 
   it('shows the Spanish sent confirmation when dispatchStatus is "sent"', async () => {

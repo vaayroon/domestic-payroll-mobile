@@ -3,10 +3,12 @@
  * per-employee payroll run history (design ADR-5/ADR-9). Each row shows
  * período (`formatSpanishMonthYear`) + líquido a percibir (`formatEuros`);
  * selecting a row's "Generar recibo" action fires `onGenerate`. Once
- * `lastUri` is set, the success banner exposes two actions: "Abrir recibo"
- * (disabled when `!sharingAvailable`) and "Enviar por correo" (disabled with
- * a Spanish hint when `!mailAvailable` -- disable-and-explain, not a silent
- * share-sheet fallback). Mirrors `EmployeeListView.tsx`'s structure.
+ * `lastUri` is set, the success banner exposes three actions, in order:
+ * "Abrir recibo" (navigates to the in-app viewer; always enabled, it does not
+ * need the share sheet), "Compartir" (disabled, not hidden, when
+ * `!sharingAvailable`) and "Enviar por correo" (disabled with a Spanish hint
+ * when `!mailAvailable` -- disable-and-explain, not a silent share-sheet
+ * fallback). Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -27,7 +29,8 @@ export interface PayrollRunHistoryViewProps {
   readonly lastUri: string | null;
   readonly onGenerate: (run: PayrollRun) => void;
   readonly onOpen: () => void;
-  readonly onSend: () => void;
+  readonly onShare: () => void;
+  readonly onSendMail: () => void;
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
   readonly dispatchStatus: DispatchStatus;
@@ -43,7 +46,8 @@ export function PayrollRunHistoryView({
   lastUri,
   onGenerate,
   onOpen,
-  onSend,
+  onShare,
+  onSendMail,
   sharingAvailable,
   mailAvailable,
   dispatchStatus,
@@ -72,13 +76,16 @@ export function PayrollRunHistoryView({
           <Text testID="payroll-run-history-success" className="text-emerald-400">
             Recibo generado.
           </Text>
-          <View className="mt-2 flex-row gap-4">
-            <Pressable testID="payroll-run-history-open" disabled={!sharingAvailable} onPress={onOpen}>
+          <View className="mt-2 flex-row flex-wrap gap-4">
+            <Pressable testID="payroll-run-history-open" onPress={onOpen}>
+              <Text className="font-semibold text-emerald-400">Abrir recibo</Text>
+            </Pressable>
+            <Pressable testID="payroll-run-history-share" disabled={!sharingAvailable} onPress={onShare}>
               <Text className={`font-semibold ${sharingAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
-                Abrir recibo
+                Compartir
               </Text>
             </Pressable>
-            <Pressable testID="payroll-run-history-send" disabled={!mailAvailable} onPress={onSend}>
+            <Pressable testID="payroll-run-history-send" disabled={!mailAvailable} onPress={onSendMail}>
               <Text className={`font-semibold ${mailAvailable ? 'text-emerald-400' : 'text-slate-500'}`}>
                 Enviar por correo
               </Text>
