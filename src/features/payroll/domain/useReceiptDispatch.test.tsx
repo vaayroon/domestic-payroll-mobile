@@ -59,7 +59,7 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
-const FAKE_URI = 'file:///fake/recibo-1.pdf';
+const FAKE_URI = 'file:///fake/cache/Print/recibo-1.pdf';
 
 function notImplemented(method: string): () => never {
   return () => {
@@ -128,13 +128,13 @@ async function renderUseReceiptDispatch(
 }
 
 describe('useReceiptDispatch', () => {
-  it('shares the generated pdf uri when "Abrir recibo" succeeds', async () => {
+  it('shares the generated pdf uri when shareReceipt succeeds', async () => {
     const pdfSharer = new FakePdfSharer();
     const mailSender = new FakeMailSender();
     const harness = await renderUseReceiptDispatch(pdfSharer, mailSender);
 
     await act(async () => {
-      await harness.current.openReceipt();
+      await harness.current.shareReceipt();
     });
 
     expect(pdfSharer.lastSharedUri).toBe(FAKE_URI);
@@ -143,7 +143,7 @@ describe('useReceiptDispatch', () => {
     expect(harness.current.error).toBeNull();
   });
 
-  it('surfaces a Spanish error when sharing fails', async () => {
+  it('surfaces a Spanish share-specific error when sharing fails', async () => {
     const pdfSharer = new FakePdfSharer();
     pdfSharer.share = async () => {
       throw new Error('native failure');
@@ -152,11 +152,11 @@ describe('useReceiptDispatch', () => {
     const harness = await renderUseReceiptDispatch(pdfSharer, mailSender);
 
     await act(async () => {
-      await harness.current.openReceipt();
+      await harness.current.shareReceipt();
     });
 
     expect(harness.current.status).toBe('failed');
-    expect(harness.current.error).toBe('No se pudo abrir el recibo.');
+    expect(harness.current.error).toBe('No se pudo compartir el recibo.');
   });
 
   it('sends the built subject/body with the pdf attached when mail succeeds', async () => {
@@ -232,7 +232,7 @@ describe('useReceiptDispatch', () => {
     const harness = await renderUseReceiptDispatch(pdfSharer, mailSender, null, null);
 
     await act(async () => {
-      await harness.current.openReceipt();
+      await harness.current.shareReceipt();
       await harness.current.sendReceiptByMail();
     });
 

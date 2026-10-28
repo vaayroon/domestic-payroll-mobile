@@ -15,6 +15,6 @@ export class FakeReceiptPdfGenerator implements ReceiptPdfGenerator {
   async generate(html: string): Promise<{ readonly uri: string }> {
     this.lastHtml = html;
     this.nextId += 1;
-    return { uri: `file:///fake/recibo-${this.nextId}.pdf` };
+    return { uri: `file:///fake/cache/Print/recibo-${this.nextId}.pdf` };
   }
 }

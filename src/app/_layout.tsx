@@ -10,6 +10,7 @@ import {
   MailServiceProvider,
   NotifyServiceProvider,
   PdfServiceProvider,
+  PdfViewerProvider,
   ReminderProvider,
   RepositoryProvider,
   SignaturePadProvider,
@@ -28,6 +29,7 @@ import {
 import { ExpoMailSender, ExpoSharingPdfSharer } from '@/services/mail';
 import { ExpoNotificationScheduler } from '@/services/notify';
 import { ExpoPrintReceiptGenerator } from '@/services/pdf';
+import { PdfViewerView } from '@/services/pdfviewer';
 import { SignaturePadView } from '@/services/signature';
 
 import '@/global.css';
@@ -74,51 +76,57 @@ export default function RootLayout() {
             <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
               <NotifyServiceProvider scheduler={notificationScheduler}>
                 <SignaturePadProvider pad={SignaturePadView}>
-                  <ReminderProvider>
-                    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                      <Stack>
-                        <Stack.Screen
-                          name="index"
-                          options={{
-                            title: 'Empleados',
-                            headerRight: () => (
-                              <Link href="/settings/employer" testID="header-settings-link">
-                                <Text className="text-emerald-400">Ajustes</Text>
-                              </Link>
-                            ),
-                          }}
-                        />
-                        <Stack.Screen
-                          name="employees/new"
-                          options={{ presentation: 'modal', title: 'Nuevo empleado' }}
-                        />
-                        <Stack.Screen
-                          name="employees/[id]/edit"
-                          options={{ presentation: 'modal', title: 'Editar empleado' }}
-                        />
-                        <Stack.Screen
-                          name="payroll/new"
-                          options={{ presentation: 'modal', title: 'Nueva nómina' }}
-                        />
-                        <Stack.Screen
-                          name="payroll/history/[employeeId]"
-                          options={{ title: 'Historial de nóminas' }}
-                        />
-                        <Stack.Screen
-                          name="settings/employer"
-                          options={{ presentation: 'modal', title: 'Datos del empleador' }}
-                        />
-                        <Stack.Screen
-                          name="settings/reminder"
-                          options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
-                        />
-                        <Stack.Screen
-                          name="settings/signature"
-                          options={{ presentation: 'modal', title: 'Firma' }}
-                        />
-                      </Stack>
-                    </ThemeProvider>
-                  </ReminderProvider>
+                  <PdfViewerProvider viewer={PdfViewerView}>
+                    <ReminderProvider>
+                      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                        <Stack>
+                          <Stack.Screen
+                            name="index"
+                            options={{
+                              title: 'Empleados',
+                              headerRight: () => (
+                                <Link href="/settings/employer" testID="header-settings-link">
+                                  <Text className="text-emerald-400">Ajustes</Text>
+                                </Link>
+                              ),
+                            }}
+                          />
+                          <Stack.Screen
+                            name="employees/new"
+                            options={{ presentation: 'modal', title: 'Nuevo empleado' }}
+                          />
+                          <Stack.Screen
+                            name="employees/[id]/edit"
+                            options={{ presentation: 'modal', title: 'Editar empleado' }}
+                          />
+                          <Stack.Screen
+                            name="payroll/new"
+                            options={{ presentation: 'modal', title: 'Nueva nómina' }}
+                          />
+                          <Stack.Screen
+                            name="payroll/history/[employeeId]"
+                            options={{ title: 'Historial de nóminas' }}
+                          />
+                          <Stack.Screen
+                            name="payroll/receipt/[employeeId]"
+                            options={{ title: 'Recibo de salarios' }}
+                          />
+                          <Stack.Screen
+                            name="settings/employer"
+                            options={{ presentation: 'modal', title: 'Datos del empleador' }}
+                          />
+                          <Stack.Screen
+                            name="settings/reminder"
+                            options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
+                          />
+                          <Stack.Screen
+                            name="settings/signature"
+                            options={{ presentation: 'modal', title: 'Firma' }}
+                          />
+                        </Stack>
+                      </ThemeProvider>
+                    </ReminderProvider>
+                  </PdfViewerProvider>
                 </SignaturePadProvider>
               </NotifyServiceProvider>
             </MailServiceProvider>
