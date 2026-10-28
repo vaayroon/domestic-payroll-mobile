@@ -119,7 +119,6 @@ describe('useReceiptGenerator', () => {
     });
 
     expect(result).toEqual({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
-    expect(harness.current.lastUri).toBe('file:///fake/cache/Print/recibo-1.pdf');
     expect(harness.current.generating).toBe(false);
     expect(harness.current.error).toBeNull();
 

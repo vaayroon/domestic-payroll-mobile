@@ -83,16 +83,34 @@ export function PayrollRunHistoryView({
             Recibo generado.
           </Text>
           <View className="mt-2 flex-row flex-wrap gap-4">
-            <Pressable testID="payroll-run-history-open" onPress={onOpen}>
+            <Pressable
+              testID="payroll-run-history-open"
+              accessibilityRole="button"
+              onPress={onOpen}
+            >
               <Text className="font-semibold text-emerald-400">Abrir recibo</Text>
             </Pressable>
-            <Pressable testID="payroll-run-history-share" disabled={shareDisabled} onPress={onShare}>
-              <Text className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}>
+            <Pressable
+              testID="payroll-run-history-share"
+              accessibilityRole="button"
+              disabled={shareDisabled}
+              onPress={onShare}
+            >
+              <Text
+                className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
+              >
                 Compartir
               </Text>
             </Pressable>
-            <Pressable testID="payroll-run-history-send" disabled={sendDisabled} onPress={onSendMail}>
-              <Text className={`font-semibold ${sendDisabled ? 'text-slate-500' : 'text-emerald-400'}`}>
+            <Pressable
+              testID="payroll-run-history-send"
+              accessibilityRole="button"
+              disabled={sendDisabled}
+              onPress={onSendMail}
+            >
+              <Text
+                className={`font-semibold ${sendDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
+              >
                 Enviar por correo
               </Text>
             </Pressable>
@@ -137,10 +155,13 @@ export function PayrollRunHistoryView({
               </View>
               <Pressable
                 testID={`payroll-run-history-generate-${item.id}`}
+                accessibilityRole="button"
                 disabled={generating}
                 onPress={() => onGenerate(item)}
               >
-                <Text className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}>
+                <Text
+                  className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
+                >
                   {generating ? 'Generando…' : 'Generar recibo'}
                 </Text>
               </Pressable>

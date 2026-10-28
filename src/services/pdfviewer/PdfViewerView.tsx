@@ -15,19 +15,23 @@ import Pdf from 'react-native-pdf';
 
 import type { PdfViewerProps } from '@/types';
 
+/** `react-native-pdf` fitPolicy: 0 = fit width, 1 = fit height, 2 = fit both (library README). */
+const FIT_POLICY_WIDTH = 0;
+
 export function PdfViewerView({ uri, onLoad, onFailure, testID }: PdfViewerProps) {
   return (
     <View className="flex-1" testID={testID}>
       <Pdf
-        // `cache: true` is load-bearing: when `cache` is falsy the library
-        // unlinks its resolved file on unmount, which for a `file://` source
-        // may be the generated receipt itself. That would break a later
-        // "Compartir" / "Enviar por correo" from the history banner.
+        // Defensive: with `cache` falsy some library versions may unlink their
+        // resolved file on unmount, which for a `file://` source could be the
+        // generated receipt. The installed 7.0.5 does not delete `file://`
+        // sources either way (only its own downloaded cache copy). Re-check
+        // this on version bumps.
         source={{ uri, cache: true }}
         // We never download; the library default (`true`) would trust any cert.
         trustAllCerts={false}
         // Fit width suits a portrait page on a phone.
-        fitPolicy={0}
+        fitPolicy={FIT_POLICY_WIDTH}
         spacing={8}
         enablePaging={false}
         // Suppress the library's percentage text so the screen owns the single
@@ -36,6 +40,8 @@ export function PdfViewerView({ uri, onLoad, onFailure, testID }: PdfViewerProps
         onLoadComplete={(numberOfPages) => onLoad(numberOfPages)}
         // Never forward the library's error object or message text (design ADR-3).
         onError={() => onFailure('load_failed')}
+        // Inline style on purpose: `Pdf` is a third-party component that takes a
+        // `style` prop, not NativeWind classes.
         style={{ flex: 1 }}
       />
     </View>

@@ -66,7 +66,7 @@ export function ReceiptViewerView({
 
   return (
     <View className="flex-1 bg-slate-900">
-      <View className="flex-1">
+      <View className="flex-1" accessibilityLabel="Recibo de salarios en PDF">
         <PdfViewer
           testID="receipt-viewer-pdf"
           uri={uri}
@@ -74,7 +74,10 @@ export function ReceiptViewerView({
           onFailure={() => onPdfFailure()}
         />
         {loading ? (
-          <View className="absolute inset-0 items-center justify-center bg-slate-900">
+          <View
+            className="absolute inset-0 items-center justify-center bg-slate-900"
+            accessibilityLabel="Cargando recibo"
+          >
             <Text testID="receipt-viewer-loading" className="text-slate-400">
               Cargando recibo…
             </Text>
@@ -84,14 +87,24 @@ export function ReceiptViewerView({
 
       <View testID="receipt-viewer-actions" className="border-t border-slate-700 p-4">
         <View className="flex-row gap-4">
-          <Pressable testID="receipt-viewer-share" disabled={shareDisabled} onPress={onShare}>
+          <Pressable
+            testID="receipt-viewer-share"
+            accessibilityRole="button"
+            disabled={shareDisabled}
+            onPress={onShare}
+          >
             <Text
               className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
             >
               Compartir
             </Text>
           </Pressable>
-          <Pressable testID="receipt-viewer-send" disabled={mailDisabled} onPress={onSendMail}>
+          <Pressable
+            testID="receipt-viewer-send"
+            accessibilityRole="button"
+            disabled={mailDisabled}
+            onPress={onSendMail}
+          >
             <Text
               className={`font-semibold ${mailDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
             >

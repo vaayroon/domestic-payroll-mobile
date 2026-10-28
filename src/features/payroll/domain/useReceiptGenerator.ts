@@ -25,7 +25,6 @@ export interface UseReceiptGeneratorResult {
   readonly generate: (run: PayrollRun) => Promise<{ readonly uri: string } | null>;
   readonly generating: boolean;
   readonly error: string | null;
-  readonly lastUri: string | null;
 }
 
 export function useReceiptGenerator(): UseReceiptGeneratorResult {
@@ -37,7 +36,6 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
 
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUri, setLastUri] = useState<string | null>(null);
 
   const generate = async (run: PayrollRun): Promise<{ readonly uri: string } | null> => {
     setGenerating(true);
@@ -74,7 +72,6 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       const html = buildReceiptHtml(viewModel);
 
       const { uri } = await pdfGenerator.generate(html);
-      setLastUri(uri);
       return { uri };
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -84,5 +81,5 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
     }
   };
 
-  return { generate, generating, error, lastUri };
+  return { generate, generating, error };
 }
