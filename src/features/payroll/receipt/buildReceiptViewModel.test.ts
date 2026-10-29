@@ -3,7 +3,7 @@ import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED } from '@/features/employees/testin
 import type { Employee, Employer, PayrollRun } from '@/types';
 import { cents } from '@/types/money';
 
-import { SS_RATES_BY_YEAR, type RatesConfig } from '../domain/ssContribution';
+import { computeWorkerSsFromBase, SS_RATES_BY_YEAR, type RatesConfig } from '../domain/ssContribution';
 import { buildReceiptViewModel } from './buildReceiptViewModel';
 import { GRUPO_PROFESIONAL, type ReceiptBaseCotizacion, type ReceiptEmpleadorCotizacion, type ReceiptViewModel } from './ReceiptViewModel';
 
@@ -1023,14 +1023,15 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'figures' && block.filas[2]?.tipo).toBe('5,50 %');
       });
 
-      it('without the anchor the SAME edit pins the figures to the EMPLOYEE current base (the defect)', () => {
+      it('without the anchor the SAME edit no longer prints rows from the EMPLOYEE current base', () => {
         const raised: Employee = { ...employeeG1221, baseGrossCents: cents(200000) };
         const unanchored = vm(runG1221FullMonth, raised); // run has null anchors
 
-        // Not merely "different": the fallback follows the employee to base
-        // 2.333,33, so the desglose rows are that base's figures while the
-        // total still foots to the period's persisted 91,17.
-        expect(unanchored.deduccionesDesglose[0]?.baseMensual).toBe(eur('2333,33'));
+        // The fallback follows the employee to base 2.333,33, whose recompute
+        // no longer matches the persisted 91,17: the rows are withheld and the
+        // persisted total prints as the single lump line.
+        expect(unanchored.deduccionesDesglose).toEqual([]);
+        expect(unanchored.deducciones).toEqual([{ label: 'Cuota Seguridad Social (persona trabajadora)', amount: eur('91,17') }]);
         expect(unanchored.totalDeducciones).toBe(eur('91,17'));
         // The anchored build of the same run stays on the period's own base.
         expect(vm(anchoredRun, raised).deduccionesDesglose[0]?.baseMensual).toBe(eur('1424,50'));
@@ -1074,12 +1075,14 @@ describe('buildReceiptViewModel', () => {
         expect(anchored.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
         // 66,95 is exactly 4,70 % x 1.424,50 -- a real CC figure, not a residual.
 
-        // The same run WITHOUT anchors, with the employee now on G-800: the
-        // rows are computed from base 970,00 while the total stays 91,17, so
-        // contingencias comunes silently swallows the 29,08 difference.
-        const drifting = vm(runG1221FullMonth, employeeG800).deduccionesDesglose;
-        expect(drifting.map((row) => row.cuota)).toEqual([eur('74,67'), eur('15,04'), eur('1,46')]);
-        // 74,67 against a true 4,70 % x 970,00 = 45,59. That is the defect.
+        // The same run WITHOUT anchors, with the employee now on G-800: rows
+        // computed from base 970,00 against the persisted 91,17 would make
+        // contingencias comunes swallow the 29,08 difference (74,67 against a
+        // true 4,70 % x 970,00 = 45,59). The worker cuota does not verify, so
+        // no rows are printed at all.
+        const drifting = vm(runG1221FullMonth, employeeG800);
+        expect(drifting.deduccionesDesglose).toEqual([]);
+        expect(drifting.totalDeducciones).toBe(eur('91,17'));
       });
 
       const ccCorrectedRates: RatesConfig = { ...RATES_2026, worker: { ...RATES_2026.worker, ccPer10000: 480 } };
@@ -1111,12 +1114,12 @@ describe('buildReceiptViewModel', () => {
         expect(block.kind === 'unavailable' && block.reason).toBe('base_drifted');
       });
 
-      // Characterization of current behaviour, not of desired behaviour.
+      // The worker rows are gated on the WORKER half of the detector alone:
+      // printed when the persisted cuota reproduces from the base and rates
+      // the rows show, withheld (single lump line) otherwise.
       describe('worker rows while the employer block is withheld', () => {
         const CONCEPTOS = ['Contingencias comunes', 'Desempleo', 'MEI (Mecanismo de Equidad Intergeneracional)'];
-        // The anchored base, full month: every row repeats it in both columns.
-        const BASES_MENSUALES = [eur('1424,50'), eur('1424,50'), eur('1424,50')];
-        const BASES_PERIODO = BASES_MENSUALES;
+        const LUMP_LABEL = 'Cuota Seguridad Social (persona trabajadora)';
 
         const desempleoCorrectedRates: RatesConfig = {
           ...RATES_2026,
@@ -1132,36 +1135,23 @@ describe('buildReceiptViewModel', () => {
         const reasonOf = (receipt: ReceiptViewModel): string | null =>
           receipt.empleadorCotizacion.kind === 'unavailable' ? receipt.empleadorCotizacion.reason : null;
 
-        it('prints all three under a contingencias comunes correction: the tipo moves, the cuota does not', () => {
-          const receipt = vm(anchoredRun, employeeG1221, ccCorrectedRates);
+        const expectWithheld = (receipt: ReceiptViewModel, persisted: string): void => {
+          expect(receipt.deduccionesDesglose).toEqual([]);
+          expect(receipt.deducciones).toEqual([{ label: LUMP_LABEL, amount: persisted }]);
+          expect(receipt.totalDeducciones).toBe(persisted);
+        };
+
+        it.each([
+          ['a contingencias comunes', ccCorrectedRates],
+          ['a desempleo', desempleoCorrectedRates],
+          ['a MEI', meiCorrectedRates],
+        ])('withholds the rows under %s rate correction for an already-run year', (_label, rates) => {
+          // Each would print a tipo that no longer multiplies out to its
+          // cuota, beside a residual that absorbs the correction.
+          const receipt = vm(anchoredRun, employeeG1221, rates);
 
           expect(reasonOf(receipt)).toBe('base_drifted');
-          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
-          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,80 %', '1,55 %', '0,15 %']);
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
-          expect(receipt.totalDeducciones).toBe(eur('91,17'));
-          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
-          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
-        });
-
-        it('prints all three under a desempleo correction, which does reach the residual', () => {
-          const receipt = vm(anchoredRun, employeeG1221, desempleoCorrectedRates);
-
-          expect(reasonOf(receipt)).toBe('base_drifted');
-          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,65 %', '0,15 %']);
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('65,53'), eur('23,50'), eur('2,14')]);
-          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
-          expect(receipt.totalDeducciones).toBe(eur('91,17'));
-        });
-
-        it('prints all three under a MEI correction, which also reaches the residual', () => {
-          const receipt = vm(anchoredRun, employeeG1221, meiCorrectedRates);
-
-          expect(reasonOf(receipt)).toBe('base_drifted');
-          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,25 %']);
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('65,53'), eur('22,08'), eur('3,56')]);
-          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
-          expect(receipt.totalDeducciones).toBe(eur('91,17'));
+          expectWithheld(receipt, eur('91,17'));
         });
 
         it('prints all three when only the EMPLOYER anchor drifts (detector rule 5)', () => {
@@ -1175,71 +1165,66 @@ describe('buildReceiptViewModel', () => {
           expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
           expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
           expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('66,95'), eur('22,08'), eur('2,14')]);
-          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual(BASES_PERIODO);
           expect(receipt.totalDeducciones).toBe(eur('91,17'));
         });
 
-        it('prints all three on a provable-legacy run, where the residual takes the whole typed cuota', () => {
+        it('withholds the rows on a provable-legacy run, whose cuota was typed by hand', () => {
           const receipt = vm(legacyAnchored, employeeG1221);
 
           expect(reasonOf(receipt)).toBe('base_not_verifiable');
-          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
-          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([eur('7,94'), eur('0,00'), eur('0,00')]);
-          expect(receipt.deduccionesDesglose.map((row) => row.baseMensual)).toEqual(BASES_MENSUALES);
-          // Zero SS days, so the prorated column collapses while the monthly
-          // base above it does not.
-          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual([
-            eur('0,00'),
-            eur('0,00'),
-            eur('0,00'),
-          ]);
-          expect(receipt.totalDeducciones).toBe(eur('7,94'));
+          expectWithheld(receipt, eur('7,94'));
         });
 
-        it('prints a NEGATIVE contingencias comunes row when the persisted cuota is 0 (detector rule 3)', () => {
+        it('withholds the rows, instead of printing a NEGATIVE one, when the persisted cuota is 0 (detector rule 3)', () => {
+          // Rows would have been -24,22 / 22,08 / 2,14: a residual of 0 minus
+          // desempleo and MEI computed from the base.
           const receipt = vm(zeroCuotaRun, employeeG1221);
 
           expect(reasonOf(receipt)).toBe('base_not_verifiable');
-          expect(receipt.deduccionesDesglose.map((row) => row.concepto)).toEqual(CONCEPTOS);
-          expect(receipt.deduccionesDesglose.map((row) => row.tipo)).toEqual(['4,70 %', '1,55 %', '0,15 %']);
-          // Desempleo and MEI are computed from the base, and the residual is
-          // 0 minus both, so the row goes below zero and the minus sign
-          // reaches the page.
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([
-            `-${eur('24,22')}`,
-            eur('22,08'),
-            eur('2,14'),
-          ]);
-          expect(receipt.totalDeducciones).toBe(eur('0,00'));
+          expectWithheld(receipt, eur('0,00'));
         });
 
-        it('prints a NEGATIVE row on the reachable path too: a PRE-ANCHOR run reprinted after a large rise', () => {
-          // The rule 3 case above needs a persisted cuota of 0 against a
-          // positive recompute, which `usePayrollRunForm` cannot write. This
-          // one needs only a run settled BEFORE the anchor columns existed
-          // (`baseCotizacionCents` null) plus an ordinary salary rise, so it
-          // is reachable from the app as it ships.
+        it('withholds the rows, instead of printing a NEGATIVE one, on a PRE-ANCHOR run reprinted after a large rise', () => {
+          // Reachable from the app as it ships: a run settled BEFORE the anchor
+          // columns existed (`baseCotizacionCents` null) plus an ordinary rise.
+          // The base follows the EMPLOYEE: 4.500,00 -> retribución 5.250,00 ->
+          // capped at the tope, 5.101,20. Desempleo 79,07 and MEI 7,65 from
+          // that base against the period's persisted 62,08 used to leave
+          // contingencias comunes at -24,64.
           const raisedAboveTope: Employee = { ...FAKE_EMPLOYEE, baseGrossCents: cents(450000) };
           const receipt = vm(runG800FullMonth, raisedAboveTope);
 
-          // Without an anchor the base follows the EMPLOYEE: 4.500,00 ->
-          // retribución 5.250,00 -> capped at the tope, 5.101,20. Desempleo
-          // and MEI are computed from that base while contingencias comunes
-          // is the residual against the period's own persisted 62,08, so the
-          // residual lands below zero.
           expect(reasonOf(receipt)).toBe('base_drifted');
-          expect(receipt.deduccionesDesglose.map((row) => row.basePeriodo)).toEqual([
-            eur('5101,20'),
-            eur('5101,20'),
-            eur('5101,20'),
-          ]);
-          expect(receipt.deduccionesDesglose.map((row) => row.cuota)).toEqual([
-            `-${eur('24,64')}`, // 62,08 - 79,07 - 7,65
-            eur('79,07'), // 1,55 % x 5.101,20
-            eur('7,65'), // 0,15 % x 5.101,20
-          ]);
-          expect(receipt.totalDeducciones).toBe(eur('62,08'));
+          expectWithheld(receipt, eur('62,08'));
+        });
+
+        it('never prints a negative row on a run whose worker cuota verifies, at any day count', () => {
+          // A verified run's total is the single-rounded sum over the same
+          // base, so contingencias comunes stays within a cent of its own
+          // base x 4,70 % and cannot go below zero.
+          const parseCents = (display: string): number => Number(display.replace(/[^\d,-]/g, '').replace(',', ''));
+
+          for (const baseCents of [cents(29900), cents(97000), cents(142450), cents(510120)]) {
+            for (let days = 0; days <= 30; days += 1) {
+              const ssDeductionCents = computeWorkerSsFromBase(RATES_2026, baseCents, days, 'INDEFINIDO').proratedWorkerSsCents;
+              const run: PayrollRun = {
+                ...anchoredRun,
+                baseCotizacionCents: baseCents,
+                ssDeductionCents,
+                prorated: days < 30,
+                daysWorked: days,
+                daysInMonth: 30,
+              };
+
+              const rows = vm(run, employeeG1221).deduccionesDesglose;
+              expect(rows).toHaveLength(3);
+              const comunesCents = parseCents(rows[0]?.cuota ?? '');
+              const exactComunes = (baseCents * 470 * days) / (10000 * 30);
+
+              expect(comunesCents).toBeGreaterThanOrEqual(0);
+              expect(Math.abs(comunesCents - exactComunes)).toBeLessThanOrEqual(1.5);
+            }
+          }
         });
       });
 

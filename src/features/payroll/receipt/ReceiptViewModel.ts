@@ -197,13 +197,14 @@ export interface ReceiptViewModel {
   };
   readonly devengos: readonly ReceiptLineItem[];
   readonly totalDevengos: string;
-  /** Kept for the `ratesConfig === null` fallback (today's single-lump-line behavior); superseded by `deduccionesDesglose` when non-empty. */
+  /** The single-lump-line fallback, printed whenever `deduccionesDesglose` is empty; superseded by it when non-empty. */
   readonly deducciones: readonly ReceiptLineItem[];
   /**
    * Per-contingency breakdown of the worker's SS cuota (contingencias
    * comunes / desempleo / MEI), derived from `RatesConfig.worker`. Empty when
-   * `ratesConfig` was not supplied to the builder -- callers fall back to
-   * rendering `deducciones` instead (no breakdown attempted, no crash).
+   * `ratesConfig` was not supplied to the builder, or when the persisted
+   * worker cuota does not verify against the base and rates the rows would be
+   * printed from -- callers fall back to rendering `deducciones` instead.
    */
   readonly deduccionesDesglose: readonly ReceiptDeduccionDesglose[];
   readonly totalDeducciones: string;

@@ -45,7 +45,8 @@ export interface BuildReceiptViewModelInput {
    * `useReceiptGenerator` boundary via `resolveRatesConfig` (never read
    * inside this pure builder). `null` when the year's rates are unavailable
    * -- `deduccionesDesglose` degrades to empty and callers fall back to the
-   * single lump `deducciones` line (today's behavior), no crash.
+   * single lump `deducciones` line, no crash. It also degrades to empty when
+   * the worker cuota does not verify (see `resolveWorkerDesglose`).
    */
   readonly ratesConfig: RatesConfig | null;
   /** Bare base64 PNG (NO `data:` prefix) of the employer's saved signature, or `null` when none is saved. Required (not optional) so the strict compiler enumerates every call site (design ADR-5). */
@@ -132,6 +133,13 @@ function resolveCotizacionInputs(run: PayrollRun, employee: Employee, ratesConfi
  * It used to do double duty, silently absorbing base drift as well -- an
  * arbitrary amount. An ANCHORED run no longer has that problem for the BASE:
  * the rows and the persisted total are computed from the same base.
+ *
+ * Called ONLY for a run whose worker cuota verifies (see
+ * `resolveWorkerDesglose`). That precondition is what keeps the residual a
+ * rounding residual: the persisted total then equals the single-rounded
+ * `base x (cc + desempleo + MEI)` over the same days, while desempleo and MEI
+ * are each single-rounded from that same base, so contingencias comunes lands
+ * within a cent of its own `base x cc` and never below zero.
  */
 function computeDeduccionesDesglose(
   run: PayrollRun,
@@ -207,6 +215,73 @@ function computeReceiptEmployerSs(
 type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
 
 /**
+ * Rules 2-4 of `resolveBaseDriftStatus`: the WORKER half of the detector,
+ * which checks the persisted `run.ssDeductionCents` against a recompute from
+ * the resolved `cotizacion`. Split out because the worker desglose is gated
+ * on this half alone (see `resolveWorkerDesglose`), while the employer block
+ * also needs rule 5.
+ */
+function resolveWorkerCuotaStatus(
+  run: PayrollRun,
+  cotizacion: ResolvedCotizacionInputs,
+  ratesConfig: RatesConfig,
+): BaseDriftStatus {
+  if (run.daysInMonth === 0) {
+    return 'not_verifiable';
+  }
+
+  const recomputedWorkerSsCents = computeWorkerSsFromBase(
+    ratesConfig,
+    cotizacion.baseCotizacionCents,
+    resolveSsDaysWorked(run),
+    cotizacion.contractType,
+  ).proratedWorkerSsCents;
+
+  if (run.ssDeductionCents === 0 && recomputedWorkerSsCents > 0) {
+    return 'not_verifiable';
+  }
+  if (recomputedWorkerSsCents !== run.ssDeductionCents) {
+    return 'drifted';
+  }
+  return 'verified';
+}
+
+/**
+ * The worker desglose, or `[]` to fall back to the single persisted
+ * `deducciones` line. Rule: the rows are printed only when the worker cuota
+ * VERIFIES against the base and rates they would be printed from.
+ *
+ * Why withhold instead of clamping contingencias comunes at zero: that row is
+ * the residual `persisted cuota - desempleo - MEI`. When the worker cuota does
+ * not verify, the persisted total and the base the rows are computed from do
+ * not belong to the same period (a pre-anchor run reprinted after a salary
+ * edit, a worker rate corrected for an already-run year, a hand-typed legacy
+ * cuota, a zero cuota). The residual then absorbs an arbitrary difference: a
+ * NEGATIVE row is only the visible extreme, and a clamped or merely positive
+ * one is just as wrong, beside a tipo that no longer multiplies out to it. A
+ * document that goes to a person must not print a breakdown it cannot stand
+ * behind, so the receipt prints the authoritative persisted total as one line,
+ * the same way the employer block is withheld behind its note.
+ *
+ * The gate is the worker half of the detector only. A run whose EMPLOYER
+ * anchor alone drifts (rule 5) keeps its worker rows: the worker cuota still
+ * reproduces from the base and rates printed beside it.
+ */
+function resolveWorkerDesglose(
+  run: PayrollRun,
+  cotizacion: ResolvedCotizacionInputs | null,
+  ratesConfig: RatesConfig | null,
+): readonly ReceiptDeduccionDesglose[] {
+  if (ratesConfig === null || cotizacion === null) {
+    return [];
+  }
+  if (resolveWorkerCuotaStatus(run, cotizacion, ratesConfig) !== 'verified') {
+    return [];
+  }
+  return computeDeduccionesDesglose(run, cotizacion, ratesConfig);
+}
+
+/**
  * Reprint drift detector: does the receipt's own recompute still agree with
  * the persisted figures it can be checked against -- always the worker cuota
  * `run.ssDeductionCents`, and also the employer cuota efectiva
@@ -269,6 +344,7 @@ type BaseDriftStatus = 'verified' | 'drifted' | 'not_verifiable';
  *      with. The two are guarded together because they arrive together --
  *      `buildReceiptViewModel` resolves `cotizacion` only when it has a
  *      config.
+ *   Rules 2-4 are the worker half, `resolveWorkerCuotaStatus`.
  *   2. `daysInMonth === 0`: a provable legacy run. The engine never emits 0
  *      (always 28-31), so this is a pre-migration-0002 row backfilled to 0,
  *      whose persisted cuota was typed by hand and never came from
@@ -296,22 +372,10 @@ function resolveBaseDriftStatus(
   if (ratesConfig === null || cotizacion === null) {
     return 'not_verifiable';
   }
-  if (run.daysInMonth === 0) {
-    return 'not_verifiable';
-  }
 
-  const recomputedWorkerSsCents = computeWorkerSsFromBase(
-    ratesConfig,
-    cotizacion.baseCotizacionCents,
-    resolveSsDaysWorked(run),
-    cotizacion.contractType,
-  ).proratedWorkerSsCents;
-
-  if (run.ssDeductionCents === 0 && recomputedWorkerSsCents > 0) {
-    return 'not_verifiable';
-  }
-  if (recomputedWorkerSsCents !== run.ssDeductionCents) {
-    return 'drifted';
+  const workerStatus = resolveWorkerCuotaStatus(run, cotizacion, ratesConfig);
+  if (workerStatus !== 'verified') {
+    return workerStatus;
   }
 
   if (run.employerTotalEfectivoCents !== null) {
@@ -471,8 +535,7 @@ export function buildReceiptViewModel(input: BuildReceiptViewModelInput): Receip
   // detector must agree by construction, not by coincidence.
   const cotizacion = ratesConfig === null ? null : resolveCotizacionInputs(run, employee, ratesConfig);
 
-  const deduccionesDesglose: readonly ReceiptDeduccionDesglose[] =
-    ratesConfig === null || cotizacion === null ? [] : computeDeduccionesDesglose(run, cotizacion, ratesConfig);
+  const deduccionesDesglose = resolveWorkerDesglose(run, cotizacion, ratesConfig);
 
   const rango: string | null =
     run.periodStartDate === null || run.periodEndDate === null

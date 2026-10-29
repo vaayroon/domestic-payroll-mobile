@@ -580,6 +580,81 @@ describe('calculatePayrollRun', () => {
       // independent of the narrower run-month range used for salary/SS proration.
       expect(result.extraCents).toBe(FAKE_BASE_GROSS);
     });
+
+    describe('PRORATE pagas extra follow the same run-month days as the salary', () => {
+      // FAKE_BASE_GROSS_DIV6 = 1.200,00: a full month accrues 200,00 of pagas extra.
+
+      it('prorates the extra over an explicit range with no alta/baja', () => {
+        // 10-20 June = 11 days: salary 1.200,00 x 11/30, extra 1.200,00 x 11/180.
+        const result = calculatePayrollRun(
+          baseInput({
+            baseGrossCents: FAKE_BASE_GROSS_DIV6,
+            periodMonth: 6,
+            extraPayMode: 'PRORATE',
+            altaDate: null,
+            bajaDate: null,
+            periodStartDate: '2026-06-10',
+            periodEndDate: '2026-06-20',
+          }),
+        );
+
+        expect(result.daysWorked).toBe(11);
+        expect(result.extraCents).toBe(cents(7333));
+        expect(result.grossCents).toBe(cents(44000 + 7333));
+      });
+
+      it('prorates the extra over an explicit range that is NARROWER than alta/baja', () => {
+        // Alta 5 June would give 26 days; the range 15-20 June gives 6.
+        const result = calculatePayrollRun(
+          baseInput({
+            baseGrossCents: FAKE_BASE_GROSS_DIV6,
+            periodMonth: 6,
+            extraPayMode: 'PRORATE',
+            altaDate: '2026-06-05',
+            bajaDate: null,
+            periodStartDate: '2026-06-15',
+            periodEndDate: '2026-06-20',
+          }),
+        );
+
+        expect(result.daysWorked).toBe(6);
+        expect(result.extraCents).toBe(cents(4000));
+        expect(result.grossCents).toBe(cents(24000 + 4000));
+      });
+
+      it('pays the full monthly extra when an explicit full-month range is WIDER than alta/baja', () => {
+        // Alta 15 June would give 16 days; the explicit range covers the month.
+        const result = calculatePayrollRun(
+          baseInput({
+            baseGrossCents: FAKE_BASE_GROSS_DIV6,
+            periodMonth: 6,
+            extraPayMode: 'PRORATE',
+            altaDate: '2026-06-15',
+            bajaDate: '2026-06-25',
+            periodStartDate: '2026-06-01',
+            periodEndDate: '2026-06-30',
+          }),
+        );
+
+        expect(result.prorated).toBe(false);
+        expect(result.extraCents).toBe(cents(20000));
+        expect(result.grossCents).toBe(cents(120000 + 20000));
+      });
+
+      it.each([
+        ['range only', { altaDate: null, bajaDate: null, periodStartDate: '2026-07-03', periodEndDate: '2026-07-19' }],
+        ['range inside alta/baja', { altaDate: '2026-07-02', bajaDate: '2026-07-28', periodStartDate: '2026-07-10', periodEndDate: null }],
+        ['alta/baja only', { altaDate: '2026-07-23', bajaDate: null, periodStartDate: null, periodEndDate: null }],
+      ] as const)('salary and extra agree on days worked: %s', (_label, dates) => {
+        const result = calculatePayrollRun(
+          baseInput({ baseGrossCents: FAKE_BASE_GROSS_DIV6, periodMonth: 7, extraPayMode: 'PRORATE', ...dates }),
+        );
+
+        expect(result.prorated).toBe(true);
+        expect(result.extraCents).toBe(proratedAmount(FAKE_BASE_GROSS_DIV6, result.daysWorked, 180));
+        expect(result.grossCents - result.extraCents).toBe(proratedAmount(FAKE_BASE_GROSS_DIV6, result.daysWorked, 30));
+      });
+    });
   });
 
   describe('purity', () => {

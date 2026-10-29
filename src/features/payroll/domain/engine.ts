@@ -101,11 +101,12 @@ export interface PayrollInput {
   readonly extraPayMode: ExtraPayMode;
   /**
    * Optional per-run period date range (ISO `'YYYY-MM-DD'`), edited/confirmed
-   * on the run form. When either bound is present, it SUPPLEMENTS (never
-   * replaces) `altaDate`/`bajaDate` for the run-month's effective-period
-   * derivation only -- `resolveExtraPayCents`'s semester accrual keeps using
-   * `altaDate`/`bajaDate` regardless, since a per-month range cannot express a
-   * 6-month accrual window. `null`/absent on both falls back to
+   * on the run form. When either bound is present, it takes precedence over
+   * `altaDate`/`bajaDate` for the run-month's effective period
+   * (`resolveRunMonthPeriod`), which drives the salary, the SS cuota AND the
+   * PRORATE pagas extra alike. Only the INCLUDE_IN_MONTH semester accrual keeps
+   * using `altaDate`/`bajaDate` regardless, since a per-month range cannot
+   * express a 6-month accrual window. `null`/absent on both falls back to
    * `resolveEffectivePeriod(altaDate, bajaDate)`.
    */
   readonly periodStartDate?: string | null;
@@ -264,6 +265,23 @@ export function resolveEffectivePeriodFromRange(
   return clipIntervalToMonth(year, month, periodStartDate, periodEndDate);
 }
 
+/**
+ * The run month's effective period for `input`: the explicit per-run range
+ * when either bound is present, otherwise alta/baja. The ONE place that
+ * precedence is decided, so every run-month figure -- salary, SS cuota and the
+ * PRORATE pagas extra -- counts the same days. Two sites deciding it
+ * independently is how an explicit range once prorated the salary but not the
+ * pagas extra.
+ */
+export function resolveRunMonthPeriod(input: PayrollInput): EffectivePeriod {
+  const { periodYear, periodMonth, altaDate, bajaDate, periodStartDate, periodEndDate } = input;
+
+  const hasExplicitRange = (periodStartDate ?? periodEndDate ?? null) !== null;
+  return hasExplicitRange
+    ? resolveEffectivePeriodFromRange(periodYear, periodMonth, periodStartDate ?? null, periodEndDate ?? null)
+    : resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+}
+
 /** Prorates `fullAmount` by `daysWorked / days`, rounded exactly once (money.ts §4). */
 export function proratedAmount(fullAmount: Cents, daysWorked: number, days: number): Cents {
   return multiplyByRatio(fullAmount, daysWorked, days);
@@ -313,7 +331,9 @@ export function daysWorkedInInterval(altaDate: string | null, bajaDate: string |
  *   used for salary (`SALARY_DEVENGO_DIVISOR`, guarded to a full month's
  *   normalized numerator so a full month always yields exactly `base/6`
  *   regardless of the real day count), folded into a single
- *   `multiplyByRatio` call so there is only one rounding point.
+ *   `multiplyByRatio` call so there is only one rounding point. Its days come
+ *   from `resolveRunMonthPeriod`, exactly as the salary's do, so an explicit
+ *   period range prorates both or neither.
  * - `INCLUDE_IN_MONTH` -- paid as a lump ONLY in June or December, prorated
  *   by the fraction of the accrual semester actually worked (calendar-day
  *   overlap), independent of the run month's own day-count. Any other month
@@ -327,7 +347,7 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
   }
 
   if (extraPayMode === 'PRORATE') {
-    const effective = resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+    const effective = resolveRunMonthPeriod(input);
     const days = effective.prorated ? effective.daysWorked : SALARY_DEVENGO_DIVISOR;
     return multiplyByRatio(baseGrossCents, days, 6 * SALARY_DEVENGO_DIVISOR);
   }
@@ -374,12 +394,9 @@ export function resolveExtraPayCents(input: PayrollInput): Cents {
  * the run month's own day-count.
  */
 export function calculatePayrollRun(input: PayrollInput): PayrollResult {
-  const { baseGrossCents, ratesConfig, contractType, periodYear, periodMonth, altaDate, bajaDate, periodStartDate, periodEndDate } = input;
+  const { baseGrossCents, ratesConfig, contractType } = input;
 
-  const hasExplicitRange = (periodStartDate ?? periodEndDate ?? null) !== null;
-  const effective = hasExplicitRange
-    ? resolveEffectivePeriodFromRange(periodYear, periodMonth, periodStartDate ?? null, periodEndDate ?? null)
-    : resolveEffectivePeriod(periodYear, periodMonth, altaDate, bajaDate);
+  const effective = resolveRunMonthPeriod(input);
 
   const devengoDays = effective.prorated ? effective.daysWorked : SALARY_DEVENGO_DIVISOR;
   const proratedBaseCents = proratedAmount(baseGrossCents, devengoDays, SALARY_DEVENGO_DIVISOR);
