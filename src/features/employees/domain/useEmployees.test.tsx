@@ -13,7 +13,7 @@ import { cents } from '@/types/money';
 
 import { useEmployees, type UseEmployeesResult } from './useEmployees';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
-import { FAKE_EMPLOYER } from '../testing/fixtures';
+import { FAKE_EMPLOYER, makeEmployee } from '../testing/fixtures';
 
 function notImplemented(method: string): () => never {
   return () => {
@@ -74,19 +74,10 @@ async function renderUseEmployees(employeeRepository: InMemoryEmployeeRepository
 
 describe('useEmployees', () => {
   it('only returns active employees', async () => {
-    const active: Employee = {
+    const active: Employee = makeEmployee({
       id: 'employee-fake-active',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleada Activa',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const inactive: Employee = { ...active, id: 'employee-fake-inactive', active: false };
     const repository = new InMemoryEmployeeRepository([active, inactive]);
 
@@ -117,19 +108,10 @@ describe('useEmployees', () => {
   });
 
   it('deactivate soft-deletes via update({active:false}) and refreshes', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleado A Eliminar',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const repository = new InMemoryEmployeeRepository([target]);
     const harness = await renderUseEmployees(repository);
 

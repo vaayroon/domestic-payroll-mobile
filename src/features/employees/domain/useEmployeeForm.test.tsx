@@ -15,7 +15,7 @@ import { cents } from '@/types/money';
 
 import { useEmployeeForm, type EmployeeFormMode, type UseEmployeeFormResult } from './useEmployeeForm';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '../testing/fakes';
-import { FAKE_EMPLOYER } from '../testing/fixtures';
+import { FAKE_EMPLOYER, makeEmployee } from '../testing/fixtures';
 
 function notImplemented(method: string): () => never {
   return () => {
@@ -131,19 +131,10 @@ describe('useEmployeeForm', () => {
   });
 
   it('calls update() with the validated patch on valid input (edit mode)', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleado Original',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
     const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
@@ -172,19 +163,11 @@ describe('useEmployeeForm', () => {
   });
 
   it('seeds alta/baja from the employee on edit and includes them on submit', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleado Original',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
       altaDate: '2026-07-23',
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
     const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
@@ -216,19 +199,10 @@ describe('useEmployeeForm', () => {
   });
 
   it('surfaces errors and does not call update() on invalid input (edit mode)', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleado Original',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const repository = new InMemoryEmployeeRepository([target]);
     const updateSpy = jest.spyOn(repository, 'update');
     const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
@@ -248,19 +222,12 @@ describe('useEmployeeForm', () => {
   });
 
   describe('grupoCotizacion', () => {
-    const employeeWithGroup = (grupoCotizacion: string | null): Employee => ({
-      id: 'employee-fake-target',
-      employerId: FAKE_EMPLOYER.id,
-      name: 'Empleado Original',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion,
-    });
+    const employeeWithGroup = (grupoCotizacion: string | null): Employee =>
+      makeEmployee({
+        id: 'employee-fake-target',
+        name: 'Empleado Original',
+        grupoCotizacion,
+      });
 
     it('seeds a null group as an empty field and submits it back as null', async () => {
       const target = employeeWithGroup(null);
