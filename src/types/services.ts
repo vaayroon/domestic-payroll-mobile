@@ -14,10 +14,29 @@
  * deliberate rather than an accident.
  */
 
+/** Options for `ReceiptPdfGenerator.generate`. */
+export interface ReceiptPdfGenerateOptions {
+  /**
+   * Open (user) password. When present, the file at the returned uri is
+   * encrypted, and a plain rendering never survives a resolved OR rejected
+   * call: on any failure the plain file is deleted and the call rejects. Must
+   * be non-empty. The password is never logged, put in errors or filenames.
+   */
+  readonly password?: string;
+}
+
 /** Renders receipt HTML into an on-device PDF file. */
 export interface ReceiptPdfGenerator {
-  /** Renders self-contained HTML to an on-device PDF file, returning its URI. */
-  generate(html: string): Promise<{ readonly uri: string }>;
+  /**
+   * Renders self-contained HTML to an on-device PDF file, returning its URI.
+   * Pass `options.password` to get a password-protected file instead.
+   */
+  generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }>;
+  /**
+   * Best-effort delete of a file previously returned by `generate`. Never
+   * throws; a no-op for anything outside the app cache.
+   */
+  discard(uri: string): Promise<void>;
 }
 
 /** Opens/shares an on-device PDF file via the OS share sheet. */

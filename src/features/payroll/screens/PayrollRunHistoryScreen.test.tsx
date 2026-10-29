@@ -23,7 +23,7 @@ import {
 import { FAKE_EMPLOYER, makeEmployee } from '@/features/employees/testing/fixtures';
 import { FakeMailSender, FakePdfSharer } from '@/services/mail/testing/fakes';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
-import type { Employee, PayrollRun, ReceiptPdfGenerator } from '@/types';
+import type { Employee, PayrollRun, ReceiptPdfGenerateOptions, ReceiptPdfGenerator } from '@/types';
 import { cents } from '@/types/money';
 
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
@@ -70,12 +70,16 @@ class FlakyReceiptPdfGenerator implements ReceiptPdfGenerator {
   failNext = false;
   private readonly inner = new FakeReceiptPdfGenerator();
 
-  async generate(html: string): Promise<{ readonly uri: string }> {
+  async generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }> {
     if (this.failNext) {
       this.failNext = false;
       throw new Error('fake generation failure');
     }
-    return this.inner.generate(html);
+    return this.inner.generate(html, options);
+  }
+
+  async discard(uri: string): Promise<void> {
+    return this.inner.discard(uri);
   }
 }
 
