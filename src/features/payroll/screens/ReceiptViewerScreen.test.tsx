@@ -24,6 +24,7 @@ import {
   getFakePdfViewerMountCount,
   setFakePdfViewerBehavior,
 } from '@/services/pdfviewer/testing/fakes';
+import { makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee, PayrollRun, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
@@ -31,19 +32,9 @@ import { InMemoryPayrollRunRepository } from '../testing/fakes';
 import { ReceiptViewerScreen, type ReceiptViewerScreenProps } from './ReceiptViewerScreen';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-seed',
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 const FAKE_RUN: PayrollRun = {
   id: 'payroll-run-fake-1',

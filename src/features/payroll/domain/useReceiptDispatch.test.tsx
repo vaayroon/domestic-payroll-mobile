@@ -17,6 +17,7 @@ import {
 } from '@/core';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
 import { FakeMailSender, FakePdfSharer } from '@/services/mail/testing/fakes';
+import { makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee, PayrollRun, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
@@ -25,19 +26,9 @@ import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/featur
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-seed',
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 const FAKE_RUN: PayrollRun = {
   id: 'payroll-run-fake-1',

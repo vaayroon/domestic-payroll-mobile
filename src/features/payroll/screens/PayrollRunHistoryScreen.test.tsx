@@ -20,7 +20,7 @@ import {
   InMemoryEmployeeRepository,
   InMemoryEmployerRepository,
 } from '@/features/employees/testing/fakes';
-import { FAKE_EMPLOYER } from '@/features/employees/testing/fixtures';
+import { FAKE_EMPLOYER, makeEmployee } from '@/features/employees/testing/fixtures';
 import { FakeMailSender, FakePdfSharer } from '@/services/mail/testing/fakes';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
 import type { Employee, PayrollRun, ReceiptPdfGenerator } from '@/types';
@@ -38,19 +38,7 @@ jest.mock('expo-router', () => ({
 }));
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
-  employerId: FAKE_EMPLOYER.id,
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+const FAKE_EMPLOYEE: Employee = makeEmployee();
 
 function runFixture(id: string, periodMonth: number): PayrollRun {
   return {

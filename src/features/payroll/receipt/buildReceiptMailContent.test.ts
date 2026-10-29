@@ -1,22 +1,15 @@
+import { makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee, PayrollRun } from '@/types';
 import { cents } from '@/types/money';
 
 import { buildReceiptMailContent } from './buildReceiptMailContent';
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-1',
-  name: 'Empleada de Prueba',
   nif: '00000001T',
   naf: '000000000001',
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 const FAKE_RUN: PayrollRun = {
   id: 'run-fake-1',

@@ -1,6 +1,7 @@
 import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
+import { makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee } from '@/types';
 import { cents } from '@/types/money';
 
@@ -19,19 +20,9 @@ async function renderForm(props: PayrollRunFormProps): Promise<ReactTestRenderer
 }
 
 // Obviously-fake placeholder identifiers/names/amounts only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-seed',
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 const baseProps: PayrollRunFormProps = {
   employees: [FAKE_EMPLOYEE],
