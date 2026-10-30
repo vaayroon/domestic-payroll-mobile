@@ -38,11 +38,14 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
+const OTHER_RUN: PayrollRun = { ...FAKE_RUN, id: 'payroll-run-fake-2', periodMonth: 7 };
+
 const baseProps: PayrollRunHistoryViewProps = {
   runs: [],
   loading: false,
   error: null,
   generating: false,
+  generatingRunId: null,
   generateError: null,
   lastUri: null,
   onGenerate: () => {},
@@ -61,6 +64,12 @@ async function renderView(props: PayrollRunHistoryViewProps): Promise<ReactTestR
     renderer = create(<PayrollRunHistoryView {...props} />);
   });
   return renderer;
+}
+
+function rowLabel(renderer: ReactTestRenderer, run: PayrollRun): unknown {
+  return renderer.root
+    .findByProps({ testID: `payroll-run-history-generate-${run.id}` })
+    .findByType(Text).props.children;
 }
 
 describe('PayrollRunHistoryView', () => {
@@ -102,6 +111,44 @@ describe('PayrollRunHistoryView', () => {
     });
 
     expect(onGenerate).toHaveBeenCalledWith(FAKE_RUN);
+  });
+
+  it('keeps every "Generar recibo" row enabled while nothing is generating', async () => {
+    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN, OTHER_RUN] });
+
+    for (const run of [FAKE_RUN, OTHER_RUN]) {
+      const row = renderer.root.findByProps({ testID: `payroll-run-history-generate-${run.id}` });
+      expect(row.props.disabled).toBe(false);
+      expect(rowLabel(renderer, run)).toBe('Generar recibo');
+    }
+  });
+
+  it('disables every row while a receipt generates but labels "Generando…" only on the row being generated', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN, OTHER_RUN],
+      generating: true,
+      generatingRunId: OTHER_RUN.id,
+    });
+
+    expect(renderer.root.findByProps({ testID: `payroll-run-history-generate-${FAKE_RUN.id}` }).props.disabled).toBe(true);
+    expect(renderer.root.findByProps({ testID: `payroll-run-history-generate-${OTHER_RUN.id}` }).props.disabled).toBe(true);
+    expect(rowLabel(renderer, FAKE_RUN)).toBe('Generar recibo');
+    expect(rowLabel(renderer, OTHER_RUN)).toBe('Generando…');
+  });
+
+  it('disables every row without relabelling any when the generation was not started from a row', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN, OTHER_RUN],
+      generating: true,
+      generatingRunId: null,
+    });
+
+    for (const run of [FAKE_RUN, OTHER_RUN]) {
+      expect(renderer.root.findByProps({ testID: `payroll-run-history-generate-${run.id}` }).props.disabled).toBe(true);
+      expect(rowLabel(renderer, run)).toBe('Generar recibo');
+    }
   });
 
   it('shows the generate error message when present', async () => {

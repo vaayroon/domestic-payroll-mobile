@@ -31,6 +31,9 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
   const { runs, loading, error, refresh } = usePayrollRunHistory(employeeId);
   const { generate, generating, error: generateError } = useReceiptGenerator();
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
+  // `generating` is shared by every row; this says WHICH row started it so only
+  // that row reads "Generando…" while all of them stay disabled.
+  const [generatingRunId, setGeneratingRunId] = useState<string | null>(null);
   const dispatch = useReceiptDispatch(lastReceipt?.run ?? null, lastReceipt?.uri ?? null);
   const router = useRouter();
   // Two taps landing before the viewer screen takes focus would push it twice.
@@ -50,14 +53,18 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
       loading={loading}
       error={error}
       generating={generating}
+      generatingRunId={generatingRunId}
       generateError={generateError}
       lastUri={lastReceipt?.uri ?? null}
       onGenerate={(run) => {
-        void generate(run).then((result) => {
-          if (result !== null) {
-            setLastReceipt({ run, uri: result.uri });
-          }
-        });
+        setGeneratingRunId(run.id);
+        void generate(run)
+          .then((result) => {
+            if (result !== null) {
+              setLastReceipt({ run, uri: result.uri });
+            }
+          })
+          .finally(() => setGeneratingRunId(null));
       }}
       onOpen={() => {
         if (lastReceipt === null || navigatingRef.current) {

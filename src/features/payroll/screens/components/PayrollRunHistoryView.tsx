@@ -25,7 +25,10 @@ export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
   readonly loading: boolean;
   readonly error: string | null;
+  /** A generation is running: every "Generar recibo" row is disabled. */
   readonly generating: boolean;
+  /** The run whose row started the generation; only that row reads "Generando…". */
+  readonly generatingRunId: string | null;
   readonly generateError: string | null;
   readonly lastUri: string | null;
   readonly onGenerate: (run: PayrollRun) => void;
@@ -43,6 +46,7 @@ export function PayrollRunHistoryView({
   loading,
   error,
   generating,
+  generatingRunId,
   generateError,
   lastUri,
   onGenerate,
@@ -162,7 +166,7 @@ export function PayrollRunHistoryView({
                 <Text
                   className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
                 >
-                  {generating ? 'Generando…' : 'Generar recibo'}
+                  {generating && generatingRunId === item.id ? 'Generando…' : 'Generar recibo'}
                 </Text>
               </Pressable>
             </View>

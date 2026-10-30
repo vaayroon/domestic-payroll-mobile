@@ -6,6 +6,7 @@
  * `useFocusEffect` require a live navigation tree.
  */
 
+import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import {
@@ -68,9 +69,16 @@ const RUN_B = runFixture('payroll-run-fake-b', 6);
 /** Succeeds like the shared fake until `failNext` is set, then rejects once. */
 class FlakyReceiptPdfGenerator implements ReceiptPdfGenerator {
   failNext = false;
+  /** When set, the next `generate` waits for it before running (to observe the in-flight state). */
+  gate: Promise<void> | null = null;
   private readonly inner = new FakeReceiptPdfGenerator();
 
   async generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }> {
+    if (this.gate !== null) {
+      const gate = this.gate;
+      this.gate = null;
+      await gate;
+    }
     if (this.failNext) {
       this.failNext = false;
       throw new Error('fake generation failure');
@@ -231,6 +239,38 @@ describe('PayrollRunHistoryScreen', () => {
         uri: 'file:///fake/cache/Print/recibo-2.pdf',
       },
     });
+  });
+
+  it('disables every "Generar recibo" row while one generates, but only that row reads "Generando…"', async () => {
+    const { renderer, generator } = await renderScreen();
+    let release!: () => void;
+    generator.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const rowOf = (run: PayrollRun) =>
+      renderer.root.findByProps({ testID: `payroll-run-history-generate-${run.id}` });
+    const labelOf = (run: PayrollRun) => rowOf(run).findByType(Text).props.children;
+
+    await act(async () => {
+      rowOf(RUN_B).props.onPress();
+    });
+
+    expect(rowOf(RUN_A).props.disabled).toBe(true);
+    expect(rowOf(RUN_B).props.disabled).toBe(true);
+    expect(labelOf(RUN_A)).toBe('Generar recibo');
+    expect(labelOf(RUN_B)).toBe('Generando…');
+
+    await act(async () => {
+      release();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(rowOf(RUN_A).props.disabled).toBe(false);
+    expect(rowOf(RUN_B).props.disabled).toBe(false);
+    expect(labelOf(RUN_A)).toBe('Generar recibo');
+    expect(labelOf(RUN_B)).toBe('Generar recibo');
   });
 
   it('shows no receipt actions when the only generation failed', async () => {
