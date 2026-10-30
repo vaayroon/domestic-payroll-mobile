@@ -102,6 +102,8 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       bajaDate: input.bajaDate ?? null,
       contractType: input.contractType ?? 'INDEFINIDO',
       grupoCotizacion: input.grupoCotizacion ?? null,
+      receiptEncryptionEnabled: input.receiptEncryptionEnabled ?? false,
+      receiptPasswordOverride: input.receiptPasswordOverride ?? null,
     };
     this.rows.push(employee);
     return employee;
@@ -125,6 +127,12 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       ...(patch.bajaDate !== undefined ? { bajaDate: patch.bajaDate } : {}),
       ...(patch.contractType !== undefined ? { contractType: patch.contractType } : {}),
       ...(patch.grupoCotizacion !== undefined ? { grupoCotizacion: patch.grupoCotizacion } : {}),
+      ...(patch.receiptEncryptionEnabled !== undefined
+        ? { receiptEncryptionEnabled: patch.receiptEncryptionEnabled }
+        : {}),
+      ...(patch.receiptPasswordOverride !== undefined
+        ? { receiptPasswordOverride: patch.receiptPasswordOverride }
+        : {}),
     };
     this.rows[index] = updated;
     return updated;

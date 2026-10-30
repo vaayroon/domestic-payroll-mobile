@@ -91,6 +91,8 @@ export function employeeRowToDomain(row: EmployeeRow): Employee {
     contractType: row.contractType,
     // Free text, so there is nothing to narrow it to: null stays null.
     grupoCotizacion: row.grupoCotizacion,
+    receiptEncryptionEnabled: row.receiptEncryptionEnabled,
+    receiptPasswordOverride: row.receiptPasswordOverride,
   };
 }
 
@@ -108,6 +110,9 @@ export function employeeInsertFromNew(input: NewEmployee, id: string): EmployeeI
     contractType: input.contractType ?? 'INDEFINIDO',
     // Absent means "not on file" (null), never '' and never a default group.
     grupoCotizacion: input.grupoCotizacion ?? null,
+    receiptEncryptionEnabled: input.receiptEncryptionEnabled ?? false,
+    // Absent means "derive from the NIF/NIE" (null); the NIF is never copied here.
+    receiptPasswordOverride: input.receiptPasswordOverride ?? null,
   };
 }
 

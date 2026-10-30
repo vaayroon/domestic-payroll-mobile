@@ -103,4 +103,31 @@ describe('generated migration bundle', () => {
     expect(grupoMigration).not.toMatch(/\bDEFAULT\b/i);
     expect(grupoMigration).not.toMatch(/\bUPDATE\b/i);
   });
+
+  it('adds the receipt encryption columns: a NOT NULL default-false flag and a nullable override, no backfill', () => {
+    // Located by content, not by migration number, so the test survives renumbering.
+    const receiptMigration = Object.values(migrations.migrations).find((sql) =>
+      sql.includes('receipt_password_override'),
+    );
+
+    expect(receiptMigration).toBeDefined();
+    const statements = (receiptMigration ?? '')
+      .split('--> statement-breakpoint')
+      .map((statement) => statement.trim())
+      .filter((statement) => statement !== '');
+    const enabled = statements.find((statement) => statement.includes('receipt_encryption_enabled'));
+    const override = statements.find((statement) => statement.includes('receipt_password_override'));
+
+    expect(statements).toHaveLength(2);
+    expect(enabled).toMatch(/ALTER TABLE `employees` ADD `receipt_encryption_enabled` integer\b/);
+    // Existing rows must read back as "off".
+    expect(enabled).toMatch(/\bNOT\s+NULL\b/i);
+    expect(enabled).toMatch(/\bDEFAULT\s+(false|0)\b/i);
+    expect(override).toMatch(/ALTER TABLE `employees` ADD `receipt_password_override` text\b/);
+    // null means "derive from the document"; a default would invent a password.
+    expect(override).not.toMatch(/\bNOT\s+NULL\b/i);
+    expect(override).not.toMatch(/\bDEFAULT\b/i);
+    // The NIF must never be copied into the override.
+    expect(receiptMigration).not.toMatch(/\bUPDATE\b/i);
+  });
 });

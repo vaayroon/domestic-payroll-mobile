@@ -74,6 +74,17 @@ export interface Employee {
    * derived, defaulted or backfilled.
    */
   readonly grupoCotizacion: string | null;
+  /**
+   * Whether new receipts for this employee are generated password-protected.
+   * It only stops accidental opening; it is not a security measure.
+   */
+  readonly receiptEncryptionEnabled: boolean;
+  /**
+   * Own password for this employee's protected receipts, stored in plaintext by
+   * decision. `null` means "derive it from the NIF/NIE". Never copied from the
+   * NIF, and never replaced by it once set.
+   */
+  readonly receiptPasswordOverride: string | null;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -90,6 +101,10 @@ export interface NewEmployee {
   readonly contractType?: ContractType;
   /** Defaults to `null` ("not on file") when omitted; never to a group. */
   readonly grupoCotizacion?: string | null;
+  /** Defaults to `false` when omitted. */
+  readonly receiptEncryptionEnabled?: boolean;
+  /** Defaults to `null` (derive from the NIF/NIE) when omitted. */
+  readonly receiptPasswordOverride?: string | null;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

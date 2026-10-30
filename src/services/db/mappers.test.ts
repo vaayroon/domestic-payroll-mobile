@@ -85,6 +85,8 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     bajaDate: null,
     contractType: 'INDEFINIDO',
     grupoCotizacion: null,
+    receiptEncryptionEnabled: false,
+    receiptPasswordOverride: null,
   };
 
   it('brands baseGrossCents as Cents on the way out of the DB', () => {
@@ -121,7 +123,36 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
       bajaDate: null,
       contractType: 'INDEFINIDO',
       grupoCotizacion: null,
+      receiptEncryptionEnabled: false,
+      receiptPasswordOverride: null,
     });
+  });
+
+  it('maps a pre-0010 row (disabled, no override) to the same defaults', () => {
+    const domain = employeeRowToDomain(row);
+    expect(domain.receiptEncryptionEnabled).toBe(false);
+    expect(domain.receiptPasswordOverride).toBeNull();
+  });
+
+  it('passes a stored receipt preference and override through unchanged', () => {
+    const domain = employeeRowToDomain({ ...row, receiptEncryptionEnabled: true, receiptPasswordOverride: 'clave 1' });
+    expect(domain.receiptEncryptionEnabled).toBe(true);
+    expect(domain.receiptPasswordOverride).toBe('clave 1');
+  });
+
+  it('inserts an explicit receipt preference and override unchanged', () => {
+    const insertRow = employeeInsertFromNew(
+      {
+        employerId: 'employer-1',
+        name: 'Empleada Ejemplo',
+        baseGrossCents: cents(100),
+        receiptEncryptionEnabled: true,
+        receiptPasswordOverride: 'clave 1',
+      },
+      'employee-1',
+    );
+    expect(insertRow.receiptEncryptionEnabled).toBe(true);
+    expect(insertRow.receiptPasswordOverride).toBe('clave 1');
   });
 
   it('maps a null grupo_cotizacion (every pre-existing row) to null, not an empty string', () => {

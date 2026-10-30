@@ -39,6 +39,8 @@ export function makeEmployee(overrides: Partial<Employee> = {}): Employee {
     bajaDate: null,
     contractType: 'INDEFINIDO',
     grupoCotizacion: null,
+    receiptEncryptionEnabled: false,
+    receiptPasswordOverride: null,
     ...overrides,
   };
 }
