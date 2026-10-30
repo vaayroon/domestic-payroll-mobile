@@ -1,6 +1,7 @@
 import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
+import { FormScrollView } from '@/core';
 import { makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee } from '@/types';
 import { cents } from '@/types/money';
@@ -48,6 +49,13 @@ const baseProps: PayrollRunFormProps = {
 };
 
 describe('PayrollRunForm', () => {
+  it('scrolls the form so the submit button stays reachable above the keyboard', async () => {
+    const renderer = await renderForm(baseProps);
+
+    const scroll = renderer.root.findByType(FormScrollView);
+    expect(scroll.findByProps({ testID: 'payroll-run-form-submit' })).toBeTruthy();
+  });
+
   it('shows the empty-preview placeholder when there is no preview yet', async () => {
     const renderer = await renderForm(baseProps);
 

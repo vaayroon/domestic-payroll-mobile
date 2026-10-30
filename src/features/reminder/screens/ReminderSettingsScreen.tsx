@@ -10,6 +10,8 @@
 import { useRouter } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
+import { FormScrollView } from '@/core';
+
 import { useReminderSettings } from '../hooks';
 
 function pad2(value: number): string {
@@ -37,7 +39,8 @@ export function ReminderSettingsScreen() {
   }
 
   return (
-    <View className="flex-1 gap-4 bg-slate-900 p-4">
+    // Scrolls so the save button stays reachable above the numeric keyboard.
+    <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
         <Text className="mb-1 text-lg font-semibold text-white">Recordatorio mensual</Text>
         <Text className="text-sm text-slate-400">
@@ -114,6 +117,6 @@ export function ReminderSettingsScreen() {
           {saving ? 'Guardando…' : 'Guardar'}
         </Text>
       </Pressable>
-    </View>
+    </FormScrollView>
   );
 }
