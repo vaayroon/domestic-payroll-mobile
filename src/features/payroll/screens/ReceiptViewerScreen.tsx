@@ -17,6 +17,7 @@ import { usePdfViewer } from '@/core';
 import {
   parseReceiptViewerParams,
   useReceiptDispatch,
+  useReceiptPassword,
   useReceiptRun,
   type RawReceiptViewerParams,
 } from '../domain';
@@ -40,17 +41,22 @@ export function ReceiptViewerScreen({ params }: ReceiptViewerScreenProps) {
   const employeeId = parsed.ok ? parsed.employeeId : null;
   const runId = parsed.ok ? parsed.runId : null;
   const uri = parsed.ok ? parsed.uri : null;
+  const encrypted = parsed.ok && parsed.encrypted;
 
   const PdfViewer = usePdfViewer();
   const { status: runStatus, run } = useReceiptRun(employeeId, runId);
-  const dispatch = useReceiptDispatch(run, uri);
+  const dispatch = useReceiptDispatch(run, uri, encrypted);
+  // The route carries only the non-secret flag; the password is re-derived.
+  const passwordState = useReceiptPassword(employeeId, encrypted);
 
   // The outcome is stored with the run id and uri it was reported for, and only
   // applies while both still match the current params; any other pair is
   // treated as not reported yet, so the screen shows `loading` again.
   const [outcome, setOutcome] = useState<PdfOutcome | null>(null);
-  const pdfState: ReceiptViewerPdfState =
+  const reportedState: ReceiptViewerPdfState =
     outcome !== null && outcome.runId === runId && outcome.uri === uri ? outcome.state : 'loading';
+  // No derivable password means the file cannot be opened: fail without mounting the viewer.
+  const pdfState: ReceiptViewerPdfState = passwordState.status === 'unavailable' ? 'failed' : reportedState;
 
   let mailHint: string | null = null;
   if (!dispatch.mailAvailable) {
@@ -63,6 +69,9 @@ export function ReceiptViewerScreen({ params }: ReceiptViewerScreenProps) {
     <ReceiptViewerView
       PdfViewer={PdfViewer}
       uri={uri}
+      password={passwordState.status === 'ready' ? passwordState.password : undefined}
+      awaitingPassword={passwordState.status === 'loading'}
+      protectedReceipt={encrypted}
       pdfState={pdfState}
       onPdfLoad={() => {
         if (runId !== null && uri !== null) {

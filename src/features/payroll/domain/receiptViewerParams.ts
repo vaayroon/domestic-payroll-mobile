@@ -12,10 +12,19 @@ export interface RawReceiptViewerParams {
   readonly employeeId?: string | string[];
   readonly runId?: string | string[];
   readonly uri?: string | string[];
+  /** Non-secret flag: the file is password-protected. The password itself is never a route param. */
+  readonly encrypted?: string | string[];
 }
 
 export type ReceiptViewerParams =
-  | { readonly ok: true; readonly employeeId: string; readonly runId: string; readonly uri: string }
+  | {
+      readonly ok: true;
+      readonly employeeId: string;
+      readonly runId: string;
+      readonly uri: string;
+      /** `true` only for the exact value `'1'`; anything else reads as a plain file. */
+      readonly encrypted: boolean;
+    }
   | { readonly ok: false };
 
 /** `file:///` (empty host) + a path with no query/hash + `.pdf` (case-insensitive). */
@@ -47,6 +56,9 @@ export function isReceiptPdfUri(uri: string): boolean {
   return segments.slice(0, -1).includes(APP_CACHE_SEGMENT);
 }
 
+/** The only value that marks a protected receipt in the route. */
+const ENCRYPTED_FLAG = '1';
+
 function singleNonEmptyString(value: string | string[] | undefined): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
@@ -58,5 +70,5 @@ export function parseReceiptViewerParams(raw: RawReceiptViewerParams): ReceiptVi
   if (employeeId === null || runId === null || uri === null || !isReceiptPdfUri(uri)) {
     return { ok: false };
   }
-  return { ok: true, employeeId, runId, uri };
+  return { ok: true, employeeId, runId, uri, encrypted: raw.encrypted === ENCRYPTED_FLAG };
 }

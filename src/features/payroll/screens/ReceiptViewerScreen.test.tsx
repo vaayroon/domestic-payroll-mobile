@@ -20,12 +20,13 @@ import {
 import { FakeMailSender, FakePdfSharer } from '@/services/mail/testing/fakes';
 import {
   FakePdfViewer,
+  getFakePdfViewerLastPassword,
   getFakePdfViewerLastUri,
   getFakePdfViewerMountCount,
   setFakePdfViewerBehavior,
 } from '@/services/pdfviewer/testing/fakes';
 import { makeEmployee } from '@/features/employees/testing/fixtures';
-import type { Employee, PayrollRun, SettingsRepository } from '@/types';
+import type { Employee, EmployeeRepository, PayrollRun, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
@@ -86,13 +87,16 @@ interface Harness {
 
 async function renderScreen(
   params: ReceiptViewerScreenProps['params'],
-  { runs = [FAKE_RUN] }: { runs?: PayrollRun[] } = {},
+  {
+    runs = [FAKE_RUN],
+    employees = new InMemoryEmployeeRepository([FAKE_EMPLOYEE]),
+  }: { runs?: PayrollRun[]; employees?: EmployeeRepository } = {},
 ): Promise<Harness> {
   const pdfSharer = new FakePdfSharer();
   const mailSender = new FakeMailSender();
   const repositories: Repositories = {
     employers: new InMemoryEmployerRepository([]),
-    employees: new InMemoryEmployeeRepository([FAKE_EMPLOYEE]),
+    employees,
     payrollRuns: new InMemoryPayrollRunRepository(runs),
     settings: fakeSettingsRepository,
   };
@@ -252,5 +256,96 @@ describe('ReceiptViewerScreen', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  describe('protected receipts (spec R10)', () => {
+    const PROTECTED_FAILURE_COPY =
+      'No se pudo abrir el recibo protegido. Vuelve a generarlo desde el historial de nóminas.';
+    const PROTECTED_PARAMS: ReceiptViewerScreenProps['params'] = { ...VALID_PARAMS, encrypted: '1' };
+
+    function employeesWith(employee: Employee): EmployeeRepository {
+      return new InMemoryEmployeeRepository([employee]);
+    }
+
+    it('re-derives the password from the employee and passes it to the viewer without a prompt (S1)', async () => {
+      const { renderer } = await renderScreen(PROTECTED_PARAMS, {
+        employees: employeesWith(makeEmployee({ employerId: 'employer-fake-seed', nif: ' 00000000-t ' })),
+      });
+
+      expect(getFakePdfViewerMountCount()).toBe(1);
+      expect(getFakePdfViewerLastUri()).toBe(FAKE_URI);
+      expect(getFakePdfViewerLastPassword()).toBe('00000000T');
+      expect(has(renderer, 'receipt-viewer-failed')).toBe(false);
+      expect(find(renderer, 'receipt-viewer-share').props.disabled).toBe(false);
+    });
+
+    it('uses the own password when the employee has one', async () => {
+      await renderScreen(PROTECTED_PARAMS, {
+        employees: employeesWith(
+          makeEmployee({ employerId: 'employer-fake-seed', nif: '00000000T', receiptPasswordOverride: 'clave 1' }),
+        ),
+      });
+
+      expect(getFakePdfViewerLastPassword()).toBe('clave 1');
+    });
+
+    it('does not mount the viewer until the password has been derived', async () => {
+      let release!: (employee: Employee | null) => void;
+      const pending = new Promise<Employee | null>((resolve) => {
+        release = resolve;
+      });
+      const employees = {
+        ...new InMemoryEmployeeRepository([]),
+        getById: () => pending,
+      } as unknown as EmployeeRepository;
+
+      const { renderer } = await renderScreen(PROTECTED_PARAMS, { employees });
+
+      expect(getFakePdfViewerMountCount()).toBe(0);
+      expect(find(renderer, 'receipt-viewer-loading').props.children).toBe('Cargando recibo…');
+
+      await act(async () => {
+        release(makeEmployee({ employerId: 'employer-fake-seed', nif: '00000000T' }));
+        await pending;
+      });
+
+      expect(getFakePdfViewerMountCount()).toBe(1);
+      expect(getFakePdfViewerLastPassword()).toBe('00000000T');
+    });
+
+    it('shows the protected failure copy when the viewer cannot open the file, e.g. the own password drifted (S2)', async () => {
+      setFakePdfViewerBehavior({ kind: 'error' });
+      const { renderer } = await renderScreen(PROTECTED_PARAMS, {
+        employees: employeesWith(makeEmployee({ employerId: 'employer-fake-seed', nif: '00000000T' })),
+      });
+
+      expect(find(renderer, 'receipt-viewer-failed').props.children).toBe(PROTECTED_FAILURE_COPY);
+      expect(has(renderer, 'receipt-viewer-share')).toBe(false);
+    });
+
+    it('shows the protected failure copy without mounting the viewer when no password can be derived', async () => {
+      const { renderer } = await renderScreen(PROTECTED_PARAMS, {
+        employees: employeesWith(makeEmployee({ employerId: 'employer-fake-seed', nif: null })),
+      });
+
+      expect(find(renderer, 'receipt-viewer-failed').props.children).toBe(PROTECTED_FAILURE_COPY);
+      expect(getFakePdfViewerMountCount()).toBe(0);
+    });
+
+    it('passes no password without the encrypted flag, even for an employee with a document (S3)', async () => {
+      await renderScreen(VALID_PARAMS, {
+        employees: employeesWith(makeEmployee({ employerId: 'employer-fake-seed', nif: '00000000T' })),
+      });
+
+      expect(getFakePdfViewerMountCount()).toBe(1);
+      expect(getFakePdfViewerLastPassword()).toBeNull();
+    });
+
+    it('keeps the plain failure copy for a plain receipt that fails', async () => {
+      setFakePdfViewerBehavior({ kind: 'error' });
+      const { renderer } = await renderScreen(VALID_PARAMS);
+
+      expect(find(renderer, 'receipt-viewer-failed').props.children).toBe(FAILURE_COPY);
+    });
   });
 });

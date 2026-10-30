@@ -11,3 +11,4 @@ export * from './useReceiptGenerator';
 export * from './useReceiptDispatch';
 export * from './receiptViewerParams';
 export * from './useReceiptRun';
+export * from './useReceiptPassword';

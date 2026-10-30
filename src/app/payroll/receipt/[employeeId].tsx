@@ -10,6 +10,7 @@ export default function ReceiptViewerRoute() {
     employeeId: string | string[];
     runId: string | string[];
     uri: string | string[];
+    encrypted: string | string[];
   }>();
   return <ReceiptViewerScreen params={params} />;
 }

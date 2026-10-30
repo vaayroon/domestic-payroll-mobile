@@ -64,6 +64,7 @@ describe('parseReceiptViewerParams', () => {
       employeeId: 'emp-1',
       runId: 'run-1',
       uri: VALID_URI,
+      encrypted: false,
     });
   });
 
@@ -74,6 +75,7 @@ describe('parseReceiptViewerParams', () => {
       employeeId: 'emp-1',
       runId: 'run-1',
       uri,
+      encrypted: false,
     });
   });
 
@@ -143,6 +145,36 @@ describe('parseReceiptViewerParams', () => {
     });
     expect(parseReceiptViewerParams({ employeeId: 'emp-1', runId: 'run-1' })).toEqual({
       ok: false,
+    });
+  });
+
+  describe('encrypted flag (design D6)', () => {
+    const base = { employeeId: 'emp-1', runId: 'run-1', uri: VALID_URI };
+
+    it("is true only for the exact string '1'", () => {
+      expect(parseReceiptViewerParams({ ...base, encrypted: '1' })).toEqual({ ...base, ok: true, encrypted: true });
+    });
+
+    it.each([
+      ['absent', undefined],
+      ['an empty string', ''],
+      ['0', '0'],
+      ['true', 'true'],
+      ['a padded 1', ' 1'],
+      ['an array holding 1', ['1']],
+    ])('is false when %s', (_label, encrypted) => {
+      expect(parseReceiptViewerParams({ ...base, encrypted })).toEqual({ ...base, ok: true, encrypted: false });
+    });
+
+    it('does not make an otherwise invalid route valid', () => {
+      expect(parseReceiptViewerParams({ ...base, uri: 'https://example.test/a.pdf', encrypted: '1' })).toEqual({
+        ok: false,
+      });
+    });
+
+    it('never carries a password: the result has no such key even if the route had one', () => {
+      const result = parseReceiptViewerParams({ ...base, encrypted: '1', password: '00000000T' } as never);
+      expect(Object.keys(result).sort()).toEqual(['employeeId', 'encrypted', 'ok', 'runId', 'uri']);
     });
   });
 });

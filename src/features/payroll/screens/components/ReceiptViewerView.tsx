@@ -7,6 +7,9 @@
  * enabled per the `shareEnabled`/`mailEnabled` flags) and failed (spec
  * failure copy, no viewer and no action bar). A null `uri` is a failure: the
  * caller rejected the route params, and the native view is never mounted.
+ *
+ * For a protected receipt the viewer is mounted only once the password is
+ * known (`awaitingPassword` false), so it can never be opened without it.
  */
 
 import { Pressable, Text, View } from 'react-native';
@@ -14,12 +17,19 @@ import { Pressable, Text, View } from 'react-native';
 import type { PdfViewerComponent } from '@/core';
 
 import type { DispatchStatus } from '../../domain';
+import { PROTECTED_RECEIPT_FAILURE_COPY } from './receiptProtectionCopy';
 
 export type ReceiptViewerPdfState = 'loading' | 'loaded' | 'failed';
 
 export interface ReceiptViewerViewProps {
   readonly PdfViewer: PdfViewerComponent;
   readonly uri: string | null;
+  /** Open password of an encrypted file; omitted for a plain one. Forwarded to the viewer only. */
+  readonly password?: string;
+  /** The password is still being derived: the native viewer must NOT be mounted yet. */
+  readonly awaitingPassword: boolean;
+  /** The file is password-protected; selects the protected failure copy. */
+  readonly protectedReceipt: boolean;
   readonly pdfState: ReceiptViewerPdfState;
   readonly onPdfLoad: (pageCount: number) => void;
   readonly onPdfFailure: () => void;
@@ -38,6 +48,9 @@ const FAILURE_COPY =
 export function ReceiptViewerView({
   PdfViewer,
   uri,
+  password,
+  awaitingPassword,
+  protectedReceipt,
   pdfState,
   onPdfLoad,
   onPdfFailure,
@@ -53,26 +66,29 @@ export function ReceiptViewerView({
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
         <Text testID="receipt-viewer-failed" className="text-center text-red-400">
-          {FAILURE_COPY}
+          {protectedReceipt ? PROTECTED_RECEIPT_FAILURE_COPY : FAILURE_COPY}
         </Text>
       </View>
     );
   }
 
   const busy = dispatchStatus === 'sharing' || dispatchStatus === 'sending';
-  const loading = pdfState === 'loading';
+  const loading = awaitingPassword || pdfState === 'loading';
   const shareDisabled = loading || busy || !shareEnabled;
   const mailDisabled = loading || busy || !mailEnabled;
 
   return (
     <View className="flex-1 bg-slate-900">
       <View className="flex-1" accessibilityLabel="Recibo de salarios en PDF">
-        <PdfViewer
-          testID="receipt-viewer-pdf"
-          uri={uri}
-          onLoad={onPdfLoad}
-          onFailure={() => onPdfFailure()}
-        />
+        {awaitingPassword ? null : (
+          <PdfViewer
+            testID="receipt-viewer-pdf"
+            uri={uri}
+            password={password}
+            onLoad={onPdfLoad}
+            onFailure={() => onPdfFailure()}
+          />
+        )}
         {loading ? (
           <View
             className="absolute inset-0 items-center justify-center bg-slate-900"

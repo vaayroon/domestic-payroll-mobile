@@ -7,6 +7,7 @@ import { act, create } from 'react-test-renderer';
 
 import {
   FakePdfViewer,
+  getFakePdfViewerLastPassword,
   getFakePdfViewerLastUri,
   getFakePdfViewerMountCount,
   setFakePdfViewerBehavior,
@@ -14,9 +15,9 @@ import {
 
 const URI = 'file:///cache/Print/receipt.pdf';
 
-function mountFake(onLoad: jest.Mock, onFailure: jest.Mock) {
+function mountFake(onLoad: jest.Mock, onFailure: jest.Mock, password?: string) {
   return act(async () => {
-    create(<FakePdfViewer uri={URI} onLoad={onLoad} onFailure={onFailure} />);
+    create(<FakePdfViewer uri={URI} password={password} onLoad={onLoad} onFailure={onFailure} />);
   });
 }
 
@@ -71,5 +72,18 @@ describe('FakePdfViewer', () => {
     setFakePdfViewerBehavior({ kind: 'pending' });
     expect(getFakePdfViewerLastUri()).toBeNull();
     expect(getFakePdfViewerMountCount()).toBe(0);
+  });
+
+  it('records the password the viewer was mounted with, and null when none was given', async () => {
+    expect(getFakePdfViewerLastPassword()).toBeNull();
+
+    await mountFake(jest.fn(), jest.fn(), '00000000T');
+    expect(getFakePdfViewerLastPassword()).toBe('00000000T');
+
+    setFakePdfViewerBehavior({ kind: 'loaded', pageCount: 1 });
+    expect(getFakePdfViewerLastPassword()).toBeNull();
+
+    await mountFake(jest.fn(), jest.fn());
+    expect(getFakePdfViewerLastPassword()).toBeNull();
   });
 });

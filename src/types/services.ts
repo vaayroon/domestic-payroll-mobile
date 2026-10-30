@@ -145,6 +145,12 @@ export type PdfViewerFailureCode = 'load_failed';
 export interface PdfViewerProps {
   /** Local `file://` PDF uri. Validated by the caller before mounting. */
   readonly uri: string;
+  /**
+   * Open password for an encrypted file. Omit it for a plain file. It is
+   * passed straight to the native view and never logged, put in an error or
+   * echoed back through `onFailure`.
+   */
+  readonly password?: string;
   /** Fires once the document is rendered, with its page count. */
   readonly onLoad: (pageCount: number) => void;
   /** A CODE, never the library's error object or message text. */
