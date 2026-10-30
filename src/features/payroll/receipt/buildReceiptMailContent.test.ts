@@ -59,4 +59,50 @@ describe('buildReceiptMailContent', () => {
       buildReceiptMailContent(FAKE_RUN, FAKE_EMPLOYEE),
     );
   });
+
+  describe('password wording variants (spec R11)', () => {
+    const PLAIN_BODY =
+      'Estimado/a Empleada de Prueba:\n\nAdjunto el recibo individual de salarios correspondiente a junio de 2026.\n\nUn saludo.';
+
+    it('keeps the existing body byte for byte when no password source is given (S3)', () => {
+      expect(buildReceiptMailContent(FAKE_RUN, FAKE_EMPLOYEE).body).toBe(PLAIN_BODY);
+      expect(buildReceiptMailContent(FAKE_RUN, FAKE_EMPLOYEE, null).body).toBe(PLAIN_BODY);
+    });
+
+    it('tells the employee the password is their NIF/NIE for a document source (S1)', () => {
+      expect(buildReceiptMailContent(FAKE_RUN, FAKE_EMPLOYEE, 'document').body).toBe(
+        'Estimado/a Empleada de Prueba:\n\nAdjunto el recibo individual de salarios correspondiente a junio de 2026.\n\nEl archivo está protegido con contraseña para evitar aperturas accidentales. La contraseña es su NIF/NIE, en mayúsculas y sin espacios ni guiones.\n\nUn saludo.',
+      );
+    });
+
+    it('says the password was provided separately for an override source, without revealing it (S2)', () => {
+      const employee = makeEmployee({ nif: '00000001T', receiptPasswordOverride: 'clave 1' });
+
+      const { body } = buildReceiptMailContent(FAKE_RUN, employee, 'override');
+
+      expect(body).toBe(
+        'Estimado/a Empleada de Prueba:\n\nAdjunto el recibo individual de salarios correspondiente a junio de 2026.\n\nEl archivo está protegido con contraseña para evitar aperturas accidentales. La contraseña es la que le hemos facilitado.\n\nUn saludo.',
+      );
+      expect(body).not.toContain('clave 1');
+      expect(body).not.toContain('NIF');
+    });
+
+    it('never puts the employee document or override in the body for any source', () => {
+      const employee = makeEmployee({ nif: '00000001T', receiptPasswordOverride: 'clave 1' });
+
+      for (const source of ['document', 'override'] as const) {
+        const { body, subject } = buildReceiptMailContent(FAKE_RUN, employee, source);
+        expect(body).not.toContain('00000001T');
+        expect(body).not.toContain('clave 1');
+        expect(subject).toBe('Recibo de salarios — junio de 2026');
+      }
+    });
+
+    it('does not use the words the framing forbids (spec R5)', () => {
+      for (const source of ['document', 'override'] as const) {
+        const { body } = buildReceiptMailContent(FAKE_RUN, FAKE_EMPLOYEE, source);
+        expect(body).not.toMatch(/seguro|confidencial|imposible de abrir/i);
+      }
+    });
+  });
 });
