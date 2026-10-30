@@ -20,12 +20,31 @@ import { assertSecureRandom } from './secureRandom';
  * (default 'AES-256'; RC4 needs `allowWeakCryptography`), and
  * `SaveOptions.useObjectStreams?: boolean` (`PDFDocumentOptions.d.ts`).
  *
- * 'AES-256' writes /V 5 /R 6 /CFM /AESV3 and caps the password at 127 UTF-8
- * bytes (`RECEIPT_PASSWORD_MAX_BYTES` in core). If the device spike shows
- * react-native-pdf cannot open R6, switch to 'AES-128' (V4/R4/AESV2, 32-byte
- * Latin-1 password) and change the coupled constant and Jest regexes together.
+ * 'AES-128' writes /V 4 /R 4 /CFM /AESV2. It replaced the library default
+ * 'AES-256' (V5/R6) after the device spike on the Android development build:
+ * R6 key derivation (ISO 32000-2 Algorithm 2.B, pure JS on Hermes) took about
+ * 5.3 s inside `encrypt()` (5.7-6.2 s end to end), while R4 costs 3-5 ms there
+ * (0.42-0.46 s end to end, dominated by load and save). The password is a
+ * 9-character NIF/NIE, so the weak link is the password, not the key size.
+ * react-native-pdf (pdfium) opens R4 with the right password and fails with a
+ * wrong one.
+ *
+ * R4 PASSWORD ENCODING (read from `processPasswordR2R3R4` in
+ * `cjs/core/security/PDFSecurity.js`, 2.11.1). The writer does NOT use UTF-8
+ * and NOT PDFDocEncoding: it takes `password.charCodeAt(i)` per UTF-16 code
+ * unit, THROWS ('Password contains one or more invalid characters.') above
+ * U+00FF, SILENTLY STOPS at 32 code units, and pads shorter passwords with the
+ * standard 32-byte padding string. That is Latin-1 with a 32-character cap.
+ *
+ * The in-app viewer reads it differently: pdfiumandroid passes the Kotlin
+ * String through JNI `GetStringUTFChars` (modified UTF-8) and pdfium hashes
+ * those raw bytes (`GetPassCode`, no transcoding, first 32 bytes). U+0080 to
+ * U+00FF are therefore ONE byte for the writer and TWO for the viewer, so only
+ * ASCII round-trips end to end. `RECEIPT_PASSWORD_MAX_LENGTH` and the
+ * validation in `src/core/receiptPassword.ts` are coupled to this constant:
+ * change them together.
  */
-export const RECEIPT_ENCRYPTION_ALGORITHM = 'AES-256' satisfies NonNullable<SecurityOptions['algorithm']>;
+export const RECEIPT_ENCRYPTION_ALGORITHM = 'AES-128' satisfies NonNullable<SecurityOptions['algorithm']>;
 
 /**
  * Object streams MUST stay on. In 2.11.1 the classic writer (`PDFWriter`) only

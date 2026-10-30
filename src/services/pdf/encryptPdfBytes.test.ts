@@ -60,8 +60,8 @@ afterEach(() => {
 });
 
 describe('RECEIPT_ENCRYPTION_ALGORITHM', () => {
-  it('is AES-256 (V5/R6), the switch point coupled to RECEIPT_PASSWORD_MAX_BYTES = 127', () => {
-    expect(RECEIPT_ENCRYPTION_ALGORITHM).toBe('AES-256');
+  it('is AES-128 (V4/R4), the switch point coupled to RECEIPT_PASSWORD_MAX_LENGTH = 32', () => {
+    expect(RECEIPT_ENCRYPTION_ALGORITHM).toBe('AES-128');
   });
 });
 
@@ -94,7 +94,7 @@ describe('encryptPdfBytes', () => {
     await expect(PDFDocument.load(encrypted, { password: '00000001T' })).rejects.toThrow(/password/i);
   });
 
-  it('writes a Standard handler V5 / R6 / AESV3 /Encrypt dictionary and no cleartext metadata', async () => {
+  it('writes a Standard handler V4 / R4 / AESV2 /Encrypt dictionary and no cleartext metadata', async () => {
     const plain = await buildPlainPdf();
     expect(latin1(plain).toLowerCase()).toContain(utf16BeHex(TITLE));
     installCountingSource();
@@ -104,9 +104,10 @@ describe('encryptPdfBytes', () => {
     const text = latin1(encrypted);
     expect(text).toMatch(/\/Encrypt\s+\d+\s+0\s+R/);
     expect(text).toMatch(/\/Filter\s*\/Standard/);
-    expect(text).toMatch(/\/V\s+5\b/);
-    expect(text).toMatch(/\/R\s+6\b/);
-    expect(text).toMatch(/\/AESV3/);
+    expect(text).toMatch(/\/V\s+4\b/);
+    expect(text).toMatch(/\/R\s+4\b/);
+    expect(text).toMatch(/\/AESV2/);
+    expect(text).not.toMatch(/\/AESV3/);
     expect(text.toLowerCase()).not.toContain(utf16BeHex(TITLE));
   });
 
@@ -172,16 +173,39 @@ describe('encryptPdfBytes', () => {
     await expect(PDFDocument.load(encrypted, { password: PASSWORD })).rejects.toThrow(/password/i);
   });
 
-  it('round-trips a 127-byte multibyte password (63 x "ñ" + "a")', async () => {
+  it('round-trips a password of exactly 32 characters, the R4 limit', async () => {
     const plain = await buildPlainPdf();
     installCountingSource();
-    const password = `${'ñ'.repeat(63)}a`;
-    expect(Buffer.byteLength(password, 'utf8')).toBe(127);
+    const password = `${'a'.repeat(31)}Z`;
+    expect(password).toHaveLength(32);
 
     const encrypted = await encryptPdfBytes(plain, password);
 
     const reopened = await PDFDocument.load(encrypted, { password });
     expect(reopened.getPageCount()).toBe(1);
+    await expect(PDFDocument.load(encrypted, { password: `${'a'.repeat(31)}Y` })).rejects.toThrow(/password/i);
+  });
+
+  // Characterization of the writer behaviour that `validateReceiptPasswordOverride`
+  // exists to prevent (verified in @cantoo/pdf-lib 2.11.1 `processPasswordR2R3R4`):
+  // anything after the 32nd UTF-16 code unit is silently dropped, so the file
+  // would open with a password the employer never typed.
+  it('silently truncates a password longer than 32 characters (why core must reject it)', async () => {
+    const plain = await buildPlainPdf();
+    installCountingSource();
+    const tooLong = `${'a'.repeat(32)}TAIL`;
+
+    const encrypted = await encryptPdfBytes(plain, tooLong);
+
+    const reopened = await PDFDocument.load(encrypted, { password: 'a'.repeat(32) });
+    expect(reopened.getPageCount()).toBe(1);
+  });
+
+  it('refuses a character above U+00FF instead of encoding it differently', async () => {
+    const plain = await buildPlainPdf();
+    installCountingSource();
+
+    await expect(encryptPdfBytes(plain, 'clave€')).rejects.toThrow(/invalid characters/i);
   });
 
   it('throws before encrypting when no secure random source is installed', async () => {
