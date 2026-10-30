@@ -4,9 +4,9 @@
  * emits codes only, never UI copy.
  */
 
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 
-import { RECEIPT_PASSWORD_MAX_LENGTH } from '@/core';
+import { FormScrollView, RECEIPT_PASSWORD_MAX_LENGTH } from '@/core';
 
 import type { EmployeeFormErrors, EmployeeFormInput } from '../../domain';
 
@@ -106,13 +106,8 @@ export interface EmployeeFormProps {
 export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, saveError, submitLabel }: EmployeeFormProps) {
   return (
     // Scrolls: with the protection fields the form no longer fits a small screen,
-    // and `keyboardShouldPersistTaps` keeps the submit button tappable with the
-    // keyboard open.
-    <ScrollView
-      className="flex-1 bg-slate-900"
-      contentContainerClassName="gap-4 p-4"
-      keyboardShouldPersistTaps="handled"
-    >
+    // and the last fields must stay reachable above the keyboard.
+    <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
         <Text className="mb-1 text-slate-300">Nombre</Text>
         <TextInput
@@ -297,6 +292,6 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
           {saving ? 'Guardando…' : submitLabel}
         </Text>
       </Pressable>
-    </ScrollView>
+    </FormScrollView>
   );
 }

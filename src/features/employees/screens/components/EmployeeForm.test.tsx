@@ -1,6 +1,8 @@
 import { ScrollView, Switch, Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
+import { FormScrollView } from '@/core';
+
 import type { EmployeeFormErrors } from '../../domain';
 
 import { EmployeeForm, type EmployeeFormProps } from './EmployeeForm';
@@ -259,11 +261,11 @@ describe('EmployeeForm', () => {
     });
   });
 
-  it('keeps the whole form reachable on small screens by scrolling', async () => {
+  it('keeps the whole form reachable on small screens and above the keyboard', async () => {
     const renderer = await renderForm(baseProps);
 
+    expect(renderer.root.findAllByType(FormScrollView)).toHaveLength(1);
     expect(renderer.root.findAllByType(ScrollView)).toHaveLength(1);
-    expect(renderer.root.findByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
   });
 
   it('fires onSubmit when the submit button is pressed', async () => {

@@ -21,3 +21,4 @@ export * from './employerSignature';
 export * from './readEmployerSignature';
 export * from './SignaturePadProvider';
 export * from './PdfViewerProvider';
+export * from './FormScrollView';
