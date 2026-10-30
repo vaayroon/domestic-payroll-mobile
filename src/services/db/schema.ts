@@ -51,6 +51,12 @@ export const employees = sqliteTable(
     // NIF/NIE", so the NIF is never copied into this column.
     receiptEncryptionEnabled: integer('receipt_encryption_enabled', { mode: 'boolean' }).notNull().default(false),
     receiptPasswordOverride: text('receipt_password_override'),
+    // Readable receipt file name format. Nullable with NO default and never
+    // backfilled: null means "inherit the general setting", so a default would
+    // silently override every existing employee with a format nobody chose. The
+    // column holds a format id or 'auto'; it is narrowed on read (mappers.ts),
+    // not through a Drizzle enum, so an unknown stored value degrades to null.
+    receiptFileNameFormat: text('receipt_file_name_format'),
   },
   (table) => [index('employees_employer_id_idx').on(table.employerId)],
 );

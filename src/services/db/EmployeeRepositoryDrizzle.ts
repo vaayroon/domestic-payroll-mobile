@@ -59,6 +59,10 @@ export class EmployeeRepositoryDrizzle implements EmployeeRepository {
         ...(patch.receiptPasswordOverride !== undefined
           ? { receiptPasswordOverride: patch.receiptPasswordOverride }
           : {}),
+        // Same rule again: `null` goes back to inheriting the general setting.
+        ...(patch.receiptFileNameFormat !== undefined
+          ? { receiptFileNameFormat: patch.receiptFileNameFormat }
+          : {}),
       })
       .where(eq(employees.id, id))
       .returning();

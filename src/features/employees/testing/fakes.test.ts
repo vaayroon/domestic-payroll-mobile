@@ -94,3 +94,42 @@ describe('InMemoryEmployeeRepository receipt encryption fields', () => {
     expect(updated.receiptEncryptionEnabled).toBe(false);
   });
 });
+
+describe('InMemoryEmployeeRepository receiptFileNameFormat', () => {
+  const newEmployee = { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100000) };
+
+  it('creates an employee that inherits the general setting (null) when none is given', async () => {
+    const repo = new InMemoryEmployeeRepository();
+    const created = await repo.create(newEmployee);
+    expect(created.receiptFileNameFormat).toBeNull();
+  });
+
+  it.each(['auto', 'name-year-month'] as const)('stores the format %j given at creation', async (format) => {
+    const repo = new InMemoryEmployeeRepository();
+    const created = await repo.create({ ...newEmployee, receiptFileNameFormat: format });
+    expect(created.receiptFileNameFormat).toBe(format);
+    expect((await repo.getById(created.id))?.receiptFileNameFormat).toBe(format);
+  });
+
+  it('changes the format on update', async () => {
+    const repo = new InMemoryEmployeeRepository();
+    const created = await repo.create({ ...newEmployee, receiptFileNameFormat: 'auto' });
+    const updated = await repo.update(created.id, { receiptFileNameFormat: 'month-year' });
+    expect(updated.receiptFileNameFormat).toBe('month-year');
+  });
+
+  it('goes back to inheriting with an explicit null (null is a value, not "absent")', async () => {
+    const repo = new InMemoryEmployeeRepository();
+    const created = await repo.create({ ...newEmployee, receiptFileNameFormat: 'auto' });
+    const updated = await repo.update(created.id, { receiptFileNameFormat: null });
+    expect(updated.receiptFileNameFormat).toBeNull();
+    expect((await repo.getById(created.id))?.receiptFileNameFormat).toBeNull();
+  });
+
+  it('leaves the format alone when the patch does not mention it', async () => {
+    const repo = new InMemoryEmployeeRepository();
+    const created = await repo.create({ ...newEmployee, receiptFileNameFormat: 'auto' });
+    const updated = await repo.update(created.id, { name: 'Empleada Renombrada' });
+    expect(updated.receiptFileNameFormat).toBe('auto');
+  });
+});

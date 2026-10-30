@@ -104,6 +104,7 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       grupoCotizacion: input.grupoCotizacion ?? null,
       receiptEncryptionEnabled: input.receiptEncryptionEnabled ?? false,
       receiptPasswordOverride: input.receiptPasswordOverride ?? null,
+      receiptFileNameFormat: input.receiptFileNameFormat ?? null,
     };
     this.rows.push(employee);
     return employee;
@@ -132,6 +133,9 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
         : {}),
       ...(patch.receiptPasswordOverride !== undefined
         ? { receiptPasswordOverride: patch.receiptPasswordOverride }
+        : {}),
+      ...(patch.receiptFileNameFormat !== undefined
+        ? { receiptFileNameFormat: patch.receiptFileNameFormat }
         : {}),
     };
     this.rows[index] = updated;

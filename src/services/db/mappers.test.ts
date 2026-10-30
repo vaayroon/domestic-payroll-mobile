@@ -87,6 +87,7 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     grupoCotizacion: null,
     receiptEncryptionEnabled: false,
     receiptPasswordOverride: null,
+    receiptFileNameFormat: null,
   };
 
   it('brands baseGrossCents as Cents on the way out of the DB', () => {
@@ -125,6 +126,7 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
       grupoCotizacion: null,
       receiptEncryptionEnabled: false,
       receiptPasswordOverride: null,
+      receiptFileNameFormat: null,
     });
   });
 
@@ -153,6 +155,53 @@ describe('employeeRowToDomain / employeeInsertFromNew', () => {
     );
     expect(insertRow.receiptEncryptionEnabled).toBe(true);
     expect(insertRow.receiptPasswordOverride).toBe('clave 1');
+  });
+
+  it('maps a null receipt_file_name_format (every pre-0011 row) to null: inherit the general setting', () => {
+    expect(employeeRowToDomain({ ...row, receiptFileNameFormat: null }).receiptFileNameFormat).toBeNull();
+  });
+
+  it.each(['auto', 'name-month-year', 'name-year-month', 'year-month-name', 'month-year'])(
+    'passes the stored receipt file name format %j through unchanged',
+    (stored) => {
+      expect(employeeRowToDomain({ ...row, receiptFileNameFormat: stored }).receiptFileNameFormat).toBe(stored);
+    },
+  );
+
+  it.each(['bogus', '', 'AUTO', ' auto', 'toString', '__proto__', 'constructor', 'hasOwnProperty'])(
+    'narrows the unknown stored receipt file name format %j to null (inherit)',
+    (stored) => {
+      expect(employeeRowToDomain({ ...row, receiptFileNameFormat: stored }).receiptFileNameFormat).toBeNull();
+    },
+  );
+
+  it('defaults receiptFileNameFormat to null on insert when omitted', () => {
+    const insertRow = employeeInsertFromNew(
+      { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100) },
+      'employee-1',
+    );
+    expect(insertRow.receiptFileNameFormat).toBeNull();
+  });
+
+  it.each([null, 'auto', 'name-month-year', 'month-year'] as const)(
+    'inserts an explicit receiptFileNameFormat %j unchanged',
+    (format) => {
+      const insertRow = employeeInsertFromNew(
+        { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100), receiptFileNameFormat: format },
+        'employee-1',
+      );
+      expect(insertRow.receiptFileNameFormat).toBe(format);
+    },
+  );
+
+  it('round-trips an employee insert row back to the same format through the mapper', () => {
+    const insertRow = employeeInsertFromNew(
+      { employerId: 'employer-1', name: 'Empleada Ejemplo', baseGrossCents: cents(100), receiptFileNameFormat: 'year-month-name' },
+      'employee-1',
+    );
+    // What the DB does between the two mappers: the written column is read back as is.
+    const readBack = employeeRowToDomain({ ...row, receiptFileNameFormat: insertRow.receiptFileNameFormat ?? null });
+    expect(readBack.receiptFileNameFormat).toBe('year-month-name');
   });
 
   it('maps a null grupo_cotizacion (every pre-existing row) to null, not an empty string', () => {

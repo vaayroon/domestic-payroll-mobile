@@ -41,6 +41,7 @@ export function makeEmployee(overrides: Partial<Employee> = {}): Employee {
     grupoCotizacion: null,
     receiptEncryptionEnabled: false,
     receiptPasswordOverride: null,
+    receiptFileNameFormat: null,
     ...overrides,
   };
 }

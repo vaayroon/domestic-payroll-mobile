@@ -103,6 +103,13 @@ export interface Employee {
    * NIF, and never replaced by it once set.
    */
   readonly receiptPasswordOverride: string | null;
+  /**
+   * Readable receipt file name format for this employee. `null` means "inherit
+   * the general setting" (what every employee created before this field existed
+   * reads back as); `'auto'` forces the random name even when a general format
+   * is set; a format id wins over the general setting.
+   */
+  readonly receiptFileNameFormat: EmployeeReceiptFileNameFormat | null;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -123,6 +130,8 @@ export interface NewEmployee {
   readonly receiptEncryptionEnabled?: boolean;
   /** Defaults to `null` (derive from the NIF/NIE) when omitted. */
   readonly receiptPasswordOverride?: string | null;
+  /** Defaults to `null` (inherit the general setting) when omitted. */
+  readonly receiptFileNameFormat?: EmployeeReceiptFileNameFormat | null;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

@@ -130,4 +130,36 @@ describe('generated migration bundle', () => {
     // The NIF must never be copied into the override.
     expect(receiptMigration).not.toMatch(/\bUPDATE\b/i);
   });
+
+  it('adds receipt_file_name_format as one nullable column with no default and no backfill', () => {
+    // Located by content, not by migration number, so the test survives renumbering.
+    const fileNameMigration = Object.values(migrations.migrations).find((sql) =>
+      sql.includes('receipt_file_name_format'),
+    );
+
+    expect(fileNameMigration).toBeDefined();
+    const statements = (fileNameMigration ?? '')
+      .split('--> statement-breakpoint')
+      .map((statement) => statement.trim())
+      .filter((statement) => statement !== '');
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^ALTER TABLE `employees` ADD `receipt_file_name_format` text;?$/);
+    // null means "inherit the general setting"; a default would override every
+    // existing employee with a format nobody chose.
+    expect(fileNameMigration).not.toMatch(/\bNOT\s+NULL\b/i);
+    expect(fileNameMigration).not.toMatch(/\bDEFAULT\b/i);
+    expect(fileNameMigration).not.toMatch(/\b(UPDATE|DROP)\b/i);
+  });
+
+  it('keeps the file name migration after the receipt encryption one', () => {
+    const sqls = migrations.journal.entries.map(
+      (entry) => migrations.migrations[`m${entry.idx.toString().padStart(4, '0')}`] ?? '',
+    );
+    const encryptionIndex = sqls.findIndex((sql) => sql.includes('receipt_password_override'));
+    const fileNameIndex = sqls.findIndex((sql) => sql.includes('receipt_file_name_format'));
+
+    expect(encryptionIndex).toBeGreaterThanOrEqual(0);
+    expect(fileNameIndex).toBeGreaterThan(encryptionIndex);
+  });
 });

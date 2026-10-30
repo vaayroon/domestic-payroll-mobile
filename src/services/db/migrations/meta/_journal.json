@@ -78,6 +78,13 @@
       "when": 1793349695828,
       "tag": "0010_jittery_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793362157915,
+      "tag": "0011_add_receipt_file_name_format",
+      "breakpoints": true
     }
   ]
 }
