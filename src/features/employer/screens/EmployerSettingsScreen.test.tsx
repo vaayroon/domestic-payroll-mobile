@@ -9,7 +9,7 @@
 import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
-import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
+import { CurrentEmployerProvider, FormScrollView, RepositoryProvider, type Repositories } from '@/core';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
 import type { Employer, PayrollRunRepository, SettingsRepository } from '@/types';
 
@@ -92,6 +92,13 @@ describe('EmployerSettingsScreen', () => {
     expect(renderer.root.findByProps({ testID: 'employer-form-address' }).props.value).toBe('Calle Falsa 123');
     expect(renderer.root.findByProps({ testID: 'employer-form-ccc' }).props.value).toBe('28000000000');
     expect(renderer.root.findByProps({ testID: 'employer-form-default-lugar' }).props.value).toBe('');
+  });
+
+  it('scrolls the form so the last fields and links stay reachable above the keyboard', async () => {
+    const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
+
+    const scroll = renderer.root.findByType(FormScrollView);
+    expect(scroll.findByProps({ testID: 'employer-form-receipt-file-name-link' })).toBeTruthy();
   });
 
   it('exposes a link to the signature capture screen', async () => {
