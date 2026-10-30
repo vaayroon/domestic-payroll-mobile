@@ -33,6 +33,13 @@ module.exports = defineConfig([
               importNames: ['getRandomValues', 'getRandomBytes', 'getRandomBytesAsync'],
               message: 'The expo-crypto random-bytes API is only allowed inside src/services/pdf/ (secure-random shim for receipt encryption). randomUUID stays free to use.',
             },
+            {
+              // Android is edge-to-edge (Expo SDK 54): a plain ScrollView or RN's
+              // KeyboardAvoidingView leaves inputs behind the keyboard.
+              name: 'react-native',
+              importNames: ['ScrollView', 'KeyboardAvoidingView'],
+              message: 'Use FormScrollView from @/core: it keeps inputs and the submit button above the Android keyboard. Lists without inputs use FlatList.',
+            },
           ],
           patterns: [
             {

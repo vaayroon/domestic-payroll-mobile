@@ -1,4 +1,4 @@
-import { ScrollView, Switch, Text } from 'react-native';
+import { Switch, Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { FormScrollView, RECEIPT_FILE_NAME_FORMAT_EXAMPLES, RECEIPT_FILE_NAME_FORMAT_IDS } from '@/core';
@@ -362,7 +362,6 @@ describe('EmployeeForm', () => {
     const renderer = await renderForm(baseProps);
 
     expect(renderer.root.findAllByType(FormScrollView)).toHaveLength(1);
-    expect(renderer.root.findAllByType(ScrollView)).toHaveLength(1);
   });
 
   it('fires onSubmit when the submit button is pressed', async () => {
