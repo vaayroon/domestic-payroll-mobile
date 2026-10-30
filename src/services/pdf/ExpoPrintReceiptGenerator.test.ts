@@ -18,6 +18,7 @@ let mockDeleteError: Error | null = null;
 let mockWriteError: Error | null = null;
 let mockMkdirError: Error | null = null;
 let mockRmdirError: Error | null = null;
+let mockExistsError: Error | null = null;
 let mockMoveFailure: { readonly error: Error; readonly afterMoving: boolean } | null = null;
 
 function mockJoinUri(parts: readonly (string | { readonly uri: string })[]): string {
@@ -40,6 +41,7 @@ jest.mock('expo-file-system', () => ({
       return this.location;
     }
     get exists(): boolean {
+      if (mockExistsError) throw mockExistsError;
       return mockFileStore.has(this.location);
     }
     async bytes(): Promise<Uint8Array> {
@@ -136,6 +138,7 @@ describe('ExpoPrintReceiptGenerator', () => {
     mockWriteError = null;
     mockMkdirError = null;
     mockRmdirError = null;
+    mockExistsError = null;
     mockMoveFailure = null;
   });
 
@@ -460,6 +463,18 @@ describe('ExpoPrintReceiptGenerator', () => {
         expect(mockFileStore.get(NAMED_URI)).toBe(ENCRYPTED_BYTES);
         expect(mockFileStore.has(PLAIN_URI)).toBe(false);
         expect(mockFileOps).not.toContain(`rmdir ${DIR_URI}`);
+      });
+
+      it('still falls back to the printed uri when reading whether the target exists throws', async () => {
+        mockMoveFailure = { error: new Error('cannot move'), afterMoving: false };
+        mockExistsError = new Error('native getter failed');
+        const generator = new ExpoPrintReceiptGenerator();
+
+        const result = await generator.generate('<html></html>', { fileName: FILE_NAME });
+
+        expect(result).toEqual({ uri: PLAIN_URI });
+        expect(mockFileOps).toEqual([`mkdir ${DIR_URI}`, `move ${PLAIN_URI} -> ${NAMED_URI}`, `rmdir ${DIR_URI}`]);
+        expect(mockFileStore.get(PLAIN_URI)).toBe(PLAIN_BYTES);
       });
 
       it('never removes a directory that still holds a file', async () => {

@@ -116,6 +116,15 @@ function deleteReceiptQuietly(uri: string): void {
   }
 }
 
+/** Reads `file.exists`, which is a native getter and can throw, as `false` when it does. */
+function existsQuietly(file: File | null): boolean {
+  try {
+    return file?.exists === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Moves the printed file to `cache/receipts/<uuid>/<fileName>.pdf` and returns
  * its new uri, or `printedUri` when that is not possible. Never throws.
@@ -136,7 +145,7 @@ function placeUnderReadableName(printedUri: string, fileName: string): string {
     printed.move(target);
     return printed.uri;
   } catch {
-    if (target?.exists) {
+    if (target !== null && existsQuietly(target)) {
       return target.uri;
     }
     if (directory !== null) {
