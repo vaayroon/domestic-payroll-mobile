@@ -15,6 +15,7 @@ export * from './NotifyServiceProvider';
 export * from './ReminderProvider';
 export * from './parseEuroInput';
 export * from './validateNifNie';
+export * from './receiptPassword';
 export * from './validateNaf';
 export * from './employerSignature';
 export * from './readEmployerSignature';
