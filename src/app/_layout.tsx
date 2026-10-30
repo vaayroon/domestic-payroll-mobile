@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { Link, Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { Text } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import {
   CurrentEmployerProvider,
@@ -69,74 +70,77 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <SQLiteProvider databaseName={DATABASE_NAME} onInit={runMigrations}>
-      <DatabaseRepositories>
-        <CurrentEmployerProvider>
-          <PdfServiceProvider generator={pdfGenerator}>
-            <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
-              <NotifyServiceProvider scheduler={notificationScheduler}>
-                <SignaturePadProvider pad={SignaturePadView}>
-                  <PdfViewerProvider viewer={PdfViewerView}>
-                    <ReminderProvider>
-                      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                        <Stack>
-                          <Stack.Screen
-                            name="index"
-                            options={{
-                              title: 'Empleados',
-                              headerRight: () => (
-                                <Link href="/settings/employer" testID="header-settings-link">
-                                  <Text className="text-emerald-400">Ajustes</Text>
-                                </Link>
-                              ),
-                            }}
-                          />
-                          <Stack.Screen
-                            name="employees/new"
-                            options={{ presentation: 'modal', title: 'Nuevo empleado' }}
-                          />
-                          <Stack.Screen
-                            name="employees/[id]/edit"
-                            options={{ presentation: 'modal', title: 'Editar empleado' }}
-                          />
-                          <Stack.Screen
-                            name="payroll/new"
-                            options={{ presentation: 'modal', title: 'Nueva nómina' }}
-                          />
-                          <Stack.Screen
-                            name="payroll/history/[employeeId]"
-                            options={{ title: 'Historial de nóminas' }}
-                          />
-                          <Stack.Screen
-                            name="payroll/receipt/[employeeId]"
-                            options={{ title: 'Recibo de salarios' }}
-                          />
-                          <Stack.Screen
-                            name="settings/employer"
-                            options={{ presentation: 'modal', title: 'Datos del empleador' }}
-                          />
-                          <Stack.Screen
-                            name="settings/reminder"
-                            options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
-                          />
-                          <Stack.Screen
-                            name="settings/signature"
-                            options={{ presentation: 'modal', title: 'Firma' }}
-                          />
-                          <Stack.Screen
-                            name="settings/receipt-file-name"
-                            options={{ presentation: 'modal', title: 'Nombre del archivo' }}
-                          />
-                        </Stack>
-                      </ThemeProvider>
-                    </ReminderProvider>
-                  </PdfViewerProvider>
-                </SignaturePadProvider>
-              </NotifyServiceProvider>
-            </MailServiceProvider>
-          </PdfServiceProvider>
-        </CurrentEmployerProvider>
-      </DatabaseRepositories>
-    </SQLiteProvider>
+    // Keyboard Controller tracks the keyboard for `FormScrollView`.
+    <KeyboardProvider>
+      <SQLiteProvider databaseName={DATABASE_NAME} onInit={runMigrations}>
+        <DatabaseRepositories>
+          <CurrentEmployerProvider>
+            <PdfServiceProvider generator={pdfGenerator}>
+              <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
+                <NotifyServiceProvider scheduler={notificationScheduler}>
+                  <SignaturePadProvider pad={SignaturePadView}>
+                    <PdfViewerProvider viewer={PdfViewerView}>
+                      <ReminderProvider>
+                        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                          <Stack>
+                            <Stack.Screen
+                              name="index"
+                              options={{
+                                title: 'Empleados',
+                                headerRight: () => (
+                                  <Link href="/settings/employer" testID="header-settings-link">
+                                    <Text className="text-emerald-400">Ajustes</Text>
+                                  </Link>
+                                ),
+                              }}
+                            />
+                            <Stack.Screen
+                              name="employees/new"
+                              options={{ presentation: 'modal', title: 'Nuevo empleado' }}
+                            />
+                            <Stack.Screen
+                              name="employees/[id]/edit"
+                              options={{ presentation: 'modal', title: 'Editar empleado' }}
+                            />
+                            <Stack.Screen
+                              name="payroll/new"
+                              options={{ presentation: 'modal', title: 'Nueva nómina' }}
+                            />
+                            <Stack.Screen
+                              name="payroll/history/[employeeId]"
+                              options={{ title: 'Historial de nóminas' }}
+                            />
+                            <Stack.Screen
+                              name="payroll/receipt/[employeeId]"
+                              options={{ title: 'Recibo de salarios' }}
+                            />
+                            <Stack.Screen
+                              name="settings/employer"
+                              options={{ presentation: 'modal', title: 'Datos del empleador' }}
+                            />
+                            <Stack.Screen
+                              name="settings/reminder"
+                              options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
+                            />
+                            <Stack.Screen
+                              name="settings/signature"
+                              options={{ presentation: 'modal', title: 'Firma' }}
+                            />
+                            <Stack.Screen
+                              name="settings/receipt-file-name"
+                              options={{ presentation: 'modal', title: 'Nombre del archivo' }}
+                            />
+                          </Stack>
+                        </ThemeProvider>
+                      </ReminderProvider>
+                    </PdfViewerProvider>
+                  </SignaturePadProvider>
+                </NotifyServiceProvider>
+              </MailServiceProvider>
+            </PdfServiceProvider>
+          </CurrentEmployerProvider>
+        </DatabaseRepositories>
+      </SQLiteProvider>
+    </KeyboardProvider>
   );
 }

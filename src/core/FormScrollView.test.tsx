@@ -1,10 +1,10 @@
 /**
- * Render test for `FormScrollView`: the keyboard-avoiding wrapper that keeps
- * the focused input and the submit button above the Android keyboard.
+ * Render test for `FormScrollView`: the keyboard-aware scroll container that
+ * keeps the focused input and the submit button above the Android keyboard.
  */
 
-import { HeaderHeightContext } from '@react-navigation/elements';
-import { KeyboardAvoidingView, ScrollView, Text } from 'react-native';
+import { Text } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { FormScrollView } from './FormScrollView';
@@ -21,38 +21,25 @@ function render(element: React.ReactElement): ReactTestRenderer {
 }
 
 describe('FormScrollView', () => {
-  it('pads the content by the keyboard height and offsets it by the stack header height', () => {
-    const renderer = render(
-      <HeaderHeightContext.Provider value={84}>
-        <FormScrollView>
-          <Text>field</Text>
-        </FormScrollView>
-      </HeaderHeightContext.Provider>,
-    );
-
-    const avoiding = renderer.root.findByType(KeyboardAvoidingView);
-    expect(avoiding.props.behavior).toBe('padding');
-    expect(avoiding.props.keyboardVerticalOffset).toBe(84);
-  });
-
-  it('uses no offset when rendered outside a navigator header', () => {
+  it('scrolls the focused input above the keyboard with a gap', () => {
     const renderer = render(
       <FormScrollView>
         <Text>field</Text>
       </FormScrollView>,
     );
 
-    expect(renderer.root.findByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
+    const scroll = renderer.root.findByType(KeyboardAwareScrollView);
+    expect(scroll.props.bottomOffset).toBeGreaterThan(0);
   });
 
-  it('scrolls its children and keeps taps working while the keyboard is open', () => {
+  it('keeps taps working while the keyboard is open and renders its children', () => {
     const renderer = render(
       <FormScrollView contentContainerClassName="gap-4 p-4">
         <Text>field</Text>
       </FormScrollView>,
     );
 
-    const scroll = renderer.root.findByType(ScrollView);
+    const scroll = renderer.root.findByType(KeyboardAwareScrollView);
     expect(scroll.props.keyboardShouldPersistTaps).toBe('handled');
     expect(scroll.findByType(Text).props.children).toBe('field');
   });
