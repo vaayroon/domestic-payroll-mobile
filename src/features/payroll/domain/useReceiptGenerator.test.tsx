@@ -611,4 +611,99 @@ describe('useReceiptGenerator', () => {
       expect(harness.current.error).toBeNull();
     });
   });
+
+  describe('employee override of the general format', () => {
+    async function settingsWithFormat(value: string): Promise<InMemorySettingsRepository> {
+      const settings = new InMemorySettingsRepository();
+      await settings.set(RECEIPT_FILE_NAME_FORMAT_KEY, value);
+      return settings;
+    }
+
+    it('keeps the random name when the employee chose "auto", even with a general format', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ receiptFileNameFormat: 'auto' });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBeNull();
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+    });
+
+    it('inherits the general format when the employee has none', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ receiptFileNameFormat: null });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe('Nomina-Junio2026');
+    });
+
+    it('lets the employee format win over the general one', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ receiptFileNameFormat: 'year-month-name' });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe('2026-06-Nomina-EmpleadaDePrueba');
+    });
+
+    it('names the file from the employee format even when no general format is set', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ receiptFileNameFormat: 'name-year-month' });
+      const harness = await renderUseReceiptGenerator(generator, new InMemorySettingsRepository(), employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe('EmpleadaDePrueba-Nomina-2026-06');
+    });
+
+    it('keeps the random name for "auto" with no general format', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ receiptFileNameFormat: 'auto' });
+      const harness = await renderUseReceiptGenerator(generator, new InMemorySettingsRepository(), employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBeNull();
+    });
+
+    it('applies the employee format on the encrypted path and on a protected regeneration', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true, receiptFileNameFormat: 'auto' });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+      expect(generator.lastFileName).toBeNull();
+      expect(generator.lastPassword).toBe('00000000T');
+
+      const overriding = makeEmployee({ nif: '00000000T', receiptFileNameFormat: 'name-month-year' });
+      const second = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), overriding);
+      await act(async () => {
+        await second.current.regenerateProtected({
+          run: FAKE_RUN,
+          uri: 'file:///fake/cache/Print/recibo-0.pdf',
+          issuedOnIso: '2026-03-01',
+          encrypted: false,
+        });
+      });
+      expect(generator.lastFileName).toBe('EmpleadaDePrueba-NominaJunio2026');
+      expect(generator.lastPassword).toBe('00000000T');
+    });
+  });
 });

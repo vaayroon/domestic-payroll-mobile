@@ -12,6 +12,7 @@ import {
   buildReceiptFileName,
   readEmployerSignature,
   readReceiptFileNameFormat,
+  resolveReceiptFileNameFormat,
   resolveReceiptPassword,
   useCurrentEmployerId,
   useEmployeeRepository,
@@ -122,14 +123,17 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       });
       const html = buildReceiptHtml(viewModel);
 
-      // The name comes from the run's own period, never from the issue date,
-      // and is built here (not in the HTML pipeline) so the adapter stays
-      // domain-free. No format, or a period that cannot be named, keeps the
-      // random expo-print name: a name is never worth failing a receipt.
+      // The employee's own choice wins over the general setting ('auto' forces
+      // the random name, null inherits). The name comes from the run's own
+      // period, never from the issue date, and is built here (not in the HTML
+      // pipeline) so the adapter stays domain-free. No format, or a period that
+      // cannot be named, keeps the random expo-print name: a name is never
+      // worth failing a receipt.
+      const fileNameFormat = resolveReceiptFileNameFormat(employee.receiptFileNameFormat, globalFileNameFormat);
       const fileName =
-        globalFileNameFormat === null
+        fileNameFormat === null
           ? null
-          : buildReceiptFileName(globalFileNameFormat, employee.name, run.periodYear, run.periodMonth);
+          : buildReceiptFileName(fileNameFormat, employee.name, run.periodYear, run.periodMonth);
       const nameOption = fileName === null ? {} : { fileName };
 
       if (password === null) {
