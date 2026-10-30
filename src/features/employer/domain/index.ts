@@ -6,3 +6,4 @@ export * from './validateCcc';
 export * from './validateEmployerForm';
 export * from './useEmployerForm';
 export * from './useEmployerSignature';
+export * from './useReceiptFileNameSetting';

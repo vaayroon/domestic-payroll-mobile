@@ -100,6 +100,15 @@ describe('EmployerSettingsScreen', () => {
     expect(renderer.root.findByProps({ testID: 'employer-form-signature-link' })).toBeTruthy();
   });
 
+  it('exposes a link to the receipt file name setting, labelled in Spanish', async () => {
+    const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
+
+    const link = renderer.root.findByProps({ testID: 'employer-form-receipt-file-name-link' });
+    expect(link.props.href).toBe('/settings/receipt-file-name');
+    const texts = renderer.root.findAllByType(Text).map((node) => node.props.children);
+    expect(texts).toContainEqual('Nombre del archivo del recibo');
+  });
+
   it('maps an invalid nif error code to a Spanish message on save attempt', async () => {
     const renderer = await renderScreen(new InMemoryEmployerRepository([FAKE_EMPLOYER]));
 

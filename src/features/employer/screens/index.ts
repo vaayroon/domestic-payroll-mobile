@@ -4,3 +4,4 @@
 // the injected SignaturePad (resolved via useSignaturePad()).
 export * from './EmployerSettingsScreen';
 export * from './EmployerSignatureScreen';
+export * from './ReceiptFileNameSettingsScreen';

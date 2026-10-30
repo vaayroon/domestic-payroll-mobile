@@ -123,6 +123,10 @@ export default function RootLayout() {
                             name="settings/signature"
                             options={{ presentation: 'modal', title: 'Firma' }}
                           />
+                          <Stack.Screen
+                            name="settings/receipt-file-name"
+                            options={{ presentation: 'modal', title: 'Nombre del archivo' }}
+                          />
                         </Stack>
                       </ThemeProvider>
                     </ReminderProvider>

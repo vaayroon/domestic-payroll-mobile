@@ -164,6 +164,10 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
       <Link href="/settings/signature" testID="employer-form-signature-link" className="text-center">
         <Text className="text-emerald-400">Firma de la parte empleadora</Text>
       </Link>
+
+      <Link href="/settings/receipt-file-name" testID="employer-form-receipt-file-name-link" className="text-center">
+        <Text className="text-emerald-400">Nombre del archivo del recibo</Text>
+      </Link>
     </View>
   );
 }
