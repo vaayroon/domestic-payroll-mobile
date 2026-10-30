@@ -109,6 +109,7 @@ describe('useEmployeeForm', () => {
       grupoCotizacion: null,
       receiptEncryptionEnabled: false,
       receiptPasswordOverride: null,
+      receiptFileNameFormat: null,
     });
     expect(harness.current.errors).toEqual({});
   });
@@ -163,6 +164,7 @@ describe('useEmployeeForm', () => {
       grupoCotizacion: null,
       receiptEncryptionEnabled: false,
       receiptPasswordOverride: null,
+      receiptFileNameFormat: null,
     });
   });
 
@@ -201,6 +203,7 @@ describe('useEmployeeForm', () => {
       grupoCotizacion: null,
       receiptEncryptionEnabled: false,
       receiptPasswordOverride: null,
+      receiptFileNameFormat: null,
     });
   });
 
@@ -319,6 +322,96 @@ describe('useEmployeeForm', () => {
 
       expect(harness.current.errors).toEqual({ grupoCotizacion: 'too_long' });
       expect(updateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('receipt file name format', () => {
+    it('seeds "inherit the general setting" (null) on create and submits it as null', async () => {
+      const repository = new InMemoryEmployeeRepository([]);
+      const createSpy = jest.spyOn(repository, 'create');
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+      expect(harness.current.values.receiptFileNameFormat).toBeNull();
+
+      await act(async () => {
+        harness.current.setField('name', 'Empleado Nuevo');
+        harness.current.setField('baseGross', '900');
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ receiptFileNameFormat: null }));
+    });
+
+    it('creates an employee with the format chosen in the form', async () => {
+      const repository = new InMemoryEmployeeRepository([]);
+      const createSpy = jest.spyOn(repository, 'create');
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+      await act(async () => {
+        harness.current.setField('name', 'Empleado Nuevo');
+        harness.current.setField('baseGross', '900');
+        harness.current.setField('receiptFileNameFormat', 'month-year');
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ receiptFileNameFormat: 'month-year' }));
+    });
+
+    it('seeds a stored "auto" on edit and saves the format chosen afterwards', async () => {
+      const target = makeEmployee({ receiptFileNameFormat: 'auto' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      expect(harness.current.values.receiptFileNameFormat).toBe('auto');
+
+      await act(async () => {
+        harness.current.setField('receiptFileNameFormat', 'name-year-month');
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        target.id,
+        expect.objectContaining({ receiptFileNameFormat: 'name-year-month' }),
+      );
+      expect((await repository.getById(target.id))?.receiptFileNameFormat).toBe('name-year-month');
+    });
+
+    it('goes back to inheriting the general setting when the user picks it again', async () => {
+      const target = makeEmployee({ receiptFileNameFormat: 'year-month-name' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      expect(harness.current.values.receiptFileNameFormat).toBe('year-month-name');
+
+      await act(async () => {
+        harness.current.setField('receiptFileNameFormat', null);
+      });
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(target.id, expect.objectContaining({ receiptFileNameFormat: null }));
+      expect((await repository.getById(target.id))?.receiptFileNameFormat).toBeNull();
+    });
+
+    it('keeps an untouched stored format on save', async () => {
+      const target = makeEmployee({ receiptFileNameFormat: 'auto' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        await harness.current.submit();
+      });
+
+      expect((await repository.getById(target.id))?.receiptFileNameFormat).toBe('auto');
     });
   });
 

@@ -1,7 +1,7 @@
 import { ScrollView, Switch, Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
-import { FormScrollView } from '@/core';
+import { FormScrollView, RECEIPT_FILE_NAME_FORMAT_EXAMPLES, RECEIPT_FILE_NAME_FORMAT_IDS } from '@/core';
 
 import type { EmployeeFormErrors } from '../../domain';
 
@@ -16,7 +16,19 @@ async function renderForm(props: EmployeeFormProps): Promise<ReactTestRenderer> 
 }
 
 const baseProps: EmployeeFormProps = {
-  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
+  values: {
+    name: '',
+    nif: '',
+    naf: '',
+    baseGross: '',
+    alta: '',
+    baja: '',
+    grupoCotizacion: '',
+    contractType: 'INDEFINIDO',
+    receiptEncryptionEnabled: false,
+    receiptPasswordOverride: '',
+    receiptFileNameFormat: null,
+  },
   errors: {},
   onChangeField: () => {},
   onSubmit: () => {},
@@ -258,6 +270,91 @@ describe('EmployeeForm', () => {
       for (const text of protectionTexts) {
         expect(text).not.toMatch(/seguro|segura|confidencial|imposible de abrir|inviolable/i);
       }
+    });
+  });
+
+  describe('receipt file name format', () => {
+    const HELPER_COPY =
+      'El nombre del archivo es visible al compartirlo o enviarlo, aunque el recibo esté protegido con contraseña.';
+    const OPTION_TEST_IDS = [
+      'inherit',
+      'auto',
+      'name-month-year',
+      'name-year-month',
+      'year-month-name',
+      'month-year',
+    ] as const;
+
+    const textsOf = (renderer: ReactTestRenderer) =>
+      renderer.root.findAllByType(Text).map((node) => node.props.children);
+    const optionOf = (renderer: ReactTestRenderer, id: string) =>
+      renderer.root.findByProps({ testID: `employee-form-receipt-file-name-${id}` });
+
+    it('renders the label, the helper copy verbatim and the six options', async () => {
+      const renderer = await renderForm(baseProps);
+
+      const texts = textsOf(renderer);
+      expect(texts).toContainEqual('Nombre del archivo del recibo');
+      expect(texts).toContainEqual(HELPER_COPY);
+      for (const id of OPTION_TEST_IDS) {
+        expect(optionOf(renderer, id).props.accessibilityRole).toBe('radio');
+      }
+    });
+
+    it('labels the general-setting and automatic options, then each format by its builder example', async () => {
+      const renderer = await renderForm(baseProps);
+
+      const labelOf = (id: string) => optionOf(renderer, id).findByType(Text).props.children;
+      expect(labelOf('inherit')).toBe('Igual que el ajuste general');
+      expect(labelOf('auto')).toBe('Nombre automático');
+      expect(RECEIPT_FILE_NAME_FORMAT_IDS).toHaveLength(4);
+      for (const id of RECEIPT_FILE_NAME_FORMAT_IDS) {
+        expect(labelOf(id)).toBe(RECEIPT_FILE_NAME_FORMAT_EXAMPLES[id]);
+      }
+    });
+
+    it('selects "Igual que el ajuste general" for a new employee and nothing else', async () => {
+      const renderer = await renderForm(baseProps);
+
+      const checked = OPTION_TEST_IDS.filter((id) => optionOf(renderer, id).props.accessibilityState.checked);
+      expect(checked).toEqual(['inherit']);
+    });
+
+    it.each([
+      ['auto', 'auto'],
+      ['name-year-month', 'name-year-month'],
+      ['month-year', 'month-year'],
+    ] as const)('selects only the option of the stored format %j', async (format, testId) => {
+      const renderer = await renderForm({
+        ...baseProps,
+        values: { ...baseProps.values, receiptFileNameFormat: format },
+      });
+
+      const checked = OPTION_TEST_IDS.filter((id) => optionOf(renderer, id).props.accessibilityState.checked);
+      expect(checked).toEqual([testId]);
+    });
+
+    it.each([
+      ['inherit', null],
+      ['auto', 'auto'],
+      ['name-month-year', 'name-month-year'],
+      ['name-year-month', 'name-year-month'],
+      ['year-month-name', 'year-month-name'],
+      ['month-year', 'month-year'],
+    ] as const)('fires onChangeField with the value of the pressed %s option', async (testId, value) => {
+      const onChangeField = jest.fn();
+      const renderer = await renderForm({
+        ...baseProps,
+        values: { ...baseProps.values, receiptFileNameFormat: 'month-year' },
+        onChangeField,
+      });
+
+      await act(async () => {
+        optionOf(renderer, testId).props.onPress();
+      });
+
+      expect(onChangeField).toHaveBeenCalledTimes(1);
+      expect(onChangeField).toHaveBeenCalledWith('receiptFileNameFormat', value);
     });
   });
 

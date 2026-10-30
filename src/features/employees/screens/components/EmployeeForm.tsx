@@ -6,7 +6,13 @@
 
 import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 
-import { FormScrollView, RECEIPT_PASSWORD_MAX_LENGTH } from '@/core';
+import {
+  FormScrollView,
+  RECEIPT_FILE_NAME_FORMAT_EXAMPLES,
+  RECEIPT_FILE_NAME_FORMAT_IDS,
+  RECEIPT_PASSWORD_MAX_LENGTH,
+} from '@/core';
+import type { EmployeeReceiptFileNameFormat } from '@/types';
 
 import type { EmployeeFormErrors, EmployeeFormInput } from '../../domain';
 
@@ -66,6 +72,35 @@ const RECEIPT_PASSWORD_OVERRIDE_ERROR_MESSAGES: Record<
   invalid_characters:
     'La contraseña contiene caracteres no permitidos. Usa solo letras, números y símbolos básicos, sin acentos ni ñ.',
 };
+
+/**
+ * The file name stays readable in the share sheet and the mail attachment even
+ * when the PDF itself is password-protected, so the user has to be told before
+ * picking a format that contains the employee name.
+ */
+const RECEIPT_FILE_NAME_HELPER_TEXT =
+  'El nombre del archivo es visible al compartirlo o enviarlo, aunque el recibo esté protegido con contraseña.';
+
+interface ReceiptFileNameOption {
+  /** Suffix of the option's testID. */
+  readonly key: string;
+  readonly label: string;
+  /** What the form stores: `null` inherits the general setting. */
+  readonly value: EmployeeReceiptFileNameFormat | null;
+}
+
+/**
+ * Inherit first (the default for a new employee), then the random name, then one
+ * row per format labelled with the example the core builder generates, so the
+ * copy cannot drift from the behaviour (same source as the general setting).
+ */
+const RECEIPT_FILE_NAME_OPTIONS: readonly ReceiptFileNameOption[] = [
+  { key: 'inherit', label: 'Igual que el ajuste general', value: null },
+  { key: 'auto', label: 'Nombre automático', value: 'auto' },
+  ...RECEIPT_FILE_NAME_FORMAT_IDS.map(
+    (id): ReceiptFileNameOption => ({ key: id, label: RECEIPT_FILE_NAME_FORMAT_EXAMPLES[id], value: id }),
+  ),
+];
 
 const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGross']>, string> = {
   empty: 'Introduce el salario bruto.',
@@ -279,6 +314,28 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
             {RECEIPT_PASSWORD_OVERRIDE_ERROR_MESSAGES[errors.receiptPasswordOverride]}
           </Text>
         ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Nombre del archivo del recibo</Text>
+        <View className="gap-2">
+          {RECEIPT_FILE_NAME_OPTIONS.map((option) => {
+            const selected = values.receiptFileNameFormat === option.value;
+            return (
+              <Pressable
+                key={option.key}
+                testID={`employee-form-receipt-file-name-${option.key}`}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                onPress={() => onChangeField('receiptFileNameFormat', option.value)}
+                className={`rounded-md px-3 py-2 ${selected ? 'bg-emerald-800' : 'bg-slate-800'}`}
+              >
+                <Text className={selected ? 'font-semibold text-emerald-300' : 'text-white'}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text className="mt-1 text-sm text-slate-400">{RECEIPT_FILE_NAME_HELPER_TEXT}</Text>
       </View>
 
       {saveError !== null ? (

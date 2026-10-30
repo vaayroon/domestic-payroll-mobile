@@ -40,6 +40,8 @@ function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
       contractType: 'INDEFINIDO',
       receiptEncryptionEnabled: false,
       receiptPasswordOverride: '',
+      // A new employee follows the general setting until someone picks otherwise.
+      receiptFileNameFormat: null,
     };
   }
   return {
@@ -53,6 +55,7 @@ function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
     contractType: mode.employee.contractType,
     receiptEncryptionEnabled: mode.employee.receiptEncryptionEnabled,
     receiptPasswordOverride: mode.employee.receiptPasswordOverride ?? '',
+    receiptFileNameFormat: mode.employee.receiptFileNameFormat,
   };
 }
 

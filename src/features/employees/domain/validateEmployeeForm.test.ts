@@ -27,6 +27,7 @@ const VALID_INPUT: EmployeeFormInput = {
   contractType: 'INDEFINIDO',
   receiptEncryptionEnabled: false,
   receiptPasswordOverride: '',
+  receiptFileNameFormat: null,
 };
 
 describe('validateEmployeeForm', () => {
@@ -47,6 +48,7 @@ describe('validateEmployeeForm', () => {
         grupoCotizacion: null,
         receiptEncryptionEnabled: false,
         receiptPasswordOverride: null,
+        receiptFileNameFormat: null,
       },
     });
   });
@@ -141,6 +143,7 @@ describe('validateEmployeeForm', () => {
         grupoCotizacion: null,
         receiptEncryptionEnabled: false,
         receiptPasswordOverride: null,
+        receiptFileNameFormat: null,
       },
     });
   });
@@ -433,6 +436,44 @@ describe('validateEmployeeForm receipt protection', () => {
       ok: false,
       errors: { name: 'required', receiptPasswordOverride: 'too_long' },
     });
+  });
+});
+
+describe('validateEmployeeForm receipt file name format', () => {
+  it.each(['auto', 'name-month-year', 'name-year-month', 'year-month-name', 'month-year'] as const)(
+    'passes the chosen format %j straight to the employee',
+    (format) => {
+      const result = validateEmployeeForm(
+        { ...VALID_INPUT, receiptFileNameFormat: format },
+        FAKE_EMPLOYER_ID,
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.receiptFileNameFormat).toBe(format);
+      }
+    },
+  );
+
+  it('keeps null (inherit the general setting) as null', () => {
+    const result = validateEmployeeForm(
+      { ...VALID_INPUT, receiptFileNameFormat: null },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptFileNameFormat).toBeNull();
+    }
+  });
+
+  it('does not let the format mask or add field errors', () => {
+    const result = validateEmployeeForm(
+      { ...VALID_INPUT, name: '', receiptFileNameFormat: 'month-year' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { name: 'required' } });
   });
 });
 

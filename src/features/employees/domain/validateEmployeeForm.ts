@@ -11,7 +11,7 @@ import {
   validateReceiptPasswordOverride,
   type EuroParseError,
 } from '@/core';
-import type { ContractType, NewEmployee } from '@/types/domain';
+import type { ContractType, EmployeeReceiptFileNameFormat, NewEmployee } from '@/types/domain';
 
 /**
  * Longest `grupoCotizacion` the form accepts, in characters after trimming.
@@ -39,6 +39,11 @@ export interface EmployeeFormInput {
   readonly receiptEncryptionEnabled: boolean;
   /** Own password for the receipts. Empty or whitespace-only means "use the NIF/NIE" (`null`). */
   readonly receiptPasswordOverride: string;
+  /**
+   * Chosen from a closed list, so it needs no validation: `null` inherits the
+   * general setting, `'auto'` forces the random name, an id picks that format.
+   */
+  readonly receiptFileNameFormat: EmployeeReceiptFileNameFormat | null;
 }
 
 export interface EmployeeFormErrors {
@@ -219,6 +224,7 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
       grupoCotizacion: grupoCotizacionTrimmed === '' ? null : grupoCotizacionTrimmed,
       receiptEncryptionEnabled: input.receiptEncryptionEnabled,
       receiptPasswordOverride: overrideResult.value,
+      receiptFileNameFormat: input.receiptFileNameFormat,
     },
   };
 }
