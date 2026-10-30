@@ -263,6 +263,18 @@ describe('PayrollRunHistoryScreen', () => {
     });
   });
 
+  it('does not keep claiming "Recibo enviado." after generating a different run', async () => {
+    const { renderer, mailSender } = await renderScreen();
+    mailSender.result = 'sent';
+    await generate(renderer, RUN_A);
+    await press(renderer, 'payroll-run-history-send');
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-sent' })).toBeTruthy();
+
+    await generate(renderer, RUN_B);
+
+    expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-dispatch-sent' })).toHaveLength(0);
+  });
+
   it('disables every "Generar recibo" row while one generates, but only that row reads "Generando…"', async () => {
     const { renderer, generator } = await renderScreen();
     let release!: () => void;
@@ -429,6 +441,22 @@ describe('PayrollRunHistoryScreen', () => {
       expect(pdfSharer.lastSharedUri).toBe('file:///fake/cache/Print/recibo-2.pdf');
       expect(mailSender.lastOptions?.attachmentUris).toEqual(['file:///fake/cache/Print/recibo-2.pdf']);
       expect(mailSender.lastOptions?.body).toContain('La contraseña es su NIF/NIE');
+    });
+
+    it('does not keep claiming "Recibo enviado." once the plain file is replaced by the protected one', async () => {
+      const { renderer, mailSender } = await renderScreen(PLAIN_EMPLOYEE);
+      mailSender.result = 'sent';
+      await generate(renderer, RUN_B);
+      await press(renderer, 'payroll-run-history-send');
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-sent' })).toBeTruthy();
+
+      await press(renderer, 'payroll-run-history-encrypt');
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-dispatch-sent' })).toHaveLength(0);
     });
 
     it('keeps the plain file, shows the error and stays plain when the encryption fails', async () => {

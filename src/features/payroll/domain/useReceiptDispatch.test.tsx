@@ -6,7 +6,7 @@
  * headless), entirely offline (no native module invoked).
  */
 
-import { act, create } from 'react-test-renderer';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import {
   CurrentEmployerProvider,
@@ -95,18 +95,26 @@ async function renderUseReceiptDispatch(
 
   let latest!: UseReceiptDispatchResult;
 
+  const tree = (currentUri: string | null, currentEncrypted: boolean | undefined) => (
+    <RepositoryProvider repositories={repositories}>
+      <CurrentEmployerProvider>
+        <PdfServiceProvider generator={new FakeReceiptPdfGenerator()}>
+          <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
+            <HookHarness
+              run={run}
+              uri={currentUri}
+              encrypted={currentEncrypted}
+              onResult={(result) => (latest = result)}
+            />
+          </MailServiceProvider>
+        </PdfServiceProvider>
+      </CurrentEmployerProvider>
+    </RepositoryProvider>
+  );
+
+  let renderer!: ReactTestRenderer;
   await act(async () => {
-    create(
-      <RepositoryProvider repositories={repositories}>
-        <CurrentEmployerProvider>
-          <PdfServiceProvider generator={new FakeReceiptPdfGenerator()}>
-            <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
-              <HookHarness run={run} uri={uri} encrypted={encrypted} onResult={(result) => (latest = result)} />
-            </MailServiceProvider>
-          </PdfServiceProvider>
-        </CurrentEmployerProvider>
-      </RepositoryProvider>,
-    );
+    renderer = create(tree(uri, encrypted));
   });
   await act(async () => {
     await Promise.resolve();
@@ -117,6 +125,12 @@ async function renderUseReceiptDispatch(
   return {
     get current(): UseReceiptDispatchResult {
       return latest;
+    },
+    /** Re-renders the same hook instance with another receipt file. */
+    async rerender(nextUri: string | null, nextEncrypted?: boolean): Promise<void> {
+      await act(async () => {
+        renderer.update(tree(nextUri, nextEncrypted));
+      });
     },
   };
 }
@@ -233,6 +247,96 @@ describe('useReceiptDispatch', () => {
     expect(pdfSharer.shareCallCount).toBe(0);
     expect(mailSender.lastOptions).toBeNull();
     expect(harness.current.status).toBe('idle');
+  });
+
+  describe('when the receipt file changes', () => {
+    const OTHER_URI = 'file:///fake/cache/Print/recibo-2.pdf';
+
+    it('forgets a "sent" status so the banner never claims the new file was sent', async () => {
+      const mailSender = new FakeMailSender();
+      mailSender.result = 'sent';
+      const harness = await renderUseReceiptDispatch(new FakePdfSharer(), mailSender);
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+      expect(harness.current.status).toBe('sent');
+
+      await harness.rerender(OTHER_URI, true);
+
+      expect(harness.current.status).toBe('idle');
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('forgets a failure and its error message', async () => {
+      const pdfSharer = new FakePdfSharer();
+      pdfSharer.share = async () => {
+        throw new Error('native failure');
+      };
+      const harness = await renderUseReceiptDispatch(pdfSharer, new FakeMailSender());
+      await act(async () => {
+        await harness.current.shareReceipt();
+      });
+      expect(harness.current.status).toBe('failed');
+
+      await harness.rerender(OTHER_URI);
+
+      expect(harness.current.status).toBe('idle');
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('forgets a cancelled status when only the uri changes', async () => {
+      const mailSender = new FakeMailSender();
+      mailSender.result = 'cancelled';
+      const harness = await renderUseReceiptDispatch(new FakePdfSharer(), mailSender);
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+      expect(harness.current.status).toBe('cancelled');
+
+      await harness.rerender(OTHER_URI);
+
+      expect(harness.current.status).toBe('idle');
+    });
+
+    it('also resets when only the encrypted flag changes', async () => {
+      const mailSender = new FakeMailSender();
+      mailSender.result = 'sent';
+      const harness = await renderUseReceiptDispatch(new FakePdfSharer(), mailSender);
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+
+      await harness.rerender(FAKE_URI, true);
+
+      expect(harness.current.status).toBe('idle');
+    });
+
+    it('keeps the status when a re-render passes the same uri and flag', async () => {
+      const mailSender = new FakeMailSender();
+      mailSender.result = 'sent';
+      const harness = await renderUseReceiptDispatch(new FakePdfSharer(), mailSender);
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+
+      await harness.rerender(FAKE_URI);
+
+      expect(harness.current.status).toBe('sent');
+    });
+
+    it('can dispatch the new file after the reset', async () => {
+      const mailSender = new FakeMailSender();
+      mailSender.result = 'sent';
+      const harness = await renderUseReceiptDispatch(new FakePdfSharer(), mailSender);
+      await harness.rerender(OTHER_URI, true);
+
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+
+      expect(mailSender.lastOptions?.attachmentUris).toEqual([OTHER_URI]);
+      expect(harness.current.status).toBe('sent');
+    });
   });
 
   describe('protected receipts (spec R11)', () => {

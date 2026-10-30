@@ -64,6 +64,18 @@ export function useReceiptDispatch(
   const [status, setStatus] = useState<DispatchStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  // The status describes ONE file. When the file behind the banner changes
+  // (a new generation, or "Cifrar" swapping the plain file for a protected
+  // one) the previous outcome no longer applies, e.g. "Recibo enviado." must
+  // not outlive the file it was about. Reset during render (React's
+  // "adjusting state when a prop changes" pattern) so no stale frame is shown.
+  const [dispatchedFile, setDispatchedFile] = useState({ uri, encrypted });
+  if (dispatchedFile.uri !== uri || dispatchedFile.encrypted !== encrypted) {
+    setDispatchedFile({ uri, encrypted });
+    setStatus('idle');
+    setError(null);
+  }
+
   useEffect(() => {
     let cancelled = false;
     void pdfSharer.isAvailable().then((available) => {
