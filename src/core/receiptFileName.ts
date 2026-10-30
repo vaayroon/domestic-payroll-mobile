@@ -10,7 +10,9 @@
  * whose behaviour depends on the JS engine's ICU data) and anything that is not
  * `[A-Za-z0-9]` is dropped from the name part.
  *
- * No I/O, no clock: the period comes from the payroll run, never from "today".
+ * No clock: the period comes from the payroll run, never from "today". The
+ * builder and resolver do no I/O; only `readReceiptFileNameFormat` reads the
+ * setting, through the injected `SettingsRepository`.
  */
 
 import type {
