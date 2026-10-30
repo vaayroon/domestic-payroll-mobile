@@ -14,9 +14,8 @@ import { act, create } from 'react-test-renderer';
 
 import { CurrentEmployerProvider, RepositoryProvider, type Repositories } from '@/core';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
-import { FAKE_EMPLOYER } from '@/features/employees/testing/fixtures';
+import { FAKE_EMPLOYER, makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee, PayrollRunRepository, SettingsRepository } from '@/types';
-import { cents } from '@/types/money';
 
 import { useActiveEmployees, type UseActiveEmployeesResult } from './useActiveEmployees';
 
@@ -79,19 +78,10 @@ async function renderUseActiveEmployees(employeeRepository: InMemoryEmployeeRepo
 
 describe('useActiveEmployees', () => {
   it('only returns active employees', async () => {
-    const active: Employee = {
+    const active: Employee = makeEmployee({
       id: 'employee-fake-active',
-      employerId: FAKE_EMPLOYER.id,
       name: 'Empleada Activa',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const inactive: Employee = { ...active, id: 'employee-fake-inactive', active: false };
     const repository = new InMemoryEmployeeRepository([active, inactive]);
 

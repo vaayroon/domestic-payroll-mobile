@@ -52,6 +52,17 @@ export class EmployeeRepositoryDrizzle implements EmployeeRepository {
         ...(patch.contractType !== undefined ? { contractType: patch.contractType } : {}),
         // `null` is a real value here (it clears the field); only `undefined` means "leave it alone".
         ...(patch.grupoCotizacion !== undefined ? { grupoCotizacion: patch.grupoCotizacion } : {}),
+        ...(patch.receiptEncryptionEnabled !== undefined
+          ? { receiptEncryptionEnabled: patch.receiptEncryptionEnabled }
+          : {}),
+        // Same rule as grupoCotizacion: `null` clears the override, `undefined` leaves it alone.
+        ...(patch.receiptPasswordOverride !== undefined
+          ? { receiptPasswordOverride: patch.receiptPasswordOverride }
+          : {}),
+        // Same rule again: `null` goes back to inheriting the general setting.
+        ...(patch.receiptFileNameFormat !== undefined
+          ? { receiptFileNameFormat: patch.receiptFileNameFormat }
+          : {}),
       })
       .where(eq(employees.id, id))
       .returning();

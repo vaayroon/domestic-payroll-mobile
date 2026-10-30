@@ -14,6 +14,7 @@
 
 import { Pressable, Text, TextInput, View } from 'react-native';
 
+import { FormScrollView } from '@/core';
 import type { Employee } from '@/types';
 
 import type { ExtraPayMode, PayrollResult } from '../../domain';
@@ -75,7 +76,9 @@ export function PayrollRunForm({
   onSubmit,
 }: PayrollRunFormProps) {
   return (
-    <View className="flex-1 gap-4 bg-slate-900 p-4">
+    // Scrolls: the period range inputs and the preview push the submit button
+    // below the keyboard on a small screen.
+    <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
         <Text className="mb-1 text-slate-300">Empleado</Text>
         {employeesLoading ? (
@@ -214,6 +217,6 @@ export function PayrollRunForm({
           {saving ? 'Guardando…' : 'Calcular y guardar nómina'}
         </Text>
       </Pressable>
-    </View>
+    </FormScrollView>
   );
 }

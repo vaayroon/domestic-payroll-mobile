@@ -1,24 +1,14 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import type { Employee } from '@/types';
-import { cents } from '@/types/money';
 
+import { makeEmployee } from '../../testing/fixtures';
 import { EmployeeListView, type EmployeeListViewProps } from './EmployeeListView';
 
 // Obviously-fake placeholder identifier/name only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-1',
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 async function renderListView(props: EmployeeListViewProps): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;

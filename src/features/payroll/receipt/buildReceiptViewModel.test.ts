@@ -1,5 +1,5 @@
 import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
-import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED } from '@/features/employees/testing/fixtures';
+import { FAKE_EMPLOYER as FAKE_EMPLOYER_SEED, makeEmployee } from '@/features/employees/testing/fixtures';
 import type { Employee, Employer, PayrollRun } from '@/types';
 import { cents } from '@/types/money';
 
@@ -25,19 +25,11 @@ const FAKE_EMPLOYER: Employer = {
   createdAt: 1_700_000_000_000,
 };
 
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: FAKE_EMPLOYER.id,
-  name: 'Empleada de Prueba',
   nif: '00000001T',
   naf: '000000000001',
-  baseGrossCents: cents(90000),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 const FAKE_RUN: PayrollRun = {
   id: 'run-fake-1',

@@ -24,6 +24,24 @@ import type { Cents } from './money';
  */
 export type ContractType = 'INDEFINIDO' | 'TEMPORAL';
 
+/**
+ * The readable file-name layouts a receipt PDF can use (see
+ * `core/receiptFileName` for the exact output of each). Declared here so
+ * `types/` stays dependency-free (CLAUDE.md §3).
+ */
+export type ReceiptFileNameFormatId =
+  | 'name-month-year'
+  | 'name-year-month'
+  | 'year-month-name'
+  | 'month-year';
+
+/**
+ * Per-employee file-name choice: a format id, or `'auto'` to force the random
+ * name `expo-print` picks even when a general format is set. `null` (not part
+ * of this union) means "inherit the general setting".
+ */
+export type EmployeeReceiptFileNameFormat = ReceiptFileNameFormatId | 'auto';
+
 /** The private household employer using the app (the account holder). */
 export interface Employer {
   readonly id: string;
@@ -74,6 +92,24 @@ export interface Employee {
    * derived, defaulted or backfilled.
    */
   readonly grupoCotizacion: string | null;
+  /**
+   * Whether new receipts for this employee are generated password-protected.
+   * It only stops accidental opening; it is not a security measure.
+   */
+  readonly receiptEncryptionEnabled: boolean;
+  /**
+   * Own password for this employee's protected receipts, stored in plaintext by
+   * decision. `null` means "derive it from the NIF/NIE". Never copied from the
+   * NIF, and never replaced by it once set.
+   */
+  readonly receiptPasswordOverride: string | null;
+  /**
+   * Readable receipt file name format for this employee. `null` means "inherit
+   * the general setting" (what every employee created before this field existed
+   * reads back as); `'auto'` forces the random name even when a general format
+   * is set; a format id wins over the general setting.
+   */
+  readonly receiptFileNameFormat: EmployeeReceiptFileNameFormat | null;
 }
 
 /** Fields required to create a new `Employee`. `id` is assigned by the repository. */
@@ -90,6 +126,12 @@ export interface NewEmployee {
   readonly contractType?: ContractType;
   /** Defaults to `null` ("not on file") when omitted; never to a group. */
   readonly grupoCotizacion?: string | null;
+  /** Defaults to `false` when omitted. */
+  readonly receiptEncryptionEnabled?: boolean;
+  /** Defaults to `null` (derive from the NIF/NIE) when omitted. */
+  readonly receiptPasswordOverride?: string | null;
+  /** Defaults to `null` (inherit the general setting) when omitted. */
+  readonly receiptFileNameFormat?: EmployeeReceiptFileNameFormat | null;
 }
 
 /** One computed payroll run for one employee in one calendar month (CLAUDE.md §5). */

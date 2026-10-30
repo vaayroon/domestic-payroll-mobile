@@ -9,9 +9,9 @@ import { act, create } from 'react-test-renderer';
 
 import { RepositoryProvider, type Repositories } from '@/core';
 import type { Employee, EmployeeRepository, EmployerRepository, PayrollRunRepository, SettingsRepository } from '@/types';
-import { cents } from '@/types/money';
 
 import { useEmployee, type UseEmployeeResult } from './useEmployee';
+import { makeEmployee } from '../testing/fixtures';
 
 function notImplemented(method: string): () => never {
   return () => {
@@ -73,19 +73,11 @@ async function renderUseEmployee(id: string, employeeRepository: EmployeeReposit
 
 describe('useEmployee', () => {
   it('starts in a loading state before the repository resolves', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
       employerId: 'employer-fake-seed',
       name: 'Empleado de Prueba',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),
       getById: async () => target,
@@ -100,19 +92,11 @@ describe('useEmployee', () => {
   });
 
   it('loads the employee by id and resolves loading to false', async () => {
-    const target: Employee = {
+    const target: Employee = makeEmployee({
       id: 'employee-fake-target',
       employerId: 'employer-fake-seed',
       name: 'Empleado de Prueba',
-      nif: null,
-      naf: null,
-      baseGrossCents: cents(90000),
-      active: true,
-      altaDate: null,
-      bajaDate: null,
-      contractType: 'INDEFINIDO',
-      grupoCotizacion: null,
-    };
+    });
     const employeeRepository: EmployeeRepository = {
       list: notImplemented('EmployeeRepository.list'),
       getById: async (id) => (id === target.id ? target : null),

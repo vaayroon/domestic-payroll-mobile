@@ -45,6 +45,18 @@ export const employees = sqliteTable(
     // legal receipt. null means "not on file" (every row created before this
     // column existed), never a default group.
     grupoCotizacion: text('grupo_cotizacion'),
+    // Password-protected receipts. The flag defaults to false so every existing
+    // row keeps producing plain receipts. The override is nullable with NO
+    // default and is never backfilled: null means "derive the password from the
+    // NIF/NIE", so the NIF is never copied into this column.
+    receiptEncryptionEnabled: integer('receipt_encryption_enabled', { mode: 'boolean' }).notNull().default(false),
+    receiptPasswordOverride: text('receipt_password_override'),
+    // Readable receipt file name format. Nullable with NO default and never
+    // backfilled: null means "inherit the general setting", so a default would
+    // silently override every existing employee with a format nobody chose. The
+    // column holds a format id or 'auto'; it is narrowed on read (mappers.ts),
+    // not through a Drizzle enum, so an unknown stored value degrades to null.
+    receiptFileNameFormat: text('receipt_file_name_format'),
   },
   (table) => [index('employees_employer_id_idx').on(table.employerId)],
 );

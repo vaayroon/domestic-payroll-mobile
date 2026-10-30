@@ -26,12 +26,14 @@ const DEFAULT_BEHAVIOR: FakePdfViewerBehavior = { kind: 'loaded', pageCount: 1 }
 
 let behavior: FakePdfViewerBehavior = DEFAULT_BEHAVIOR;
 let lastUri: string | null = null;
+let lastPassword: string | null = null;
 let mountCount = 0;
 
-/** Sets the behaviour and resets the recorded uri and mount count. */
+/** Sets the behaviour and resets the recorded uri, password and mount count. */
 export function setFakePdfViewerBehavior(next: FakePdfViewerBehavior): void {
   behavior = next;
   lastUri = null;
+  lastPassword = null;
   mountCount = 0;
 }
 
@@ -40,14 +42,20 @@ export function getFakePdfViewerLastUri(): string | null {
   return lastUri;
 }
 
+/** The password of the most recent mount since the last reset; `null` if none was passed or never mounted. */
+export function getFakePdfViewerLastPassword(): string | null {
+  return lastPassword;
+}
+
 /** How many times the fake mounted since the last reset. */
 export function getFakePdfViewerMountCount(): number {
   return mountCount;
 }
 
-export function FakePdfViewer({ uri, onLoad, onFailure }: PdfViewerProps) {
+export function FakePdfViewer({ uri, password, onLoad, onFailure }: PdfViewerProps) {
   useEffect(() => {
     lastUri = uri;
+    lastPassword = password ?? null;
     mountCount += 1;
 
     if (behavior.kind === 'loaded') {

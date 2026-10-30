@@ -26,7 +26,7 @@ export type ValidateNifNieResult =
  * whitespace/dashes so "12345678-z" and "12345678 Z" validate the same as
  * "12345678Z".
  */
-function normalize(raw: string): string {
+export function normalizeIdentityDocument(raw: string): string {
   return raw.trim().toUpperCase().replace(/[\s-]/g, '');
 }
 
@@ -43,7 +43,7 @@ function checkLetter(value: string, number: number, letter: string): ValidateNif
  * Empty input is valid and maps to `null` (the field is optional).
  */
 export function validateNifNie(raw: string): ValidateNifNieResult {
-  const normalized = normalize(raw);
+  const normalized = normalizeIdentityDocument(raw);
   if (normalized === '') {
     return { ok: true, value: null };
   }

@@ -18,7 +18,7 @@ import type { PdfViewerProps } from '@/types';
 /** `react-native-pdf` fitPolicy: 0 = fit width, 1 = fit height, 2 = fit both (library README). */
 const FIT_POLICY_WIDTH = 0;
 
-export function PdfViewerView({ uri, onLoad, onFailure, testID }: PdfViewerProps) {
+export function PdfViewerView({ uri, password, onLoad, onFailure, testID }: PdfViewerProps) {
   return (
     <View className="flex-1" testID={testID}>
       <Pdf
@@ -28,6 +28,8 @@ export function PdfViewerView({ uri, onLoad, onFailure, testID }: PdfViewerProps
         // sources either way (only its own downloaded cache copy). Re-check
         // this on version bumps.
         source={{ uri, cache: true }}
+        // Encrypted receipts only; the library default is '' (no password).
+        password={password}
         // We never download; the library default (`true`) would trust any cert.
         trustAllCerts={false}
         // Fit width suits a portrait page on a phone.

@@ -1,0 +1,1 @@
+ALTER TABLE `employees` ADD `receipt_file_name_format` text;

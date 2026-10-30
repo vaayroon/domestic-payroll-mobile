@@ -1,27 +1,17 @@
 /**
  * Spanish date/month formatting helpers (design ADR-3), promoted out of
  * `PayrollRunForm.tsx`'s inline `MONTH_NAMES` array so the receipt view-model
- * builder can share the exact same wording. Placed at the feature root (not
- * `core/`) because only payroll-feature code consumes it so far; promote to
- * `core/` only when a non-payroll feature needs it too.
+ * builder can share the exact same wording. The formatters stay at the feature
+ * root because only payroll-feature code uses them; `MONTH_NAMES` itself moved
+ * to `core/monthNames` once the receipt file name needed it too.
  *
  * Pure, no I/O, no system clock read — every date/period is passed in.
  */
 
-export const MONTH_NAMES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-] as const;
+import { MONTH_NAMES } from '@/core/monthNames';
+
+// Re-exported so existing importers keep working; the data moved to `core/`.
+export { MONTH_NAMES };
 
 /** e.g. `formatSpanishMonthYear(2026, 6)` -> `"junio de 2026"`. */
 export function formatSpanishMonthYear(year: number, month: number): string {

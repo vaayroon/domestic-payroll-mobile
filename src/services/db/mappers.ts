@@ -12,6 +12,7 @@ import type {
   AppSetting,
   ContractType,
   Employee,
+  EmployeeReceiptFileNameFormat,
   Employer,
   NewEmployee,
   NewEmployer,
@@ -43,6 +44,36 @@ import type {
  */
 function toContractTypeOrNull(value: string | null): ContractType | null {
   return value === 'INDEFINIDO' || value === 'TEMPORAL' ? value : null;
+}
+
+/**
+ * Every value `Employee.receiptFileNameFormat` can hold besides `null`. Keyed by
+ * the domain union, so adding a format id without listing it here is a compile
+ * error. Kept local instead of importing the `core` predicate: mappers depend
+ * only on `@/types`.
+ */
+const RECEIPT_FILE_NAME_FORMATS: Readonly<Record<EmployeeReceiptFileNameFormat, true>> = {
+  auto: true,
+  'name-month-year': true,
+  'name-year-month': true,
+  'year-month-name': true,
+  'month-year': true,
+};
+
+/**
+ * Narrows a stored receipt file name format, treating anything unrecognised as
+ * `null` -- i.e. "inherit the general setting", which is always safe.
+ *
+ * Like the contract type, the column carries no SQL CHECK, so the value is
+ * whatever is on disk (a newer build's format after a downgrade, a hand edit).
+ * `hasOwnProperty.call` keeps inherited keys such as `toString` or
+ * `__proto__` from passing as formats.
+ */
+function toReceiptFileNameFormatOrNull(value: string | null): EmployeeReceiptFileNameFormat | null {
+  if (value === null || !Object.prototype.hasOwnProperty.call(RECEIPT_FILE_NAME_FORMATS, value)) {
+    return null;
+  }
+  return value as EmployeeReceiptFileNameFormat;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +122,9 @@ export function employeeRowToDomain(row: EmployeeRow): Employee {
     contractType: row.contractType,
     // Free text, so there is nothing to narrow it to: null stays null.
     grupoCotizacion: row.grupoCotizacion,
+    receiptEncryptionEnabled: row.receiptEncryptionEnabled,
+    receiptPasswordOverride: row.receiptPasswordOverride,
+    receiptFileNameFormat: toReceiptFileNameFormatOrNull(row.receiptFileNameFormat),
   };
 }
 
@@ -108,6 +142,11 @@ export function employeeInsertFromNew(input: NewEmployee, id: string): EmployeeI
     contractType: input.contractType ?? 'INDEFINIDO',
     // Absent means "not on file" (null), never '' and never a default group.
     grupoCotizacion: input.grupoCotizacion ?? null,
+    receiptEncryptionEnabled: input.receiptEncryptionEnabled ?? false,
+    // Absent means "derive from the NIF/NIE" (null); the NIF is never copied here.
+    receiptPasswordOverride: input.receiptPasswordOverride ?? null,
+    // Absent means "inherit the general setting" (null), never a format.
+    receiptFileNameFormat: input.receiptFileNameFormat ?? null,
   };
 }
 

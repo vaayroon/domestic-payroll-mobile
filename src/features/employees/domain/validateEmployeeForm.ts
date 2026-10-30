@@ -4,8 +4,14 @@
  * result is still a full, persistable `NewEmployee`.
  */
 
-import { parseEuroInput, validateNaf, validateNifNie, type EuroParseError } from '@/core';
-import type { ContractType, NewEmployee } from '@/types/domain';
+import {
+  parseEuroInput,
+  validateNaf,
+  validateNifNie,
+  validateReceiptPasswordOverride,
+  type EuroParseError,
+} from '@/core';
+import type { ContractType, EmployeeReceiptFileNameFormat, NewEmployee } from '@/types/domain';
 
 /**
  * Longest `grupoCotizacion` the form accepts, in characters after trimming.
@@ -29,6 +35,15 @@ export interface EmployeeFormInput {
   readonly grupoCotizacion: string;
   /** `''` means "not yet chosen" -- the form MUST require an explicit INDEFINIDO/TEMPORAL choice (spec "Employee.contractType"). */
   readonly contractType: ContractType | '';
+  /** Protect this employee's receipts with a password. Needs an NIF/NIE or an own password. */
+  readonly receiptEncryptionEnabled: boolean;
+  /** Own password for the receipts. Empty or whitespace-only means "use the NIF/NIE" (`null`). */
+  readonly receiptPasswordOverride: string;
+  /**
+   * Chosen from a closed list, so it needs no validation: `null` inherits the
+   * general setting, `'auto'` forces the random name, an id picks that format.
+   */
+  readonly receiptFileNameFormat: EmployeeReceiptFileNameFormat | null;
 }
 
 export interface EmployeeFormErrors {
@@ -40,6 +55,9 @@ export interface EmployeeFormErrors {
   baja?: 'invalid_date' | 'before_alta';
   contractType?: 'required';
   grupoCotizacion?: 'too_long';
+  receiptPasswordOverride?: 'too_long' | 'invalid_characters';
+  /** Preference on, but there is no NIF/NIE and no own password to protect the file with. */
+  receiptEncryptionEnabled?: 'password_unavailable';
 }
 
 export type ValidateEmployeeResult = { ok: true; value: NewEmployee } | { ok: false; errors: EmployeeFormErrors };
@@ -147,6 +165,24 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.grupoCotizacion = 'too_long';
   }
 
+  const overrideResult = validateReceiptPasswordOverride(input.receiptPasswordOverride);
+  if (!overrideResult.ok) {
+    errors.receiptPasswordOverride = overrideResult.error;
+  }
+
+  // Block turning the protection on when nothing could be the password. Only
+  // reported when the other two fields are themselves valid: a malformed NIF or
+  // an invalid own password already carries its own, more specific error.
+  if (
+    input.receiptEncryptionEnabled &&
+    nifResult.ok &&
+    nifResult.value === null &&
+    overrideResult.ok &&
+    overrideResult.value === null
+  ) {
+    errors.receiptEncryptionEnabled = 'password_unavailable';
+  }
+
   if (
     errors.name !== undefined ||
     errors.nif !== undefined ||
@@ -155,7 +191,9 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
     errors.alta !== undefined ||
     errors.baja !== undefined ||
     errors.contractType !== undefined ||
-    errors.grupoCotizacion !== undefined
+    errors.grupoCotizacion !== undefined ||
+    errors.receiptPasswordOverride !== undefined ||
+    errors.receiptEncryptionEnabled !== undefined
   ) {
     return { ok: false, errors };
   }
@@ -163,7 +201,7 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
   // Re-narrow: the branches above guarantee `parsedBaseGross.ok`,
   // `nifResult.ok`, and `nafResult.ok` are all `true` at this point, but
   // TypeScript can't infer that across the `errors` object.
-  if (!parsedBaseGross.ok || !nifResult.ok || !nafResult.ok) {
+  if (!parsedBaseGross.ok || !nifResult.ok || !nafResult.ok || !overrideResult.ok) {
     return { ok: false, errors };
   }
 
@@ -184,6 +222,9 @@ export function validateEmployeeForm(input: EmployeeFormInput, employerId: strin
       bajaDate,
       contractType: input.contractType,
       grupoCotizacion: grupoCotizacionTrimmed === '' ? null : grupoCotizacionTrimmed,
+      receiptEncryptionEnabled: input.receiptEncryptionEnabled,
+      receiptPasswordOverride: overrideResult.value,
+      receiptFileNameFormat: input.receiptFileNameFormat,
     },
   };
 }

@@ -8,6 +8,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import {
   FakePdfViewer,
+  getFakePdfViewerLastPassword,
   getFakePdfViewerLastUri,
   getFakePdfViewerMountCount,
   setFakePdfViewerBehavior,
@@ -21,9 +22,14 @@ const FAKE_URI = 'file:///fake/cache/Print/recibo-1.pdf';
 const FAILURE_COPY =
   'No se pudo mostrar el recibo. Vuelve a generarlo desde el historial de nóminas.';
 
+const PROTECTED_FAILURE_COPY =
+  'No se pudo abrir el recibo protegido. Vuelve a generarlo desde el historial de nóminas.';
+
 const baseProps: ReceiptViewerViewProps = {
   PdfViewer: FakePdfViewer,
   uri: FAKE_URI,
+  awaitingPassword: false,
+  protectedReceipt: false,
   pdfState: 'loaded',
   onPdfLoad: () => {},
   onPdfFailure: () => {},
@@ -182,5 +188,49 @@ describe('ReceiptViewerView', () => {
 
     expect(has(renderer, 'receipt-viewer-dispatch-sent')).toBe(false);
     expect(has(renderer, 'receipt-viewer-dispatch-failed')).toBe(false);
+  });
+
+  describe('protected receipts (spec R10)', () => {
+    it('passes the password to the injected viewer (S1)', async () => {
+      await renderView({ ...baseProps, protectedReceipt: true, password: '00000000T', pdfState: 'loading' });
+
+      expect(getFakePdfViewerMountCount()).toBe(1);
+      expect(getFakePdfViewerLastPassword()).toBe('00000000T');
+    });
+
+    it('passes no password for a plain receipt (S3)', async () => {
+      await renderView({ ...baseProps, pdfState: 'loading' });
+
+      expect(getFakePdfViewerMountCount()).toBe(1);
+      expect(getFakePdfViewerLastPassword()).toBeNull();
+    });
+
+    it('does not mount the viewer while the password is being derived, and keeps both actions disabled', async () => {
+      const renderer = await renderView({
+        ...baseProps,
+        protectedReceipt: true,
+        awaitingPassword: true,
+        pdfState: 'loading',
+      });
+
+      expect(getFakePdfViewerMountCount()).toBe(0);
+      expect(find(renderer, 'receipt-viewer-loading').props.children).toBe('Cargando recibo…');
+      expect(find(renderer, 'receipt-viewer-share').props.disabled).toBe(true);
+      expect(find(renderer, 'receipt-viewer-send').props.disabled).toBe(true);
+    });
+
+    it('shows the protected failure copy instead of the plain one when a protected receipt fails (S2)', async () => {
+      const renderer = await renderView({ ...baseProps, protectedReceipt: true, pdfState: 'failed' });
+
+      expect(find(renderer, 'receipt-viewer-failed').props.children).toBe(PROTECTED_FAILURE_COPY);
+      expect(has(renderer, 'receipt-viewer-share')).toBe(false);
+      expect(getFakePdfViewerMountCount()).toBe(0);
+    });
+
+    it('keeps the plain failure copy for a plain receipt', async () => {
+      const renderer = await renderView({ ...baseProps, pdfState: 'failed' });
+
+      expect(find(renderer, 'receipt-viewer-failed').props.children).toBe(FAILURE_COPY);
+    });
   });
 });

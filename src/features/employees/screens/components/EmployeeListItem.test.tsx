@@ -10,24 +10,16 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import type { Employee } from '@/types';
 import { cents, toEuros } from '@/types/money';
 
+import { makeEmployee } from '../../testing/fixtures';
 import { EmployeeListItem } from './EmployeeListItem';
 
 const EUR_FORMATTER = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 
 // Obviously-fake placeholder identifier/name only (CLAUDE.md §6).
-const FAKE_EMPLOYEE: Employee = {
-  id: 'employee-fake-1',
+const FAKE_EMPLOYEE: Employee = makeEmployee({
   employerId: 'employer-fake-1',
-  name: 'Empleada de Prueba',
-  nif: null,
-  naf: null,
   baseGrossCents: cents(90050),
-  active: true,
-  altaDate: null,
-  bajaDate: null,
-  contractType: 'INDEFINIDO',
-  grupoCotizacion: null,
-};
+});
 
 async function renderItem(
   onEdit: (id: string) => void,

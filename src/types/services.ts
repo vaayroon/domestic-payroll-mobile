@@ -14,10 +14,36 @@
  * deliberate rather than an accident.
  */
 
+/** Options for `ReceiptPdfGenerator.generate`. */
+export interface ReceiptPdfGenerateOptions {
+  /**
+   * Open (user) password. When present, the file at the returned uri is
+   * encrypted, and a plain rendering never survives a resolved OR rejected
+   * call: on any failure the plain file is deleted and the call rejects. Must
+   * be non-empty. The password is never logged, put in errors or filenames.
+   */
+  readonly password?: string;
+  /**
+   * Readable base name for the generated file: no path and no extension, the
+   * adapter appends `.pdf`. The adapter re-checks it and NEVER rejects: an
+   * unsafe name, or any failure while placing the file under it, falls back to
+   * the random name `expo-print` chose, because the name is cosmetic.
+   */
+  readonly fileName?: string;
+}
+
 /** Renders receipt HTML into an on-device PDF file. */
 export interface ReceiptPdfGenerator {
-  /** Renders self-contained HTML to an on-device PDF file, returning its URI. */
-  generate(html: string): Promise<{ readonly uri: string }>;
+  /**
+   * Renders self-contained HTML to an on-device PDF file, returning its URI.
+   * Pass `options.password` to get a password-protected file instead.
+   */
+  generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }>;
+  /**
+   * Best-effort delete of a file previously returned by `generate`. Never
+   * throws; a no-op for anything outside the app cache.
+   */
+  discard(uri: string): Promise<void>;
 }
 
 /** Opens/shares an on-device PDF file via the OS share sheet. */
@@ -126,6 +152,12 @@ export type PdfViewerFailureCode = 'load_failed';
 export interface PdfViewerProps {
   /** Local `file://` PDF uri. Validated by the caller before mounting. */
   readonly uri: string;
+  /**
+   * Open password for an encrypted file. Omit it for a plain file. It is
+   * passed straight to the native view and never logged, put in an error or
+   * echoed back through `onFailure`.
+   */
+  readonly password?: string;
   /** Fires once the document is rendered, with its page count. */
   readonly onLoad: (pageCount: number) => void;
   /** A CODE, never the library's error object or message text. */

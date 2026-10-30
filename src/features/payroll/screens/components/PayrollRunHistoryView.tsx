@@ -9,7 +9,9 @@
  * `!sharingAvailable`) and "Enviar por correo" (disabled with a Spanish hint
  * when `!mailAvailable` -- disable-and-explain, not a silent share-sheet
  * fallback). Both dispatch actions are also disabled while a dispatch is
- * running (`dispatchStatus` `sharing`/`sending`). Mirrors `EmployeeListView.tsx`'s structure.
+ * running (`dispatchStatus` `sharing`/`sending`). While the file is plain
+ * (`!lastEncrypted`) a fourth action, "Cifrar", regenerates it as a protected
+ * receipt; it is disabled while any generation runs or a share/mail is in progress. Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -20,18 +22,30 @@ import type { DispatchStatus } from '../../domain';
 import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
 import { MAIL_UNAVAILABLE_HINT } from './receiptDispatchCopy';
+import {
+  ENCRYPT_RECEIPT_ACTION_LABEL,
+  PROTECTED_RECEIPT_HINT_COPY,
+  PROTECTED_RECEIPT_SUCCESS_COPY,
+} from './receiptProtectionCopy';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
   readonly loading: boolean;
   readonly error: string | null;
+  /** A generation is running: every "Generar recibo" row is disabled. */
   readonly generating: boolean;
+  /** The run whose row started the generation; only that row reads "Generando…". */
+  readonly generatingRunId: string | null;
   readonly generateError: string | null;
   readonly lastUri: string | null;
+  /** The file behind `lastUri` is password-protected (in-memory state, never persisted). */
+  readonly lastEncrypted: boolean;
   readonly onGenerate: (run: PayrollRun) => void;
   readonly onOpen: () => void;
   readonly onShare: () => void;
   readonly onSendMail: () => void;
+  /** Regenerates the plain receipt as a protected one ("Cifrar"). */
+  readonly onEncrypt: () => void;
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
   readonly dispatchStatus: DispatchStatus;
@@ -43,12 +57,15 @@ export function PayrollRunHistoryView({
   loading,
   error,
   generating,
+  generatingRunId,
   generateError,
   lastUri,
+  lastEncrypted,
   onGenerate,
   onOpen,
   onShare,
   onSendMail,
+  onEncrypt,
   sharingAvailable,
   mailAvailable,
   dispatchStatus,
@@ -58,6 +75,9 @@ export function PayrollRunHistoryView({
   const busy = dispatchStatus === 'sharing' || dispatchStatus === 'sending';
   const shareDisabled = busy || !sharingAvailable;
   const sendDisabled = busy || !mailAvailable;
+  // "Cifrar" swaps the file under the banner: never while a generation runs or
+  // while the current file is being shared or mailed.
+  const encryptDisabled = generating || busy;
 
   return (
     <View className="flex-1 bg-slate-900">
@@ -80,8 +100,13 @@ export function PayrollRunHistoryView({
       {lastUri !== null ? (
         <View className="px-4 pb-2">
           <Text testID="payroll-run-history-success" className="text-emerald-400">
-            Recibo generado.
+            {lastEncrypted ? PROTECTED_RECEIPT_SUCCESS_COPY : 'Recibo generado.'}
           </Text>
+          {lastEncrypted ? (
+            <Text testID="payroll-run-history-protected-hint" className="mt-1 text-slate-400">
+              {PROTECTED_RECEIPT_HINT_COPY}
+            </Text>
+          ) : null}
           <View className="mt-2 flex-row flex-wrap gap-4">
             <Pressable
               testID="payroll-run-history-open"
@@ -114,6 +139,20 @@ export function PayrollRunHistoryView({
                 Enviar por correo
               </Text>
             </Pressable>
+            {!lastEncrypted ? (
+              <Pressable
+                testID="payroll-run-history-encrypt"
+                accessibilityRole="button"
+                disabled={encryptDisabled}
+                onPress={onEncrypt}
+              >
+                <Text
+                  className={`font-semibold ${encryptDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
+                >
+                  {ENCRYPT_RECEIPT_ACTION_LABEL}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
           {!mailAvailable ? (
             <Text testID="payroll-run-history-mail-unavailable" className="mt-1 text-slate-400">
@@ -162,7 +201,7 @@ export function PayrollRunHistoryView({
                 <Text
                   className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
                 >
-                  {generating ? 'Generando…' : 'Generar recibo'}
+                  {generating && generatingRunId === item.id ? 'Generando…' : 'Generar recibo'}
                 </Text>
               </Pressable>
             </View>

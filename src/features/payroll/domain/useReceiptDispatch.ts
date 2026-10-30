@@ -12,8 +12,14 @@
 
 import { useEffect, useState } from 'react';
 
-import { useEmployeeRepository, useMailSender, usePdfSharer } from '@/core';
-import type { PayrollRun } from '@/types';
+import {
+  resolveReceiptPassword,
+  useEmployeeRepository,
+  useMailSender,
+  usePdfSharer,
+  type ReceiptPasswordSource,
+} from '@/core';
+import type { Employee, PayrollRun } from '@/types';
 
 import { buildReceiptMailContent } from '../receipt';
 
@@ -30,7 +36,25 @@ export interface UseReceiptDispatchResult {
 
 const SHARE_DIALOG_TITLE = 'Compartir recibo';
 
-export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): UseReceiptDispatchResult {
+/**
+ * Which wording the mail needs for an encrypted file. If the password can no
+ * longer be derived (the employee's data changed after generation) the
+ * 'override' wording is used: it never claims the NIF and never names a value.
+ */
+function passwordSourceOf(employee: Employee): ReceiptPasswordSource {
+  const resolved = resolveReceiptPassword(employee);
+  return resolved.ok ? resolved.source : 'override';
+}
+
+/**
+ * `encrypted` says whether the file at `uri` is password-protected. It only
+ * selects the mail wording; share and mail always attach the same `uri`.
+ */
+export function useReceiptDispatch(
+  run: PayrollRun | null,
+  uri: string | null,
+  encrypted = false,
+): UseReceiptDispatchResult {
   const employeeRepository = useEmployeeRepository();
   const pdfSharer = usePdfSharer();
   const mailSender = useMailSender();
@@ -39,6 +63,18 @@ export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): 
   const [mailAvailable, setMailAvailable] = useState(false);
   const [status, setStatus] = useState<DispatchStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  // The status describes ONE file. When the file behind the banner changes
+  // (a new generation, or "Cifrar" swapping the plain file for a protected
+  // one) the previous outcome no longer applies, e.g. "Recibo enviado." must
+  // not outlive the file it was about. Reset during render (React's
+  // "adjusting state when a prop changes" pattern) so no stale frame is shown.
+  const [dispatchedFile, setDispatchedFile] = useState({ uri, encrypted });
+  if (dispatchedFile.uri !== uri || dispatchedFile.encrypted !== encrypted) {
+    setDispatchedFile({ uri, encrypted });
+    setStatus('idle');
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +126,7 @@ export function useReceiptDispatch(run: PayrollRun | null, uri: string | null): 
       if (employee === null) {
         throw new Error('No se encontró el empleado de esta nómina.');
       }
-      const { subject, body } = buildReceiptMailContent(run, employee);
+      const { subject, body } = buildReceiptMailContent(run, employee, encrypted ? passwordSourceOf(employee) : null);
       const result = await mailSender.send({ subject, body, attachmentUris: [uri] });
       switch (result) {
         case 'sent':

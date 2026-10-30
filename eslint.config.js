@@ -15,10 +15,32 @@ module.exports = defineConfig([
     // on the hand-written repository interfaces in src/types. Same rationale
     // for expo-print: it is only allowed inside services/pdf/, sealed behind
     // the ReceiptPdfGenerator interface (design ADR-2).
+    //
+    // Receipt encryption (design D1/D3) adds three more things that exist only
+    // inside services/pdf/: the pure-JS PDF writer `@cantoo/pdf-lib`,
+    // `expo-file-system` (the plain PDF bytes are read and rewritten there and
+    // must never be reachable from features/core), and the secure RANDOM-BYTES
+    // API of `expo-crypto`. `expo-crypto` itself is NOT sealed package-wide:
+    // `src/app/_layout.tsx` legitimately imports `randomUUID`, so only the
+    // functions that feed the encryption shim are restricted, by `importNames`.
     rules: {
       'no-restricted-imports': [
         'error',
         {
+          paths: [
+            {
+              name: 'expo-crypto',
+              importNames: ['getRandomValues', 'getRandomBytes', 'getRandomBytesAsync'],
+              message: 'The expo-crypto random-bytes API is only allowed inside src/services/pdf/ (secure-random shim for receipt encryption). randomUUID stays free to use.',
+            },
+            {
+              // Android is edge-to-edge (Expo SDK 54): a plain ScrollView or RN's
+              // KeyboardAvoidingView leaves inputs behind the keyboard.
+              name: 'react-native',
+              importNames: ['ScrollView', 'KeyboardAvoidingView'],
+              message: 'Use FormScrollView from @/core: it keeps inputs and the submit button above the Android keyboard. Lists without inputs use FlatList.',
+            },
+          ],
           patterns: [
             {
               group: ['drizzle-orm', 'drizzle-orm/*'],
@@ -27,6 +49,19 @@ module.exports = defineConfig([
             {
               group: ['expo-print', 'expo-print/*'],
               message: 'expo-print is only allowed inside src/services/pdf/. Depend on the ReceiptPdfGenerator interface in src/types instead.',
+            },
+            {
+              group: ['@cantoo/pdf-lib', '@cantoo/pdf-lib/*', 'expo-file-system', 'expo-file-system/*'],
+              message: '@cantoo/pdf-lib/expo-file-system are only allowed inside src/services/pdf/. Depend on the ReceiptPdfGenerator interface in src/types instead.',
+            },
+            {
+              group: [
+                '@/services/pdf/secureRandom',
+                '@/services/pdf/encryptPdfBytes',
+                '**/pdf/secureRandom',
+                '**/pdf/encryptPdfBytes',
+              ],
+              message: 'secureRandom/encryptPdfBytes are adapter-internal to src/services/pdf/. Depend on the ReceiptPdfGenerator interface in src/types instead.',
             },
             {
               group: ['expo-sharing', 'expo-sharing/*', 'expo-mail-composer', 'expo-mail-composer/*'],
