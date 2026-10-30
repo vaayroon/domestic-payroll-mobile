@@ -15,6 +15,9 @@ export class FakeReceiptPdfGenerator implements ReceiptPdfGenerator {
   /** The password passed to the most recent `generate` call (`null` for a plain call). */
   lastPassword: string | null = null;
 
+  /** The readable file name passed to the most recent `generate` call (`null` when none was given). */
+  lastFileName: string | null = null;
+
   /** Every uri passed to `discard`, in call order. */
   readonly discarded: string[] = [];
 
@@ -24,13 +27,21 @@ export class FakeReceiptPdfGenerator implements ReceiptPdfGenerator {
   async generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }> {
     this.lastHtml = html;
     this.lastPassword = options?.password ?? null;
+    this.lastFileName = options?.fileName ?? null;
     if (this.nextError !== null) {
       const error = this.nextError;
       this.nextError = null;
       throw error;
     }
     this.nextId += 1;
-    return { uri: `file:///fake/cache/Print/recibo-${this.nextId}.pdf` };
+    // A named file lives in its own directory, like the real adapter's
+    // `receipts/<uuid>/`, so two generations never share a uri.
+    return {
+      uri:
+        this.lastFileName === null
+          ? `file:///fake/cache/Print/recibo-${this.nextId}.pdf`
+          : `file:///fake/cache/receipts/fake-${this.nextId}/${this.lastFileName}.pdf`,
+    };
   }
 
   async discard(uri: string): Promise<void> {

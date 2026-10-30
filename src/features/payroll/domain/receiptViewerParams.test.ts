@@ -55,6 +55,30 @@ describe('isReceiptPdfUri', () => {
   });
 });
 
+describe('readable receipt file names (receipt-file-name spec R15)', () => {
+  const DIRECTORY = 'file:///data/user/0/com.example.app/cache/receipts/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
+  it.each([
+    'AnaPruebaEjemplo-NominaOctubre2026',
+    'AnaPruebaEjemplo-Nomina-2026-10',
+    '2026-10-Nomina-AnaPruebaEjemplo',
+    'Nomina-Octubre2026',
+    'Empleado-NominaOctubre2026',
+  ])('accepts a moved receipt named %s', (name) => {
+    expect(isReceiptPdfUri(`${DIRECTORY}/${name}.pdf`)).toBe(true);
+    expect(
+      parseReceiptViewerParams({ employeeId: 'emp-1', runId: 'run-1', uri: `${DIRECTORY}/${name}.pdf` }),
+    ).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ['a percent-encoded n-tilde', `${DIRECTORY}/Pe%C3%B1a-Nomina.pdf`],
+    ['a percent-encoded space', `${DIRECTORY}/Ana%20Prueba.pdf`],
+  ])('still rejects %s, which is why the name part is ASCII only', (_label, uri) => {
+    expect(isReceiptPdfUri(uri)).toBe(false);
+  });
+});
+
 describe('parseReceiptViewerParams', () => {
   it('accepts three non-empty single strings with a valid uri', () => {
     expect(

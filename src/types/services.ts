@@ -23,6 +23,13 @@ export interface ReceiptPdfGenerateOptions {
    * be non-empty. The password is never logged, put in errors or filenames.
    */
   readonly password?: string;
+  /**
+   * Readable base name for the generated file: no path and no extension, the
+   * adapter appends `.pdf`. The adapter re-checks it and NEVER rejects: an
+   * unsafe name, or any failure while placing the file under it, falls back to
+   * the random name `expo-print` chose, because the name is cosmetic.
+   */
+  readonly fileName?: string;
 }
 
 /** Renders receipt HTML into an on-device PDF file. */

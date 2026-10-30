@@ -24,6 +24,24 @@ import type { Cents } from './money';
  */
 export type ContractType = 'INDEFINIDO' | 'TEMPORAL';
 
+/**
+ * The readable file-name layouts a receipt PDF can use (see
+ * `core/receiptFileName` for the exact output of each). Declared here so
+ * `types/` stays dependency-free (CLAUDE.md §3).
+ */
+export type ReceiptFileNameFormatId =
+  | 'name-month-year'
+  | 'name-year-month'
+  | 'year-month-name'
+  | 'month-year';
+
+/**
+ * Per-employee file-name choice: a format id, or `'auto'` to force the random
+ * name `expo-print` picks even when a general format is set. `null` (not part
+ * of this union) means "inherit the general setting".
+ */
+export type EmployeeReceiptFileNameFormat = ReceiptFileNameFormatId | 'auto';
+
 /** The private household employer using the app (the account holder). */
 export interface Employer {
   readonly id: string;

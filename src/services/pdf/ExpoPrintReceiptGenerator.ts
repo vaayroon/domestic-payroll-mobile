@@ -25,14 +25,25 @@
  * AES-128 writer would mangle (empty, over 32 characters or outside printable
  * ASCII, the rule in `core/receiptPassword`) is rejected before printing.
  *
+ * Readable file name (design D1-D5 of `sdd/receipt-file-name`): `expo-print`
+ * always writes `cache/Print/<random>.pdf`. With `options.fileName` the printed
+ * file is MOVED into a fresh `cache/receipts/<uuid>/` directory under that name,
+ * and encryption then runs at the new uri. The directory is the collision
+ * guard: the uuid is new on every call, so the same name never overwrites
+ * (`File.move` does not overwrite on its own) and a regeneration always
+ * yields a different uri, which is what resets the "sent" state upstream.
+ * Naming is cosmetic, so every failure while placing the file falls back to the
+ * random name instead of rejecting; only the password rules are a gate.
+ *
  * `@cantoo/pdf-lib`, `expo-file-system` and the expo-crypto random-bytes API
  * are sealed to `src/services/pdf/` by `eslint.config.js`.
  */
 
-import { getRandomValues } from 'expo-crypto';
-import { File, Paths } from 'expo-file-system';
+import { getRandomValues, randomUUID } from 'expo-crypto';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 
+import { isSafeReceiptFileName } from '@/core/receiptFileName';
 import { isReceiptPasswordWritable } from '@/core/receiptPassword';
 import type { ReceiptPdfGenerateOptions, ReceiptPdfGenerator } from '@/types';
 
@@ -65,6 +76,76 @@ function isDiscardableCacheUri(uri: string): boolean {
   return uri.startsWith(Paths.cache.uri) && uri.toLowerCase().endsWith('.pdf') && !uri.includes('..');
 }
 
+/** Parent directory of every readable-name file, directly under the app cache. */
+const RECEIPTS_DIRECTORY = 'receipts';
+
+/** Exactly `receipts/<uuid>/<file>.pdf`, relative to the app cache. The uuid is the one `randomUUID` produces. */
+const RECEIPT_FILE_PATH =
+  /^receipts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/[^/]+\.pdf$/i;
+
+/**
+ * Removes `directory` only when it exists and holds nothing. `Directory.delete`
+ * is recursive, so the emptiness check is what keeps this from ever taking a
+ * sibling file with it.
+ */
+function deleteEmptyDirectoryQuietly(directory: Directory): void {
+  try {
+    if (directory.exists && directory.list().length === 0) {
+      directory.delete();
+    }
+  } catch {
+    // Best effort only.
+  }
+}
+
+/**
+ * Deletes a receipt file and, when it lived in its own `receipts/<uuid>/`
+ * directory, that directory too once it is empty. Anything that does not match
+ * that exact shape (the random `Print/` files, a foreign path) only loses the
+ * file, never a directory.
+ */
+function deleteReceiptQuietly(uri: string): void {
+  deleteQuietly(uri);
+  const cacheRoot = Paths.cache.uri.endsWith('/') ? Paths.cache.uri : `${Paths.cache.uri}/`;
+  if (!uri.startsWith(cacheRoot)) {
+    return;
+  }
+  const directoryName = RECEIPT_FILE_PATH.exec(uri.slice(cacheRoot.length))?.[1];
+  if (directoryName !== undefined) {
+    deleteEmptyDirectoryQuietly(new Directory(Paths.cache, RECEIPTS_DIRECTORY, directoryName));
+  }
+}
+
+/**
+ * Moves the printed file to `cache/receipts/<uuid>/<fileName>.pdf` and returns
+ * its new uri, or `printedUri` when that is not possible. Never throws.
+ *
+ * `File.move` updates the instance's `uri`, so the new location is read back
+ * from it. If `move` throws AFTER having moved the file the target exists, and
+ * returning the printed uri would point at a file that is gone, so the target
+ * wins. Otherwise the directory created for the move is removed when empty.
+ */
+function placeUnderReadableName(printedUri: string, fileName: string): string {
+  let directory: Directory | null = null;
+  let target: File | null = null;
+  try {
+    directory = new Directory(Paths.cache, RECEIPTS_DIRECTORY, randomUUID());
+    target = new File(directory, `${fileName}.pdf`);
+    directory.create({ intermediates: true });
+    const printed = new File(printedUri);
+    printed.move(target);
+    return printed.uri;
+  } catch {
+    if (target?.exists) {
+      return target.uri;
+    }
+    if (directory !== null) {
+      deleteEmptyDirectoryQuietly(directory);
+    }
+    return printedUri;
+  }
+}
+
 export class ExpoPrintReceiptGenerator implements ReceiptPdfGenerator {
   async generate(
     html: string,
@@ -79,11 +160,18 @@ export class ExpoPrintReceiptGenerator implements ReceiptPdfGenerator {
       throw new Error(INVALID_PASSWORD_MESSAGE);
     }
 
-    const { uri } = await Print.printToFileAsync({
+    const printed = await Print.printToFileAsync({
       html,
       width: A4_WIDTH_PX,
       height: A4_HEIGHT_PX,
     });
+    // An unsafe name is ignored, not rejected: no file operation happens and
+    // the random `Print/` name stays.
+    const fileName = options?.fileName;
+    const uri =
+      fileName !== undefined && isSafeReceiptFileName(fileName)
+        ? placeUnderReadableName(printed.uri, fileName)
+        : printed.uri;
     if (password === undefined) {
       return { uri };
     }
@@ -95,7 +183,7 @@ export class ExpoPrintReceiptGenerator implements ReceiptPdfGenerator {
       const encrypted = await encryptPdfBytes(plain, password);
       file.write(encrypted);
     } catch {
-      deleteQuietly(uri);
+      deleteReceiptQuietly(uri);
       throw new Error(ENCRYPTION_FAILED_MESSAGE);
     }
     return { uri };
@@ -105,6 +193,6 @@ export class ExpoPrintReceiptGenerator implements ReceiptPdfGenerator {
     if (!isDiscardableCacheUri(uri)) {
       return;
     }
-    deleteQuietly(uri);
+    deleteReceiptQuietly(uri);
   }
 }

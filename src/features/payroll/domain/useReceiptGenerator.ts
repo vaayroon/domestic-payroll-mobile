@@ -9,7 +9,9 @@
 import { useState } from 'react';
 
 import {
+  buildReceiptFileName,
   readEmployerSignature,
+  readReceiptFileNameFormat,
   resolveReceiptPassword,
   useCurrentEmployerId,
   useEmployeeRepository,
@@ -78,10 +80,11 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
     setGenerating(true);
     setError(null);
     try {
-      const [employee, employer, employerSignatureBase64] = await Promise.all([
+      const [employee, employer, employerSignatureBase64, globalFileNameFormat] = await Promise.all([
         employeeRepository.getById(run.employeeId),
         employerRepository.getById(employerId),
         readEmployerSignature(settingsRepository),
+        readReceiptFileNameFormat(settingsRepository),
       ]);
       if (employee === null) {
         throw new Error('No se encontró el empleado de esta nómina.');
@@ -119,12 +122,22 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       });
       const html = buildReceiptHtml(viewModel);
 
+      // The name comes from the run's own period, never from the issue date,
+      // and is built here (not in the HTML pipeline) so the adapter stays
+      // domain-free. No format, or a period that cannot be named, keeps the
+      // random expo-print name: a name is never worth failing a receipt.
+      const fileName =
+        globalFileNameFormat === null
+          ? null
+          : buildReceiptFileName(globalFileNameFormat, employee.name, run.periodYear, run.periodMonth);
+      const nameOption = fileName === null ? {} : { fileName };
+
       if (password === null) {
-        const { uri } = await pdfGenerator.generate(html);
+        const { uri } = await pdfGenerator.generate(html, nameOption);
         return { uri, issuedOnIso, encrypted: false };
       }
       try {
-        const { uri } = await pdfGenerator.generate(html, { password });
+        const { uri } = await pdfGenerator.generate(html, { ...nameOption, password });
         return { uri, issuedOnIso, encrypted: true };
       } catch {
         throw new Error(RECEIPT_ENCRYPTION_FAILED_ERROR);

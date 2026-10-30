@@ -14,6 +14,7 @@ import {
   CurrentEmployerProvider,
   EMPLOYER_SIGNATURE_KEY,
   PdfServiceProvider,
+  RECEIPT_FILE_NAME_FORMAT_KEY,
   RepositoryProvider,
   serializeEmployerSignature,
   type Repositories,
@@ -460,6 +461,153 @@ describe('useReceiptGenerator', () => {
       });
 
       expect(result).toMatchObject({ encrypted: true });
+      expect(harness.current.error).toBeNull();
+    });
+  });
+
+  describe('readable file name from the general format', () => {
+    async function settingsWithFormat(value: string): Promise<InMemorySettingsRepository> {
+      const settings = new InMemorySettingsRepository();
+      await settings.set(RECEIPT_FILE_NAME_FORMAT_KEY, value);
+      return settings;
+    }
+
+    it('passes no file name and keeps the random uri when no format is set', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBeNull();
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+    });
+
+    it('names the file from the employee name and the run period', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('name-month-year'));
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe('EmpleadaDePrueba-NominaJunio2026');
+      expect(result).toMatchObject({
+        uri: 'file:///fake/cache/receipts/fake-1/EmpleadaDePrueba-NominaJunio2026.pdf',
+        encrypted: false,
+      });
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('takes the month and year from the run, never from the issue date', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'));
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN, { issuedOnIso: '2026-11-03' });
+      });
+
+      expect(generator.lastFileName).toBe('Nomina-Junio2026');
+      expect(generator.lastHtml).toContain('3 de noviembre de 2026');
+    });
+
+    it.each([
+      ['name-year-month', 'EmpleadaDePrueba-Nomina-2026-06'],
+      ['year-month-name', '2026-06-Nomina-EmpleadaDePrueba'],
+    ])('applies the %s layout', async (format, expected) => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat(format));
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe(expected);
+    });
+
+    it('carries the name together with the password on the encrypted path', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBe('Nomina-Junio2026');
+      expect(generator.lastPassword).toBe('00000000T');
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/receipts/fake-1/Nomina-Junio2026.pdf', encrypted: true });
+    });
+
+    it('regenerates a protected copy under the name and discards the previous plain file', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T' });
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('month-year'), employee);
+      const previous = {
+        run: FAKE_RUN,
+        uri: 'file:///fake/cache/receipts/fake-0/Nomina-Junio2026.pdf',
+        issuedOnIso: '2026-03-01',
+        encrypted: false,
+      } as const;
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.regenerateProtected(previous);
+      });
+
+      expect(generator.lastFileName).toBe('Nomina-Junio2026');
+      expect(generator.lastPassword).toBe('00000000T');
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/receipts/fake-1/Nomina-Junio2026.pdf', encrypted: true });
+      expect(generator.discarded).toEqual([previous.uri]);
+    });
+
+    it('generates without a name when the period cannot be turned into one', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('name-month-year'));
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate({ ...FAKE_RUN, periodMonth: 13 });
+      });
+
+      expect(generator.lastHtml).not.toBeNull();
+      expect(generator.lastFileName).toBeNull();
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('generates without a name when the stored format is corrupt', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, await settingsWithFormat('bogus'));
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastFileName).toBeNull();
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('generates without a name when reading the settings fails', async () => {
+      const throwingSettings: SettingsRepository = {
+        get: () => Promise.reject(new Error('I/O error')),
+        set: () => Promise.reject(new Error('unused')),
+      };
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator, throwingSettings);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastHtml).not.toBeNull();
+      expect(generator.lastFileName).toBeNull();
+      expect(result).toMatchObject({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
       expect(harness.current.error).toBeNull();
     });
   });
