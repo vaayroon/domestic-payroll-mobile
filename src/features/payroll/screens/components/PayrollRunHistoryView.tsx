@@ -11,7 +11,7 @@
  * fallback). Both dispatch actions are also disabled while a dispatch is
  * running (`dispatchStatus` `sharing`/`sending`). While the file is plain
  * (`!lastEncrypted`) a fourth action, "Cifrar", regenerates it as a protected
- * receipt; it is disabled while any generation runs. Mirrors `EmployeeListView.tsx`'s structure.
+ * receipt; it is disabled while any generation runs or a share/mail is in progress. Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -75,6 +75,9 @@ export function PayrollRunHistoryView({
   const busy = dispatchStatus === 'sharing' || dispatchStatus === 'sending';
   const shareDisabled = busy || !sharingAvailable;
   const sendDisabled = busy || !mailAvailable;
+  // "Cifrar" swaps the file under the banner: never while a generation runs or
+  // while the current file is being shared or mailed.
+  const encryptDisabled = generating || busy;
 
   return (
     <View className="flex-1 bg-slate-900">
@@ -140,11 +143,11 @@ export function PayrollRunHistoryView({
               <Pressable
                 testID="payroll-run-history-encrypt"
                 accessibilityRole="button"
-                disabled={generating}
+                disabled={encryptDisabled}
                 onPress={onEncrypt}
               >
                 <Text
-                  className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
+                  className={`font-semibold ${encryptDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
                 >
                   {ENCRYPT_RECEIPT_ACTION_LABEL}
                 </Text>

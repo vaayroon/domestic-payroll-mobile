@@ -282,6 +282,36 @@ describe('PayrollRunHistoryView', () => {
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.disabled).toBe(true);
   });
 
+  it.each(['sharing', 'sending'] as const)(
+    'disables "Cifrar" while dispatchStatus is "%s", so the file is not swapped mid-dispatch',
+    async (dispatchStatus) => {
+      const renderer = await renderView({
+        ...baseProps,
+        runs: [FAKE_RUN],
+        lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+        lastEncrypted: false,
+        dispatchStatus,
+      });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.disabled).toBe(true);
+    },
+  );
+
+  it.each(['idle', 'sent', 'cancelled', 'failed'] as const)(
+    'keeps "Cifrar" enabled when dispatchStatus is "%s"',
+    async (dispatchStatus) => {
+      const renderer = await renderView({
+        ...baseProps,
+        runs: [FAKE_RUN],
+        lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+        lastEncrypted: false,
+        dispatchStatus,
+      });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.disabled).toBe(false);
+    },
+  );
+
   it('fires onOpen when "Abrir recibo" is pressed', async () => {
     const onOpen = jest.fn();
     const renderer = await renderView({
