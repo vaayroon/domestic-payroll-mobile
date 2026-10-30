@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { ScrollView, Switch, Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import type { EmployeeFormErrors } from '../../domain';
@@ -145,6 +145,125 @@ describe('EmployeeForm', () => {
     });
 
     expect(onChangeField).toHaveBeenCalledWith('contractType', 'TEMPORAL');
+  });
+
+  describe('receipt protection', () => {
+    const textsOf = (renderer: ReactTestRenderer) =>
+      renderer.root.findAllByType(Text).map((node) => node.props.children);
+
+    it('renders the protection switch with its label and a non-overclaiming helper', async () => {
+      const renderer = await renderForm(baseProps);
+
+      const texts = textsOf(renderer);
+      expect(texts).toContainEqual('Proteger el recibo con contraseña');
+      expect(texts).toContainEqual(
+        'Protege el recibo con contraseña para evitar que se abra por descuido. No es una medida de seguridad fuerte: el NIF/NIE no es un secreto.',
+      );
+      const toggle = renderer.root.findByType(Switch);
+      expect(toggle.props.testID).toBe('employee-form-receipt-encryption');
+      expect(toggle.props.value).toBe(false);
+    });
+
+    it('reflects an enabled preference in the switch', async () => {
+      const renderer = await renderForm({
+        ...baseProps,
+        values: { ...baseProps.values, receiptEncryptionEnabled: true },
+      });
+
+      expect(renderer.root.findByType(Switch).props.value).toBe(true);
+    });
+
+    it('fires onChangeField with a boolean when the switch is toggled', async () => {
+      const onChangeField = jest.fn();
+      const renderer = await renderForm({ ...baseProps, onChangeField });
+
+      await act(async () => {
+        renderer.root.findByType(Switch).props.onValueChange(true);
+      });
+
+      expect(onChangeField).toHaveBeenCalledWith('receiptEncryptionEnabled', true);
+    });
+
+    it('renders the own-password input as readable, with the NIF/NIE default and the character rules in the helper', async () => {
+      const renderer = await renderForm({
+        ...baseProps,
+        values: { ...baseProps.values, receiptPasswordOverride: 'clave 1' },
+      });
+
+      const texts = textsOf(renderer);
+      expect(texts).toContainEqual('Contraseña propia del recibo (opcional)');
+      expect(texts).toContainEqual(
+        'Si la dejas vacía, la contraseña será el NIF/NIE en mayúsculas, sin espacios ni guiones. Solo se admiten letras, números y símbolos básicos (sin acentos ni ñ), hasta 32 caracteres.',
+      );
+      const input = renderer.root.findByProps({ testID: 'employee-form-receipt-password-override' });
+      expect(input.props.value).toBe('clave 1');
+      expect(input.props.autoCapitalize).toBe('none');
+      expect(input.props.autoCorrect).toBe(false);
+      expect(input.props.secureTextEntry).not.toBe(true);
+    });
+
+    it('fires onChangeField with the typed own password', async () => {
+      const onChangeField = jest.fn();
+      const renderer = await renderForm({ ...baseProps, onChangeField });
+
+      await act(async () => {
+        renderer.root.findByProps({ testID: 'employee-form-receipt-password-override' }).props.onChangeText('clave 1');
+      });
+
+      expect(onChangeField).toHaveBeenCalledWith('receiptPasswordOverride', 'clave 1');
+    });
+
+    it('maps each own-password error code to a Spanish message', async () => {
+      const cases: [NonNullable<EmployeeFormErrors['receiptPasswordOverride']>, string][] = [
+        ['too_long', 'La contraseña es demasiado larga. Usa como máximo 32 caracteres.'],
+        [
+          'invalid_characters',
+          'La contraseña contiene caracteres no permitidos. Usa solo letras, números y símbolos básicos, sin acentos ni ñ.',
+        ],
+      ];
+
+      for (const [code, message] of cases) {
+        const renderer = await renderForm({ ...baseProps, errors: { receiptPasswordOverride: code } });
+
+        expect(textsOf(renderer)).toContainEqual(message);
+      }
+    });
+
+    it('explains why the switch cannot be enabled when there is no password source', async () => {
+      const renderer = await renderForm({
+        ...baseProps,
+        errors: { receiptEncryptionEnabled: 'password_unavailable' },
+      });
+
+      expect(textsOf(renderer)).toContainEqual(
+        'Para proteger el recibo, indica el NIF/NIE del empleado o una contraseña propia.',
+      );
+    });
+
+    it('never overclaims security in the protection copy', async () => {
+      const renderer = await renderForm({
+        ...baseProps,
+        errors: {
+          receiptEncryptionEnabled: 'password_unavailable',
+          receiptPasswordOverride: 'invalid_characters',
+        },
+      });
+
+      const protectionTexts = textsOf(renderer)
+        .filter((text): text is string => typeof text === 'string')
+        .filter((text) => /contraseña|protege/i.test(text));
+      expect(protectionTexts.length).toBeGreaterThanOrEqual(5);
+      for (const text of protectionTexts) {
+        expect(text).not.toMatch(/seguro|segura|confidencial|imposible de abrir|inviolable/i);
+      }
+    });
+  });
+
+  it('keeps the whole form reachable on small screens by scrolling', async () => {
+    const renderer = await renderForm(baseProps);
+
+    expect(renderer.root.findAllByType(ScrollView)).toHaveLength(1);
+    expect(renderer.root.findByType(ScrollView).props.keyboardShouldPersistTaps).toBe('handled');
   });
 
   it('fires onSubmit when the submit button is pressed', async () => {

@@ -4,7 +4,9 @@
  * emits codes only, never UI copy.
  */
 
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+
+import { RECEIPT_PASSWORD_MAX_LENGTH } from '@/core';
 
 import type { EmployeeFormErrors, EmployeeFormInput } from '../../domain';
 
@@ -39,6 +41,32 @@ const GRUPO_COTIZACION_ERROR_MESSAGES: Record<
 const GRUPO_COTIZACION_HELPER_TEXT =
   'En el Sistema Especial de Empleados de Hogar la Tesorería General no suele asignar grupo de cotización: lo normal es dejarlo en blanco. Rellénalo solo si aparece en tu documentación de la Seguridad Social.';
 
+/**
+ * Receipt protection copy. The password only prevents ACCIDENTAL opening: an
+ * NIF/NIE is not a secret, so nothing here may promise security. The character
+ * rules mirror `validateReceiptPasswordOverride` (printable ASCII, 32 max).
+ */
+const RECEIPT_ENCRYPTION_HELPER_TEXT =
+  'Protege el recibo con contraseña para evitar que se abra por descuido. No es una medida de seguridad fuerte: el NIF/NIE no es un secreto.';
+
+const RECEIPT_PASSWORD_OVERRIDE_HELPER_TEXT = `Si la dejas vacía, la contraseña será el NIF/NIE en mayúsculas, sin espacios ni guiones. Solo se admiten letras, números y símbolos básicos (sin acentos ni ñ), hasta ${RECEIPT_PASSWORD_MAX_LENGTH} caracteres.`;
+
+const RECEIPT_ENCRYPTION_ERROR_MESSAGES: Record<
+  NonNullable<EmployeeFormErrors['receiptEncryptionEnabled']>,
+  string
+> = {
+  password_unavailable: 'Para proteger el recibo, indica el NIF/NIE del empleado o una contraseña propia.',
+};
+
+const RECEIPT_PASSWORD_OVERRIDE_ERROR_MESSAGES: Record<
+  NonNullable<EmployeeFormErrors['receiptPasswordOverride']>,
+  string
+> = {
+  too_long: `La contraseña es demasiado larga. Usa como máximo ${RECEIPT_PASSWORD_MAX_LENGTH} caracteres.`,
+  invalid_characters:
+    'La contraseña contiene caracteres no permitidos. Usa solo letras, números y símbolos básicos, sin acentos ni ñ.',
+};
+
 const BASE_GROSS_ERROR_MESSAGES: Record<NonNullable<EmployeeFormErrors['baseGross']>, string> = {
   empty: 'Introduce el salario bruto.',
   not_a_number: 'Introduce un número válido (ej. 900 o 900,50).',
@@ -68,7 +96,7 @@ const CONTRACT_TYPE_LABELS: Record<'INDEFINIDO' | 'TEMPORAL', string> = {
 export interface EmployeeFormProps {
   readonly values: EmployeeFormInput;
   readonly errors: EmployeeFormErrors;
-  readonly onChangeField: (field: keyof EmployeeFormInput, value: string) => void;
+  readonly onChangeField: <K extends keyof EmployeeFormInput>(field: K, value: EmployeeFormInput[K]) => void;
   readonly onSubmit: () => void;
   readonly saving: boolean;
   readonly saveError: string | null;
@@ -77,7 +105,14 @@ export interface EmployeeFormProps {
 
 export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, saveError, submitLabel }: EmployeeFormProps) {
   return (
-    <View className="flex-1 gap-4 bg-slate-900 p-4">
+    // Scrolls: with the protection fields the form no longer fits a small screen,
+    // and `keyboardShouldPersistTaps` keeps the submit button tappable with the
+    // keyboard open.
+    <ScrollView
+      className="flex-1 bg-slate-900"
+      contentContainerClassName="gap-4 p-4"
+      keyboardShouldPersistTaps="handled"
+    >
       <View>
         <Text className="mb-1 text-slate-300">Nombre</Text>
         <TextInput
@@ -211,6 +246,46 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
         ) : null}
       </View>
 
+      <View>
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="flex-1 text-slate-300">Proteger el recibo con contraseña</Text>
+          <Switch
+            testID="employee-form-receipt-encryption"
+            value={values.receiptEncryptionEnabled}
+            onValueChange={(enabled) => onChangeField('receiptEncryptionEnabled', enabled)}
+            trackColor={{ false: '#475569', true: '#047857' }}
+            thumbColor="#e2e8f0"
+          />
+        </View>
+        <Text className="mt-1 text-sm text-slate-400">{RECEIPT_ENCRYPTION_HELPER_TEXT}</Text>
+        {errors.receiptEncryptionEnabled !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">
+            {RECEIPT_ENCRYPTION_ERROR_MESSAGES[errors.receiptEncryptionEnabled]}
+          </Text>
+        ) : null}
+      </View>
+
+      <View>
+        <Text className="mb-1 text-slate-300">Contraseña propia del recibo (opcional)</Text>
+        {/* Deliberately NOT secure: the employer must be able to read what they typed. */}
+        <TextInput
+          testID="employee-form-receipt-password-override"
+          className="rounded-md bg-slate-800 px-3 py-2 text-white"
+          value={values.receiptPasswordOverride}
+          onChangeText={(text) => onChangeField('receiptPasswordOverride', text)}
+          placeholder="Contraseña propia"
+          placeholderTextColor="#94a3b8"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Text className="mt-1 text-sm text-slate-400">{RECEIPT_PASSWORD_OVERRIDE_HELPER_TEXT}</Text>
+        {errors.receiptPasswordOverride !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">
+            {RECEIPT_PASSWORD_OVERRIDE_ERROR_MESSAGES[errors.receiptPasswordOverride]}
+          </Text>
+        ) : null}
+      </View>
+
       {saveError !== null ? (
         <Text testID="employee-form-save-error" className="text-sm text-red-400">
           No se pudo guardar: {saveError}
@@ -222,6 +297,6 @@ export function EmployeeForm({ values, errors, onChangeField, onSubmit, saving, 
           {saving ? 'Guardando…' : submitLabel}
         </Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
