@@ -48,6 +48,7 @@ const baseProps: PayrollRunHistoryViewProps = {
   generatingRunId: null,
   generateError: null,
   lastUri: null,
+  lastEncrypted: false,
   onGenerate: () => {},
   onOpen: () => {},
   onShare: () => {},
@@ -163,6 +164,31 @@ describe('PayrollRunHistoryView', () => {
 
     const success = renderer.root.findByProps({ testID: 'payroll-run-history-success' });
     expect(success.props.children).toBe('Recibo generado.');
+  });
+
+  it('shows the protected banner and the password hint when the receipt is encrypted', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+      lastEncrypted: true,
+    });
+
+    const success = renderer.root.findByProps({ testID: 'payroll-run-history-success' });
+    expect(success.props.children).toBe('Recibo generado y protegido con contraseña.');
+    const hint = renderer.root.findByProps({ testID: 'payroll-run-history-protected-hint' });
+    expect(hint.props.children).toBe('Recuerda indicar al empleado cómo abrir el recibo protegido.');
+  });
+
+  it('shows no password hint for a plain receipt', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+      lastEncrypted: false,
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-protected-hint' })).toHaveLength(0);
   });
 
   it('does not show the receipt actions when no receipt was generated yet', async () => {

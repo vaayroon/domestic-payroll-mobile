@@ -20,6 +20,7 @@ import type { DispatchStatus } from '../../domain';
 import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
 import { MAIL_UNAVAILABLE_HINT } from './receiptDispatchCopy';
+import { PROTECTED_RECEIPT_HINT_COPY, PROTECTED_RECEIPT_SUCCESS_COPY } from './receiptProtectionCopy';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
@@ -31,6 +32,8 @@ export interface PayrollRunHistoryViewProps {
   readonly generatingRunId: string | null;
   readonly generateError: string | null;
   readonly lastUri: string | null;
+  /** The file behind `lastUri` is password-protected (in-memory state, never persisted). */
+  readonly lastEncrypted: boolean;
   readonly onGenerate: (run: PayrollRun) => void;
   readonly onOpen: () => void;
   readonly onShare: () => void;
@@ -49,6 +52,7 @@ export function PayrollRunHistoryView({
   generatingRunId,
   generateError,
   lastUri,
+  lastEncrypted,
   onGenerate,
   onOpen,
   onShare,
@@ -84,8 +88,13 @@ export function PayrollRunHistoryView({
       {lastUri !== null ? (
         <View className="px-4 pb-2">
           <Text testID="payroll-run-history-success" className="text-emerald-400">
-            Recibo generado.
+            {lastEncrypted ? PROTECTED_RECEIPT_SUCCESS_COPY : 'Recibo generado.'}
           </Text>
+          {lastEncrypted ? (
+            <Text testID="payroll-run-history-protected-hint" className="mt-1 text-slate-400">
+              {PROTECTED_RECEIPT_HINT_COPY}
+            </Text>
+          ) : null}
           <View className="mt-2 flex-row flex-wrap gap-4">
             <Pressable
               testID="payroll-run-history-open"

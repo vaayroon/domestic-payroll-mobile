@@ -63,6 +63,8 @@ function runFixture(id: string, periodMonth: number): PayrollRun {
   };
 }
 
+const PROTECTED_EMPLOYEE: Employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
+
 const RUN_A = runFixture('payroll-run-fake-a', 5);
 const RUN_B = runFixture('payroll-run-fake-b', 6);
 
@@ -71,7 +73,7 @@ class FlakyReceiptPdfGenerator implements ReceiptPdfGenerator {
   failNext = false;
   /** When set, the next `generate` waits for it before running (to observe the in-flight state). */
   gate: Promise<void> | null = null;
-  private readonly inner = new FakeReceiptPdfGenerator();
+  readonly inner = new FakeReceiptPdfGenerator();
 
   async generate(html: string, options?: ReceiptPdfGenerateOptions): Promise<{ readonly uri: string }> {
     if (this.gate !== null) {
@@ -95,18 +97,20 @@ interface Harness {
   readonly renderer: ReactTestRenderer;
   readonly generator: FlakyReceiptPdfGenerator;
   readonly pdfSharer: FakePdfSharer;
+  readonly mailSender: FakeMailSender;
 }
 
 // Unmounting after each test clears the FlatList's batched-render timer, which
 // otherwise fires after the test finished and logs an act() warning.
 let mounted: ReactTestRenderer | null = null;
 
-async function renderScreen(): Promise<Harness> {
+async function renderScreen(employee: Employee = FAKE_EMPLOYEE): Promise<Harness> {
   const generator = new FlakyReceiptPdfGenerator();
   const pdfSharer = new FakePdfSharer();
+  const mailSender = new FakeMailSender();
   const repositories: Repositories = {
     employers: new InMemoryEmployerRepository([FAKE_EMPLOYER]),
-    employees: new InMemoryEmployeeRepository([FAKE_EMPLOYEE]),
+    employees: new InMemoryEmployeeRepository([employee]),
     payrollRuns: new InMemoryPayrollRunRepository([RUN_A, RUN_B]),
     settings: new InMemorySettingsRepository(),
   };
@@ -117,7 +121,7 @@ async function renderScreen(): Promise<Harness> {
       <RepositoryProvider repositories={repositories}>
         <CurrentEmployerProvider>
           <PdfServiceProvider generator={generator}>
-            <MailServiceProvider pdfSharer={pdfSharer} mailSender={new FakeMailSender()}>
+            <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
               <PayrollRunHistoryScreen employeeId={FAKE_EMPLOYEE.id} />
             </MailServiceProvider>
           </PdfServiceProvider>
@@ -131,7 +135,7 @@ async function renderScreen(): Promise<Harness> {
     await Promise.resolve();
   });
   mounted = renderer;
-  return { renderer, generator, pdfSharer };
+  return { renderer, generator, pdfSharer, mailSender };
 }
 
 async function generate(renderer: ReactTestRenderer, run: PayrollRun): Promise<void> {
@@ -271,6 +275,76 @@ describe('PayrollRunHistoryScreen', () => {
     expect(rowOf(RUN_B).props.disabled).toBe(false);
     expect(labelOf(RUN_A)).toBe('Generar recibo');
     expect(labelOf(RUN_B)).toBe('Generar recibo');
+  });
+
+  it('opens a plain receipt without the encrypted flag', async () => {
+    const { renderer } = await renderScreen();
+
+    await generate(renderer, RUN_B);
+    await press(renderer, 'payroll-run-history-open');
+
+    const params = mockRouterPush.mock.calls[0][0].params as Record<string, string>;
+    expect(Object.keys(params).sort()).toEqual(['employeeId', 'runId', 'uri']);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-success' }).props.children).toBe(
+      'Recibo generado.',
+    );
+  });
+
+  describe('when the employee preference is ON', () => {
+    it('generates a protected receipt with the NIF/NIE and says so in the banner', async () => {
+      const { renderer, generator } = await renderScreen(PROTECTED_EMPLOYEE);
+
+      await generate(renderer, RUN_B);
+
+      expect(generator.inner.lastPassword).toBe('00000000T');
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-success' }).props.children).toBe(
+        'Recibo generado y protegido con contraseña.',
+      );
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-protected-hint' }).props.children).toBe(
+        'Recuerda indicar al empleado cómo abrir el recibo protegido.',
+      );
+    });
+
+    it('opens the viewer with the non-secret encrypted flag and no password', async () => {
+      const { renderer } = await renderScreen(PROTECTED_EMPLOYEE);
+
+      await generate(renderer, RUN_B);
+      await press(renderer, 'payroll-run-history-open');
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        pathname: '/payroll/receipt/[employeeId]',
+        params: {
+          employeeId: FAKE_EMPLOYEE.id,
+          runId: RUN_B.id,
+          uri: 'file:///fake/cache/Print/recibo-1.pdf',
+          encrypted: '1',
+        },
+      });
+      expect(JSON.stringify(mockRouterPush.mock.calls)).not.toContain('00000000T');
+    });
+
+    it('sends the protected mail wording and attaches the encrypted file', async () => {
+      const { renderer, mailSender } = await renderScreen(PROTECTED_EMPLOYEE);
+
+      await generate(renderer, RUN_B);
+      await press(renderer, 'payroll-run-history-send');
+
+      expect(mailSender.lastOptions?.attachmentUris).toEqual(['file:///fake/cache/Print/recibo-1.pdf']);
+      expect(mailSender.lastOptions?.body).toContain('protegido con contraseña');
+      expect(mailSender.lastOptions?.body).toContain('La contraseña es su NIF/NIE');
+    });
+
+    it('fails closed: shows the Spanish message and no receipt actions when no password is available', async () => {
+      const { renderer, generator } = await renderScreen(makeEmployee({ nif: null, receiptEncryptionEnabled: true }));
+
+      await generate(renderer, RUN_B);
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-generate-error' }).props.children).toBe(
+        'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.',
+      );
+      expect(generator.inner.lastHtml).toBeNull();
+      expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-open' })).toHaveLength(0);
+    });
   });
 
   it('shows no receipt actions when the only generation failed', async () => {

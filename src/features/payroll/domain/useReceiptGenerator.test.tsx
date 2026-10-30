@@ -21,10 +21,14 @@ import {
 import { InMemorySettingsRepository } from '@/core/testing/fakes';
 import { SYNTHETIC_SIGNATURE_PNG_BASE64 } from '@/core/testing/fixtures';
 import { FakeReceiptPdfGenerator } from '@/services/pdf/testing/fakes';
-import type { Employee, PayrollRun, SettingsRepository } from '@/types';
+import type { Employee, PayrollRun, ReceiptPdfGenerator, SettingsRepository } from '@/types';
 import { cents } from '@/types/money';
 
-import { useReceiptGenerator, type UseReceiptGeneratorResult } from './useReceiptGenerator';
+import {
+  useReceiptGenerator,
+  type GeneratedReceipt,
+  type UseReceiptGeneratorResult,
+} from './useReceiptGenerator';
 import { InMemoryEmployeeRepository, InMemoryEmployerRepository } from '@/features/employees/testing/fakes';
 import { FAKE_EMPLOYER, makeEmployee } from '@/features/employees/testing/fixtures';
 import { InMemoryPayrollRunRepository } from '../testing/fakes';
@@ -53,6 +57,30 @@ const FAKE_RUN: PayrollRun = {
   createdAt: 0,
 };
 
+// "Today" is read at the hook's call boundary, so only `Date` is faked.
+const TODAY_ISO = '2026-03-05';
+const ONLY_DATE_FAKED = [
+  'hrtime',
+  'nextTick',
+  'performance',
+  'queueMicrotask',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
+  'requestIdleCallback',
+  'cancelIdleCallback',
+  'setImmediate',
+  'clearImmediate',
+  'setInterval',
+  'clearInterval',
+  'setTimeout',
+  'clearTimeout',
+] as const;
+
+const PROTECTED_EMPLOYEE: Employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
+const UNAVAILABLE_COPY =
+  'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.';
+const ENCRYPT_FAILED_COPY = 'No se pudo generar el recibo protegido. Inténtalo de nuevo.';
+
 function HookHarness({ onResult }: { onResult: (result: UseReceiptGeneratorResult) => void }) {
   const result = useReceiptGenerator();
   onResult(result);
@@ -60,12 +88,13 @@ function HookHarness({ onResult }: { onResult: (result: UseReceiptGeneratorResul
 }
 
 async function renderUseReceiptGenerator(
-  generator: FakeReceiptPdfGenerator,
+  generator: ReceiptPdfGenerator,
   settings: SettingsRepository = new InMemorySettingsRepository(),
+  employee: Employee = FAKE_EMPLOYEE,
 ) {
   const repositories: Repositories = {
     employers: new InMemoryEmployerRepository([FAKE_EMPLOYER]),
-    employees: new InMemoryEmployeeRepository([FAKE_EMPLOYEE]),
+    employees: new InMemoryEmployeeRepository([employee]),
     payrollRuns: new InMemoryPayrollRunRepository([FAKE_RUN]),
     settings,
   };
@@ -97,16 +126,29 @@ async function renderUseReceiptGenerator(
 }
 
 describe('useReceiptGenerator', () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date(`${TODAY_ISO}T10:00:00Z`), doNotFake: [...ONLY_DATE_FAKED] });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('generates a receipt PDF and surfaces the resulting file uri', async () => {
     const generator = new FakeReceiptPdfGenerator();
     const harness = await renderUseReceiptGenerator(generator);
 
-    let result: { readonly uri: string } | null = null;
+    let result: GeneratedReceipt | null = null;
     await act(async () => {
       result = await harness.current.generate(FAKE_RUN);
     });
 
-    expect(result).toEqual({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+    expect(result).toEqual({
+      uri: 'file:///fake/cache/Print/recibo-1.pdf',
+      issuedOnIso: TODAY_ISO,
+      encrypted: false,
+    });
+    expect(generator.lastPassword).toBeNull();
     expect(harness.current.generating).toBe(false);
     expect(harness.current.error).toBeNull();
 
@@ -123,7 +165,7 @@ describe('useReceiptGenerator', () => {
 
     const missingEmployeeRun: PayrollRun = { ...FAKE_RUN, employeeId: 'employee-fake-missing' };
 
-    let result: { readonly uri: string } | null = null;
+    let result: GeneratedReceipt | null = null;
     await act(async () => {
       result = await harness.current.generate(missingEmployeeRun);
     });
@@ -158,14 +200,173 @@ describe('useReceiptGenerator', () => {
     const generator = new FakeReceiptPdfGenerator();
     const harness = await renderUseReceiptGenerator(generator, throwingSettings);
 
-    let result: { readonly uri: string } | null = null;
+    let result: GeneratedReceipt | null = null;
     await act(async () => {
       result = await harness.current.generate(FAKE_RUN);
     });
 
-    expect(result).toEqual({ uri: 'file:///fake/cache/Print/recibo-1.pdf' });
+    expect(result).toEqual({
+      uri: 'file:///fake/cache/Print/recibo-1.pdf',
+      issuedOnIso: TODAY_ISO,
+      encrypted: false,
+    });
     expect(harness.current.error).toBeNull();
     expect(generator.lastHtml).not.toBeNull();
     expect(generator.lastHtml).not.toContain('<img');
+  });
+  describe('with the employee preference ON', () => {
+    it('encrypts with the normalized NIF/NIE and reports the file as encrypted', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: ' 00000000-t ', receiptEncryptionEnabled: true });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastPassword).toBe('00000000T');
+      expect(result).toEqual({
+        uri: 'file:///fake/cache/Print/recibo-1.pdf',
+        issuedOnIso: TODAY_ISO,
+        encrypted: true,
+      });
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('prefers the own password over the NIF/NIE', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({
+        nif: '00000000T',
+        receiptEncryptionEnabled: true,
+        receiptPasswordOverride: 'clave 1',
+      });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastPassword).toBe('clave 1');
+    });
+
+    it('fails closed without calling the generator when there is no NIF/NIE and no own password', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: null, receiptEncryptionEnabled: true });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(result).toBeNull();
+      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+      expect(generator.lastHtml).toBeNull();
+      expect(generator.lastPassword).toBeNull();
+      expect(harness.current.generating).toBe(false);
+    });
+
+    it('fails closed when the stored own password no longer validates, instead of falling back to the NIF', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({
+        nif: '00000000T',
+        receiptEncryptionEnabled: true,
+        receiptPasswordOverride: 'contraseña',
+      });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+      expect(generator.lastHtml).toBeNull();
+    });
+
+    it('maps any generator failure to fixed Spanish copy that never leaks the cause or the password', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      generator.nextError = new Error('pdf-lib exploded with 00000000T');
+      const harness = await renderUseReceiptGenerator(generator, undefined, PROTECTED_EMPLOYEE);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(result).toBeNull();
+      expect(harness.current.error).toBe(ENCRYPT_FAILED_COPY);
+      expect(harness.current.error).not.toContain('00000000T');
+      expect(harness.current.generating).toBe(false);
+    });
+  });
+
+  describe('with the employee preference OFF', () => {
+    it('keeps the plain path when the employee has a NIF/NIE and an own password', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T', receiptPasswordOverride: 'clave 1' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastPassword).toBeNull();
+      expect(result).toMatchObject({ encrypted: false });
+    });
+
+    it('surfaces the original generator error message on the plain path', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      generator.nextError = new Error('print failed');
+      const harness = await renderUseReceiptGenerator(generator);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(harness.current.error).toBe('print failed');
+    });
+
+    it('encrypts when the caller asks for it explicitly', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: 'X0000000T' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN, { encrypt: true });
+      });
+
+      expect(generator.lastPassword).toBe('X0000000T');
+      expect(result).toMatchObject({ encrypted: true });
+    });
+  });
+
+  describe('issue date', () => {
+    it('prints and returns the given issue date instead of today', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.generate(FAKE_RUN, { issuedOnIso: '2026-03-01' });
+      });
+
+      expect(result).toMatchObject({ issuedOnIso: '2026-03-01' });
+      expect(generator.lastHtml).toContain('1 de marzo de 2026');
+      expect(generator.lastHtml).not.toContain('5 de marzo de 2026');
+    });
+
+    it('prints today when no issue date is given', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator);
+
+      await act(async () => {
+        await harness.current.generate(FAKE_RUN);
+      });
+
+      expect(generator.lastHtml).toContain('5 de marzo de 2026');
+    });
   });
 });
