@@ -21,7 +21,9 @@
  * and written over the SAME uri (`File.write` truncates). The plain bytes never
  * leave this adapter: on ANY failure the file is deleted and a fixed error is
  * thrown, so a plain uri is never returned for a password request. The error
- * message carries neither the password nor any library text.
+ * message carries neither the password nor any library text. A password the
+ * AES-128 writer would mangle (empty, over 32 characters or outside printable
+ * ASCII, the rule in `core/receiptPassword`) is rejected before printing.
  *
  * `@cantoo/pdf-lib`, `expo-file-system` and the expo-crypto random-bytes API
  * are sealed to `src/services/pdf/` by `eslint.config.js`.
@@ -31,6 +33,7 @@ import { getRandomValues } from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 
+import { isReceiptPasswordWritable } from '@/core/receiptPassword';
 import type { ReceiptPdfGenerateOptions, ReceiptPdfGenerator } from '@/types';
 
 import { encryptPdfBytes } from './encryptPdfBytes';
@@ -43,7 +46,7 @@ export const A4_WIDTH_PX = 595;
 export const A4_HEIGHT_PX = 842;
 
 const ENCRYPTION_FAILED_MESSAGE = 'Receipt encryption failed';
-const EMPTY_PASSWORD_MESSAGE = 'Receipt password must not be empty';
+const INVALID_PASSWORD_MESSAGE = 'Receipt password is empty, too long or not printable ASCII';
 
 /** Deletes a file, swallowing every error (a leftover cache file is not worth masking the real failure). */
 function deleteQuietly(uri: string): void {
@@ -68,8 +71,12 @@ export class ExpoPrintReceiptGenerator implements ReceiptPdfGenerator {
     options?: ReceiptPdfGenerateOptions,
   ): Promise<{ readonly uri: string }> {
     const password = options?.password;
-    if (password !== undefined && password.length === 0) {
-      throw new Error(EMPTY_PASSWORD_MESSAGE);
+    // Defence in depth: callers validate with the same rule, but with AES-128
+    // (R4) the writer would truncate after 32 characters without a word and the
+    // viewer cannot open U+0080-U+00FF. Fail before printing so no plain file
+    // exists. The message never carries the password.
+    if (password !== undefined && !isReceiptPasswordWritable(password)) {
+      throw new Error(INVALID_PASSWORD_MESSAGE);
     }
 
     const { uri } = await Print.printToFileAsync({

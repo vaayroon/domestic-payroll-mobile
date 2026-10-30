@@ -51,6 +51,16 @@ function findPasswordProblem(candidate: string): PasswordProblem | null {
 }
 
 /**
+ * True when `candidate` is taken verbatim by the writer AND read back by the
+ * viewer: 1 to 32 characters, all printable ASCII. No trimming, so this is the
+ * strict check for a password that is about to be written into a file (the
+ * PDF adapter's defence in depth), not for user input.
+ */
+export function isReceiptPasswordWritable(candidate: string): boolean {
+  return candidate.length > 0 && findPasswordProblem(candidate) === null;
+}
+
+/**
  * Validates the employer-typed own password. Trims; blank means "no override"
  * (`null`); anything outside printable ASCII or longer than 32 characters is
  * rejected rather than letting the writer encode it differently or truncate it.

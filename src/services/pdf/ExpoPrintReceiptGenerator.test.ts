@@ -219,6 +219,37 @@ describe('ExpoPrintReceiptGenerator', () => {
       expect(mockFileOps).toEqual([]);
     });
 
+    it.each([
+      ['longer than 32 characters (the AES-128 writer would truncate it silently)', 'a'.repeat(33)],
+      ['with a Latin-1 accent (the viewer reads it as different bytes)', 'clavé-secreta'],
+      ['with a character above U+00FF', 'clave€'],
+      ['with a control character', 'cla\tve'],
+      ['with an emoji', 'clave\u{1F600}'],
+    ])('rejects a password %s before printing, without leaking it', async (_label, password) => {
+      const generator = new ExpoPrintReceiptGenerator();
+
+      let failure: unknown = null;
+      await generator.generate('<html></html>', { password }).catch((error: unknown) => {
+        failure = error;
+      });
+
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).not.toContain(password);
+      expect(printToFileAsync).not.toHaveBeenCalled();
+      expect(encrypt).not.toHaveBeenCalled();
+      expect(install).not.toHaveBeenCalled();
+      expect(mockFileOps).toEqual([]);
+      expect(mockFileStore.get(PLAIN_URI)).toBe(PLAIN_BYTES);
+    });
+
+    it('accepts a password of exactly 32 printable ASCII characters', async () => {
+      const generator = new ExpoPrintReceiptGenerator();
+      const password = 'Ab 1~'.padEnd(32, 'x');
+
+      await expect(generator.generate('<html></html>', { password })).resolves.toEqual({ uri: PLAIN_URI });
+      expect(encrypt).toHaveBeenCalledWith(PLAIN_BYTES, password);
+    });
+
     it('propagates a print failure untouched and encrypts nothing', async () => {
       printToFileAsync.mockRejectedValue(new Error('print failed'));
       const generator = new ExpoPrintReceiptGenerator();

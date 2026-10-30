@@ -1,4 +1,5 @@
 import {
+  isReceiptPasswordWritable,
   RECEIPT_PASSWORD_MAX_LENGTH,
   resolveReceiptPassword,
   validateReceiptPasswordOverride,
@@ -146,5 +147,30 @@ describe('validateReceiptPasswordOverride', () => {
 
   it('reports invalid_characters before too_long when both apply', () => {
     expect(validateReceiptPasswordOverride(`${'ñ'.repeat(40)}`)).toEqual({ ok: false, error: 'invalid_characters' });
+  });
+});
+
+describe('isReceiptPasswordWritable', () => {
+  it.each([
+    ['a document', '00000000T'],
+    ['a single character', 'a'],
+    ['exactly 32 characters', 'a'.repeat(32)],
+    ['printable ASCII bounds, space and tilde', ' ~'],
+    ['inner and outer spaces, taken verbatim', ' clave 1 '],
+  ])('accepts %s', (_label, candidate) => {
+    expect(isReceiptPasswordWritable(candidate)).toBe(true);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['33 characters (the writer would silently truncate)', 'a'.repeat(33)],
+    ['a Latin-1 accent (one byte for the writer, two for the viewer)', 'clavé'],
+    ['n with tilde', 'añejo'],
+    ['above U+00FF (the writer throws)', 'clave€'],
+    ['a control character', 'cla\tve'],
+    ['DEL', 'cla\u007Fve'],
+    ['an emoji (surrogate pair)', 'clave\u{1F600}'],
+  ])('rejects %s', (_label, candidate) => {
+    expect(isReceiptPasswordWritable(candidate)).toBe(false);
   });
 });
