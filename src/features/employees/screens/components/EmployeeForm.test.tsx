@@ -14,7 +14,7 @@ async function renderForm(props: EmployeeFormProps): Promise<ReactTestRenderer> 
 }
 
 const baseProps: EmployeeFormProps = {
-  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+  values: { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
   errors: {},
   onChangeField: () => {},
   onSubmit: () => {},

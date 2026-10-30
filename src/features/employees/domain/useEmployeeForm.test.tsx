@@ -107,6 +107,8 @@ describe('useEmployeeForm', () => {
       bajaDate: null,
       contractType: 'INDEFINIDO',
       grupoCotizacion: null,
+      receiptEncryptionEnabled: false,
+      receiptPasswordOverride: null,
     });
     expect(harness.current.errors).toEqual({});
   });
@@ -159,6 +161,8 @@ describe('useEmployeeForm', () => {
       bajaDate: null,
       contractType: 'INDEFINIDO',
       grupoCotizacion: null,
+      receiptEncryptionEnabled: false,
+      receiptPasswordOverride: null,
     });
   });
 
@@ -195,6 +199,8 @@ describe('useEmployeeForm', () => {
       bajaDate: '2026-12-31',
       contractType: 'INDEFINIDO',
       grupoCotizacion: null,
+      receiptEncryptionEnabled: false,
+      receiptPasswordOverride: null,
     });
   });
 
@@ -312,6 +318,169 @@ describe('useEmployeeForm', () => {
       });
 
       expect(harness.current.errors).toEqual({ grupoCotizacion: 'too_long' });
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('receipt protection', () => {
+    async function submitted(harness: Awaited<ReturnType<typeof renderUseEmployeeForm>>): Promise<boolean> {
+      let success = false;
+      await act(async () => {
+        success = await harness.current.submit();
+      });
+      return success;
+    }
+
+    it('seeds the protection fields as off and empty on create', async () => {
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, new InMemoryEmployeeRepository([]));
+
+      expect(harness.current.values.receiptEncryptionEnabled).toBe(false);
+      expect(harness.current.values.receiptPasswordOverride).toBe('');
+    });
+
+    it('seeds the protection fields from the employee on edit', async () => {
+      const target = makeEmployee({
+        nif: '00000000T',
+        receiptEncryptionEnabled: true,
+        receiptPasswordOverride: 'clave 1',
+      });
+      const harness = await renderUseEmployeeForm(
+        { kind: 'edit', employee: target },
+        new InMemoryEmployeeRepository([target]),
+      );
+
+      expect(harness.current.values.receiptEncryptionEnabled).toBe(true);
+      expect(harness.current.values.receiptPasswordOverride).toBe('clave 1');
+    });
+
+    it('seeds an empty own password when the employee has none', async () => {
+      const target = makeEmployee({ receiptPasswordOverride: null });
+      const harness = await renderUseEmployeeForm(
+        { kind: 'edit', employee: target },
+        new InMemoryEmployeeRepository([target]),
+      );
+
+      expect(harness.current.values.receiptPasswordOverride).toBe('');
+    });
+
+    it('creates an employee with the protection on and the NIF/NIE as the password source', async () => {
+      const repository = new InMemoryEmployeeRepository([]);
+      const createSpy = jest.spyOn(repository, 'create');
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+      await act(async () => {
+        harness.current.setField('name', 'Empleado Nuevo');
+        harness.current.setField('baseGross', '900');
+        harness.current.setField('nif', '00000000T');
+        harness.current.setField('receiptEncryptionEnabled', true);
+      });
+
+      expect(await submitted(harness)).toBe(true);
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nif: '00000000T',
+          receiptEncryptionEnabled: true,
+          receiptPasswordOverride: null,
+        }),
+      );
+    });
+
+    it('blocks the save and does not call create() when the protection is on without any password source', async () => {
+      const repository = new InMemoryEmployeeRepository([]);
+      const createSpy = jest.spyOn(repository, 'create');
+      const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+      await act(async () => {
+        harness.current.setField('name', 'Empleado Nuevo');
+        harness.current.setField('baseGross', '900');
+        harness.current.setField('receiptEncryptionEnabled', true);
+      });
+
+      expect(await submitted(harness)).toBe(false);
+      expect(harness.current.errors).toEqual({ receiptEncryptionEnabled: 'password_unavailable' });
+      expect(createSpy).not.toHaveBeenCalled();
+    });
+
+    it('persists a new own password on edit', async () => {
+      const target = makeEmployee({ nif: '00000000T' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('receiptPasswordOverride', ' clave 1 ');
+        harness.current.setField('receiptEncryptionEnabled', true);
+      });
+
+      expect(await submitted(harness)).toBe(true);
+      const stored = await repository.getById(target.id);
+      expect(stored?.receiptEncryptionEnabled).toBe(true);
+      expect(stored?.receiptPasswordOverride).toBe('clave 1');
+    });
+
+    it('clears the stored own password when the input is emptied', async () => {
+      const target = makeEmployee({ nif: '00000000T', receiptPasswordOverride: 'clave 1' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('receiptPasswordOverride', '');
+      });
+
+      expect(await submitted(harness)).toBe(true);
+      expect(updateSpy).toHaveBeenCalledWith(
+        target.id,
+        expect.objectContaining({ receiptPasswordOverride: null }),
+      );
+      const stored = await repository.getById(target.id);
+      expect(stored?.receiptPasswordOverride).toBeNull();
+    });
+
+    it('keeps the own password stored when only the protection is switched off', async () => {
+      const target = makeEmployee({
+        receiptEncryptionEnabled: true,
+        receiptPasswordOverride: 'clave 1',
+      });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('receiptEncryptionEnabled', false);
+      });
+
+      expect(await submitted(harness)).toBe(true);
+      const stored = await repository.getById(target.id);
+      expect(stored?.receiptEncryptionEnabled).toBe(false);
+      expect(stored?.receiptPasswordOverride).toBe('clave 1');
+    });
+
+    it('blocks saving when the NIF/NIE and the own password of a protected employee are both cleared', async () => {
+      const target = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('nif', '');
+      });
+
+      expect(await submitted(harness)).toBe(false);
+      expect(harness.current.errors).toEqual({ receiptEncryptionEnabled: 'password_unavailable' });
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects an own password the receipt writer could not encode', async () => {
+      const target = makeEmployee({ nif: '00000000T' });
+      const repository = new InMemoryEmployeeRepository([target]);
+      const updateSpy = jest.spyOn(repository, 'update');
+      const harness = await renderUseEmployeeForm({ kind: 'edit', employee: target }, repository);
+
+      await act(async () => {
+        harness.current.setField('receiptPasswordOverride', 'contraseña');
+      });
+
+      expect(await submitted(harness)).toBe(false);
+      expect(harness.current.errors).toEqual({ receiptPasswordOverride: 'invalid_characters' });
       expect(updateSpy).not.toHaveBeenCalled();
     });
   });

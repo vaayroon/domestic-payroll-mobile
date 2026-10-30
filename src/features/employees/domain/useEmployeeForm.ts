@@ -29,7 +29,18 @@ function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
     // is still an explicit value the user can change -- never `''` on create,
     // since spec "New employee requires contractType" only guards against a
     // user actively clearing the field, not the initial default.
-    return { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' };
+    return {
+      name: '',
+      nif: '',
+      naf: '',
+      baseGross: '',
+      alta: '',
+      baja: '',
+      grupoCotizacion: '',
+      contractType: 'INDEFINIDO',
+      receiptEncryptionEnabled: false,
+      receiptPasswordOverride: '',
+    };
   }
   return {
     name: mode.employee.name,
@@ -40,6 +51,8 @@ function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
     baja: mode.employee.bajaDate ?? '',
     grupoCotizacion: mode.employee.grupoCotizacion ?? '',
     contractType: mode.employee.contractType,
+    receiptEncryptionEnabled: mode.employee.receiptEncryptionEnabled,
+    receiptPasswordOverride: mode.employee.receiptPasswordOverride ?? '',
   };
 }
 

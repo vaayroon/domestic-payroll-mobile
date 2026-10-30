@@ -12,7 +12,7 @@ const FAKE_EMPLOYER_ID = 'employer-fake-1';
 describe('validateEmployeeForm', () => {
   it('accepts a valid form with NIF/NAF blank', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -28,13 +28,15 @@ describe('validateEmployeeForm', () => {
         bajaDate: null,
         contractType: 'INDEFINIDO',
         grupoCotizacion: null,
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: null,
       },
     });
   });
 
   it('accepts a valid form with contractType TEMPORAL', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'TEMPORAL' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'TEMPORAL', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -46,7 +48,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a blank contractType as required', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: '' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: '', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -64,6 +66,8 @@ describe('validateEmployeeForm', () => {
         baja: '',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -77,7 +81,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a malformed NIF as invalid', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '12345678A', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '12345678A', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -86,7 +90,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a malformed NAF as invalid', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '123', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '123', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -95,7 +99,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an empty name', () => {
     const result = validateEmployeeForm(
-      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: '  ', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -104,7 +108,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects a zero base gross as not_positive', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '0', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -113,7 +117,7 @@ describe('validateEmployeeForm', () => {
 
   it('rejects an invalid base gross and forwards the parse error', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: 'abc', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -122,7 +126,7 @@ describe('validateEmployeeForm', () => {
 
   it('reports both errors when name and base gross are both invalid', () => {
     const result = validateEmployeeForm(
-      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: '', nif: '', naf: '', baseGross: '', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -140,6 +144,8 @@ describe('validateEmployeeForm', () => {
         baja: '2026-12-31',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -156,6 +162,8 @@ describe('validateEmployeeForm', () => {
         bajaDate: '2026-12-31',
         contractType: 'INDEFINIDO',
         grupoCotizacion: null,
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: null,
       },
     });
   });
@@ -171,6 +179,8 @@ describe('validateEmployeeForm', () => {
         baja: '2026-07-23',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -189,6 +199,8 @@ describe('validateEmployeeForm', () => {
         baja: '2026-07-23',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -198,7 +210,7 @@ describe('validateEmployeeForm', () => {
 
   it('accepts both alta and baja absent', () => {
     const result = validateEmployeeForm(
-      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO' },
+      { name: 'Empleado de Prueba', nif: '', naf: '', baseGross: '900', alta: '', baja: '', grupoCotizacion: '', contractType: 'INDEFINIDO', receiptEncryptionEnabled: false, receiptPasswordOverride: '' },
       FAKE_EMPLOYER_ID,
     );
 
@@ -220,6 +232,8 @@ describe('validateEmployeeForm', () => {
         baja: '',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -238,6 +252,8 @@ describe('validateEmployeeForm', () => {
         baja: '2026-02-30',
         grupoCotizacion: '',
         contractType: 'INDEFINIDO',
+        receiptEncryptionEnabled: false,
+        receiptPasswordOverride: '',
       },
       FAKE_EMPLOYER_ID,
     );
@@ -256,6 +272,8 @@ describe('validateEmployeeForm grupoCotizacion', () => {
     baja: '',
     grupoCotizacion: '',
     contractType: 'INDEFINIDO',
+    receiptEncryptionEnabled: false,
+    receiptPasswordOverride: '',
   } as const;
 
   it.each([
@@ -317,6 +335,164 @@ describe('validateEmployeeForm grupoCotizacion', () => {
     );
 
     expect(result).toEqual({ ok: false, errors: { nif: 'invalid', grupoCotizacion: 'too_long' } });
+  });
+});
+
+describe('validateEmployeeForm receipt protection', () => {
+  const validInput = {
+    name: 'Empleado de Prueba',
+    nif: '',
+    naf: '',
+    baseGross: '900',
+    alta: '',
+    baja: '',
+    grupoCotizacion: '',
+    contractType: 'INDEFINIDO',
+    receiptEncryptionEnabled: false,
+    receiptPasswordOverride: '',
+  } as const;
+
+  it('keeps the preference off and the own password empty by default', () => {
+    const result = validateEmployeeForm(validInput, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptEncryptionEnabled).toBe(false);
+      expect(result.value.receiptPasswordOverride).toBeNull();
+    }
+  });
+
+  it.each([
+    ['', null],
+    ['   ', null],
+    ['  clave 1  ', 'clave 1'],
+  ])('trims the own password %j and maps blank to null (got %j)', (raw, expected) => {
+    const result = validateEmployeeForm({ ...validInput, receiptPasswordOverride: raw }, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptPasswordOverride).toBe(expected);
+    }
+  });
+
+  it('enables the preference when the employee has an NIF/NIE', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, nif: '00000000T', receiptEncryptionEnabled: true },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptEncryptionEnabled).toBe(true);
+      expect(result.value.receiptPasswordOverride).toBeNull();
+    }
+  });
+
+  it('enables the preference with only an own password and no NIF/NIE', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, receiptEncryptionEnabled: true, receiptPasswordOverride: 'clave 1' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptEncryptionEnabled).toBe(true);
+      expect(result.value.receiptPasswordOverride).toBe('clave 1');
+    }
+  });
+
+  it('blocks enabling the preference with neither an NIF/NIE nor an own password', () => {
+    const result = validateEmployeeForm({ ...validInput, receiptEncryptionEnabled: true }, FAKE_EMPLOYER_ID);
+
+    expect(result).toEqual({ ok: false, errors: { receiptEncryptionEnabled: 'password_unavailable' } });
+  });
+
+  it('treats a blank-only own password as missing when enabling the preference', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, receiptEncryptionEnabled: true, receiptPasswordOverride: '   ' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { receiptEncryptionEnabled: 'password_unavailable' } });
+  });
+
+  it('blocks saving when the NIF/NIE and the own password are both cleared on an enabled employee', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, nif: '  ', receiptEncryptionEnabled: true, receiptPasswordOverride: '' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { receiptEncryptionEnabled: 'password_unavailable' } });
+  });
+
+  it('allows a preference that is off without any password source', () => {
+    const result = validateEmployeeForm(validInput, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts an own password of exactly 32 printable ASCII characters', () => {
+    const thirtyTwo = 'a'.repeat(32);
+    const result = validateEmployeeForm({ ...validInput, receiptPasswordOverride: thirtyTwo }, FAKE_EMPLOYER_ID);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.receiptPasswordOverride).toBe(thirtyTwo);
+    }
+  });
+
+  it('rejects an own password of 33 characters as too_long', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, receiptPasswordOverride: 'a'.repeat(33) },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { receiptPasswordOverride: 'too_long' } });
+  });
+
+  it.each(['contraseña', 'clave €', 'clave 😀', 'a\u0007b'])(
+    'rejects the own password %j as invalid_characters',
+    (raw) => {
+      const result = validateEmployeeForm({ ...validInput, receiptPasswordOverride: raw }, FAKE_EMPLOYER_ID);
+
+      expect(result).toEqual({ ok: false, errors: { receiptPasswordOverride: 'invalid_characters' } });
+    },
+  );
+
+  it('rejects an invalid own password even while the preference is off', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, receiptEncryptionEnabled: false, receiptPasswordOverride: 'ñ' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { receiptPasswordOverride: 'invalid_characters' } });
+  });
+
+  it('reports only the own-password error, not "unavailable", when the preference is on and the own password is invalid', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, receiptEncryptionEnabled: true, receiptPasswordOverride: 'ñ' },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { receiptPasswordOverride: 'invalid_characters' } });
+  });
+
+  it('reports only the NIF error, not "unavailable", when the preference is on and the NIF is malformed', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, nif: '12345678A', receiptEncryptionEnabled: true },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { nif: 'invalid' } });
+  });
+
+  it('accumulates the own-password error with other field errors', () => {
+    const result = validateEmployeeForm(
+      { ...validInput, name: '', receiptPasswordOverride: 'a'.repeat(33) },
+      FAKE_EMPLOYER_ID,
+    );
+
+    expect(result).toEqual({ ok: false, errors: { name: 'required', receiptPasswordOverride: 'too_long' } });
   });
 });
 
