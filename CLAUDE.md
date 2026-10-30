@@ -72,6 +72,12 @@ renders a screen from `src/features/*/screens`, it never contains business logic
 - **Money is never a float in logic.** Represent amounts in integer cents or a Decimal helper;
   round only at the presentation/PDF boundary. Never accumulate rounding errors across a payroll.
 - **Data models are multi-employee from day one**, even though we seed a single employee.
+- **Every screen with text inputs scrolls through `FormScrollView`** (`src/core`). Android is
+  edge-to-edge since Expo SDK 54, so the window no longer shrinks when the keyboard opens; a plain
+  `View` leaves the last fields and the submit button behind it. `FormScrollView` wraps
+  `react-native-keyboard-controller`'s `KeyboardAwareScrollView` (React Native's
+  `KeyboardAvoidingView` mis-sized its padding on device). ESLint blocks importing `ScrollView` or
+  `KeyboardAvoidingView` from `react-native`; lists without inputs keep using `FlatList`.
 
 ## 5. Domain rules (payroll)
 
@@ -109,7 +115,7 @@ This app stores real personal data: names, **NIF/NIE, NAF (social security numbe
 ```bash
 pnpm install            # install deps (respect .npmrc)
 pnpm start              # start Expo dev server
-pnpm android            # open on Android / Expo Go
+pnpm start --dev-client # start Metro for the installed EAS development build (no Expo Go)
 pnpm exec tsc --noEmit  # typecheck (must pass, strict)
 pnpm lint               # lint
 pnpm test               # unit tests (payroll math has priority coverage)
