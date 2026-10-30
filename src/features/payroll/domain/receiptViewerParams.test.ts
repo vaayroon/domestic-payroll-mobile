@@ -1,3 +1,9 @@
+import {
+  RECEIPT_FILE_NAME_FORMAT_IDS,
+  buildReceiptFileName,
+  isSafeReceiptFileName,
+} from '@/core/receiptFileName';
+
 import { isReceiptPdfUri, parseReceiptViewerParams } from './receiptViewerParams';
 
 const VALID_URI = 'file:///data/user/0/app/cache/Print/receipt.pdf';
@@ -76,6 +82,36 @@ describe('readable receipt file names (receipt-file-name spec R15)', () => {
     ['a percent-encoded space', `${DIRECTORY}/Ana%20Prueba.pdf`],
   ])('still rejects %s, which is why the name part is ASCII only', (_label, uri) => {
     expect(isReceiptPdfUri(uri)).toBe(false);
+  });
+});
+
+describe('receipt file names built by the real builder (receipt-file-name spec S15.3)', () => {
+  // The uri the adapter returns: cache/receipts/<uuid>/<builder output>.pdf.
+  const DIRECTORY = 'file:///data/user/0/x/cache/receipts/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const NAMES = ['Ana Prueba Ejemplo', 'María Peña Ejemplo'];
+
+  it.each(
+    RECEIPT_FILE_NAME_FORMAT_IDS.flatMap((format) => NAMES.map((name) => [format, name] as const)),
+  )('accepts the %s name built for "%s" as a viewer uri', (format, name) => {
+    const fileName = buildReceiptFileName(format, name, 2026, 10);
+
+    expect(fileName).not.toBeNull();
+    const uri = `${DIRECTORY}/${fileName}.pdf`;
+    expect(isSafeReceiptFileName(fileName ?? '')).toBe(true);
+    expect(isReceiptPdfUri(uri)).toBe(true);
+    expect(parseReceiptViewerParams({ employeeId: 'emp-1', runId: 'run-1', uri })).toMatchObject({
+      ok: true,
+      uri,
+    });
+  });
+
+  it('reads accents and n-tilde as plain ASCII, so no percent-encoding reaches the uri', () => {
+    expect(buildReceiptFileName('name-month-year', 'María Peña Ejemplo', 2026, 10)).toBe(
+      'MariaPenaEjemplo-NominaOctubre2026',
+    );
+    expect(buildReceiptFileName('year-month-name', 'María Peña Ejemplo', 2026, 10)).toBe(
+      '2026-10-Nomina-MariaPenaEjemplo',
+    );
   });
 });
 

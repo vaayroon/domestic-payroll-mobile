@@ -186,6 +186,38 @@ describe('useReceiptDispatch', () => {
     expect(harness.current.error).toBeNull();
   });
 
+  describe('with a readable file name (receipt-file-name spec S16.1)', () => {
+    // The shape the PDF adapter returns: cache/receipts/<uuid>/<readable name>.pdf.
+    const NAMED_URI =
+      'file:///fake/cache/receipts/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/AnaPruebaEjemplo-NominaJunio2026.pdf';
+
+    it('shares the named uri unchanged', async () => {
+      const pdfSharer = new FakePdfSharer();
+      const mailSender = new FakeMailSender();
+      const harness = await renderUseReceiptDispatch(pdfSharer, mailSender, FAKE_RUN, NAMED_URI);
+
+      await act(async () => {
+        await harness.current.shareReceipt();
+      });
+
+      expect(pdfSharer.shareCallCount).toBe(1);
+      expect(pdfSharer.lastSharedUri).toBe(NAMED_URI);
+    });
+
+    it('attaches the named uri unchanged to the mail', async () => {
+      const pdfSharer = new FakePdfSharer();
+      const mailSender = new FakeMailSender();
+      const harness = await renderUseReceiptDispatch(pdfSharer, mailSender, FAKE_RUN, NAMED_URI);
+
+      await act(async () => {
+        await harness.current.sendReceiptByMail();
+      });
+
+      expect(mailSender.lastOptions?.attachmentUris).toEqual([NAMED_URI]);
+      expect(harness.current.status).toBe('sent');
+    });
+  });
+
   it('is neutral (no error) when the mail composer is cancelled', async () => {
     const pdfSharer = new FakePdfSharer();
     const mailSender = new FakeMailSender();

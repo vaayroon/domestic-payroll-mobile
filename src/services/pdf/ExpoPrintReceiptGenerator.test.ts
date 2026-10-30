@@ -581,6 +581,11 @@ describe('ExpoPrintReceiptGenerator', () => {
         ['a nested sub-directory', `file:///fake/cache/receipts/${UUID}/sub/Name.pdf`],
         ['the receipts directory itself', 'file:///fake/cache/receipts/Name.pdf'],
       ])('deletes the file but never a directory for %s', async (_label, uri) => {
+        // The directory the file lives in exists and is left empty by the delete.
+        // Without this a directory removal could never happen, so a loosened
+        // uuid pattern in the adapter would go unnoticed.
+        const parent = uri.slice(0, uri.lastIndexOf('/') + 1);
+        mockDirectories.add(parent);
         mockFileStore.set(uri, PLAIN_BYTES);
         const generator = new ExpoPrintReceiptGenerator();
 
@@ -588,6 +593,7 @@ describe('ExpoPrintReceiptGenerator', () => {
 
         expect(mockFileOps).toEqual([`delete ${uri}`]);
         expect(mockFileStore.has(uri)).toBe(false);
+        expect(mockDirectories.has(parent)).toBe(true);
       });
 
       it('never throws when removing the directory fails', async () => {
