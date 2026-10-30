@@ -53,6 +53,7 @@ const baseProps: PayrollRunHistoryViewProps = {
   onOpen: () => {},
   onShare: () => {},
   onSendMail: () => {},
+  onEncrypt: () => {},
   sharingAvailable: true,
   mailAvailable: true,
   dispatchStatus: 'idle',
@@ -199,7 +200,7 @@ describe('PayrollRunHistoryView', () => {
     expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-send' })).toThrow();
   });
 
-  it('shows open, share and send once lastUri is set, in that order, all enabled', async () => {
+  it('shows open, share, send and cifrar for a plain receipt, in that order, all enabled', async () => {
     const renderer = await renderView({
       ...baseProps,
       runs: [FAKE_RUN],
@@ -216,6 +217,7 @@ describe('PayrollRunHistoryView', () => {
       'payroll-run-history-open',
       'payroll-run-history-share',
       'payroll-run-history-send',
+      'payroll-run-history-encrypt',
     ]);
 
     const label = (testID: string) =>
@@ -226,11 +228,58 @@ describe('PayrollRunHistoryView', () => {
     expect(label('payroll-run-history-open')).toEqual(['Abrir recibo']);
     expect(label('payroll-run-history-share')).toEqual(['Compartir']);
     expect(label('payroll-run-history-send')).toEqual(['Enviar por correo']);
+    expect(label('payroll-run-history-encrypt')).toEqual(['Cifrar']);
 
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' }).props.disabled).not.toBe(true);
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-share' }).props.disabled).toBe(false);
     expect(renderer.root.findByProps({ testID: 'payroll-run-history-send' }).props.disabled).toBe(false);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.disabled).toBe(false);
     expect(() => renderer.root.findByProps({ testID: 'payroll-run-history-mail-unavailable' })).toThrow();
+  });
+
+  it('hides "Cifrar" when the receipt is already encrypted', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+      lastEncrypted: true,
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-encrypt' })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-open' })).toBeTruthy();
+  });
+
+  it('hides "Cifrar" when there is no receipt yet', async () => {
+    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], lastUri: null, lastEncrypted: false });
+
+    expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-encrypt' })).toHaveLength(0);
+  });
+
+  it('fires onEncrypt when "Cifrar" is pressed', async () => {
+    const onEncrypt = jest.fn();
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+      onEncrypt,
+    });
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.onPress();
+    });
+
+    expect(onEncrypt).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables "Cifrar" while a receipt is generating', async () => {
+    const renderer = await renderView({
+      ...baseProps,
+      runs: [FAKE_RUN],
+      lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
+      generating: true,
+    });
+
+    expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' }).props.disabled).toBe(true);
   });
 
   it('fires onOpen when "Abrir recibo" is pressed', async () => {

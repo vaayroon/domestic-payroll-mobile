@@ -9,7 +9,9 @@
  * `!sharingAvailable`) and "Enviar por correo" (disabled with a Spanish hint
  * when `!mailAvailable` -- disable-and-explain, not a silent share-sheet
  * fallback). Both dispatch actions are also disabled while a dispatch is
- * running (`dispatchStatus` `sharing`/`sending`). Mirrors `EmployeeListView.tsx`'s structure.
+ * running (`dispatchStatus` `sharing`/`sending`). While the file is plain
+ * (`!lastEncrypted`) a fourth action, "Cifrar", regenerates it as a protected
+ * receipt; it is disabled while any generation runs. Mirrors `EmployeeListView.tsx`'s structure.
  */
 
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -20,7 +22,11 @@ import type { DispatchStatus } from '../../domain';
 import { formatSpanishMonthYear } from '../../formatSpanishDate';
 import { formatEuros } from '../formatEuros';
 import { MAIL_UNAVAILABLE_HINT } from './receiptDispatchCopy';
-import { PROTECTED_RECEIPT_HINT_COPY, PROTECTED_RECEIPT_SUCCESS_COPY } from './receiptProtectionCopy';
+import {
+  ENCRYPT_RECEIPT_ACTION_LABEL,
+  PROTECTED_RECEIPT_HINT_COPY,
+  PROTECTED_RECEIPT_SUCCESS_COPY,
+} from './receiptProtectionCopy';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
@@ -38,6 +44,8 @@ export interface PayrollRunHistoryViewProps {
   readonly onOpen: () => void;
   readonly onShare: () => void;
   readonly onSendMail: () => void;
+  /** Regenerates the plain receipt as a protected one ("Cifrar"). */
+  readonly onEncrypt: () => void;
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
   readonly dispatchStatus: DispatchStatus;
@@ -57,6 +65,7 @@ export function PayrollRunHistoryView({
   onOpen,
   onShare,
   onSendMail,
+  onEncrypt,
   sharingAvailable,
   mailAvailable,
   dispatchStatus,
@@ -127,6 +136,20 @@ export function PayrollRunHistoryView({
                 Enviar por correo
               </Text>
             </Pressable>
+            {!lastEncrypted ? (
+              <Pressable
+                testID="payroll-run-history-encrypt"
+                accessibilityRole="button"
+                disabled={generating}
+                onPress={onEncrypt}
+              >
+                <Text
+                  className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
+                >
+                  {ENCRYPT_RECEIPT_ACTION_LABEL}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
           {!mailAvailable ? (
             <Text testID="payroll-run-history-mail-unavailable" className="mt-1 text-slate-400">

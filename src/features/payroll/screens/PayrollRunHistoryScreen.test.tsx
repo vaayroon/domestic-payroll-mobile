@@ -63,6 +63,24 @@ function runFixture(id: string, periodMonth: number): PayrollRun {
   };
 }
 
+// Only  is faked: the issue date is read at the hook's call boundary.
+const ONLY_DATE_FAKED = [
+  'hrtime',
+  'nextTick',
+  'performance',
+  'queueMicrotask',
+  'requestAnimationFrame',
+  'cancelAnimationFrame',
+  'requestIdleCallback',
+  'cancelIdleCallback',
+  'setImmediate',
+  'clearImmediate',
+  'setInterval',
+  'clearInterval',
+  'setTimeout',
+  'clearTimeout',
+] as const;
+
 const PROTECTED_EMPLOYEE: Employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
 
 const RUN_A = runFixture('payroll-run-fake-a', 5);
@@ -344,6 +362,132 @@ describe('PayrollRunHistoryScreen', () => {
       );
       expect(generator.inner.lastHtml).toBeNull();
       expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-open' })).toHaveLength(0);
+    });
+  });
+
+  describe('"Cifrar"', () => {
+    const PLAIN_EMPLOYEE: Employee = makeEmployee({ nif: '00000000T' });
+    const UNAVAILABLE_COPY =
+      'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.';
+
+    function setToday(isoDate: string) {
+      jest.useFakeTimers({ now: new Date(`${isoDate}T10:00:00Z`), doNotFake: [...ONLY_DATE_FAKED] });
+    }
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('regenerates with the original issue date and a password, replaces the file and discards the plain one', async () => {
+      setToday('2026-03-01');
+      const { renderer, generator } = await renderScreen(PLAIN_EMPLOYEE);
+      await generate(renderer, RUN_B);
+      expect(generator.inner.lastPassword).toBeNull();
+      expect(generator.inner.lastHtml).toContain('1 de marzo de 2026');
+
+      setToday('2026-03-05');
+      await press(renderer, 'payroll-run-history-encrypt');
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(generator.inner.lastPassword).toBe('00000000T');
+      expect(generator.inner.lastHtml).toContain('1 de marzo de 2026');
+      expect(generator.inner.lastHtml).not.toContain('5 de marzo de 2026');
+      expect(generator.inner.discarded).toEqual(['file:///fake/cache/Print/recibo-1.pdf']);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-success' }).props.children).toBe(
+        'Recibo generado y protegido con contraseña.',
+      );
+      expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-encrypt' })).toHaveLength(0);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-protected-hint' })).toBeTruthy();
+
+      await press(renderer, 'payroll-run-history-open');
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        pathname: '/payroll/receipt/[employeeId]',
+        params: {
+          employeeId: FAKE_EMPLOYEE.id,
+          runId: RUN_B.id,
+          uri: 'file:///fake/cache/Print/recibo-2.pdf',
+          encrypted: '1',
+        },
+      });
+    });
+
+    it('attaches the replacement file and uses the protected mail wording afterwards', async () => {
+      const { renderer, mailSender, pdfSharer } = await renderScreen(PLAIN_EMPLOYEE);
+      await generate(renderer, RUN_B);
+      await press(renderer, 'payroll-run-history-encrypt');
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      await press(renderer, 'payroll-run-history-share');
+      await press(renderer, 'payroll-run-history-send');
+
+      expect(pdfSharer.lastSharedUri).toBe('file:///fake/cache/Print/recibo-2.pdf');
+      expect(mailSender.lastOptions?.attachmentUris).toEqual(['file:///fake/cache/Print/recibo-2.pdf']);
+      expect(mailSender.lastOptions?.body).toContain('La contraseña es su NIF/NIE');
+    });
+
+    it('keeps the plain file, shows the error and stays plain when the encryption fails', async () => {
+      const { renderer, generator } = await renderScreen(PLAIN_EMPLOYEE);
+      await generate(renderer, RUN_B);
+
+      generator.failNext = true;
+      await press(renderer, 'payroll-run-history-encrypt');
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(generator.inner.discarded).toEqual([]);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-generate-error' }).props.children).toBe(
+        'No se pudo generar el recibo protegido. Inténtalo de nuevo.',
+      );
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-success' }).props.children).toBe(
+        'Recibo generado.',
+      );
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-encrypt' })).toBeTruthy();
+
+      await press(renderer, 'payroll-run-history-open');
+      const params = mockRouterPush.mock.calls[0][0].params as Record<string, string>;
+      expect(params.uri).toBe('file:///fake/cache/Print/recibo-1.pdf');
+      expect(params).not.toHaveProperty('encrypted');
+    });
+
+    it('keeps the plain file and says why when the employee has no password available', async () => {
+      const { renderer, generator } = await renderScreen();
+      await generate(renderer, RUN_B);
+
+      await press(renderer, 'payroll-run-history-encrypt');
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-generate-error' }).props.children).toBe(
+        UNAVAILABLE_COPY,
+      );
+      expect(generator.inner.discarded).toEqual([]);
+      expect(renderer.root.findByProps({ testID: 'payroll-run-history-success' }).props.children).toBe(
+        'Recibo generado.',
+      );
+    });
+
+    it('is not offered when the preference already produced an encrypted file', async () => {
+      const { renderer } = await renderScreen(PROTECTED_EMPLOYEE);
+
+      await generate(renderer, RUN_B);
+
+      expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-encrypt' })).toHaveLength(0);
+    });
+
+    it('is not offered before any receipt was generated', async () => {
+      const { renderer } = await renderScreen(PLAIN_EMPLOYEE);
+
+      expect(renderer.root.findAllByProps({ testID: 'payroll-run-history-encrypt' })).toHaveLength(0);
     });
   });
 

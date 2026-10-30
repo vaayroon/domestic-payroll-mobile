@@ -13,3 +13,6 @@ export const PROTECTED_RECEIPT_SUCCESS_COPY = 'Recibo generado y protegido con c
 
 /** Banner reminder: sharing gives the employee a file they cannot open without being told how. */
 export const PROTECTED_RECEIPT_HINT_COPY = 'Recuerda indicar al empleado cómo abrir el recibo protegido.';
+
+/** Banner action that turns a plain receipt into a protected one. */
+export const ENCRYPT_RECEIPT_ACTION_LABEL = 'Cifrar';

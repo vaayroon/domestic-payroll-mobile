@@ -49,6 +49,14 @@ export interface GeneratedReceipt {
 
 export interface UseReceiptGeneratorResult {
   readonly generate: (run: PayrollRun, options?: GenerateReceiptOptions) => Promise<GeneratedReceipt | null>;
+  /**
+   * Replaces a plain file with an encrypted one for the same run, keeping the
+   * ORIGINAL issue date. The previous file is discarded only after the new one
+   * exists; on any failure it is left untouched and `null` is returned.
+   */
+  readonly regenerateProtected: (
+    previous: { readonly run: PayrollRun } & GeneratedReceipt,
+  ) => Promise<GeneratedReceipt | null>;
   readonly generating: boolean;
   readonly error: string | null;
 }
@@ -129,5 +137,20 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
     }
   };
 
-  return { generate, generating, error };
+  const regenerateProtected = async (
+    previous: { readonly run: PayrollRun } & GeneratedReceipt,
+  ): Promise<GeneratedReceipt | null> => {
+    const regenerated = await generate(previous.run, { encrypt: true, issuedOnIso: previous.issuedOnIso });
+    if (regenerated === null) {
+      return null;
+    }
+    // Best effort and never the file we just produced: a failed cleanup must
+    // not turn a successful regeneration into an error.
+    if (regenerated.uri !== previous.uri) {
+      await pdfGenerator.discard(previous.uri).catch(() => undefined);
+    }
+    return regenerated;
+  };
+
+  return { generate, regenerateProtected, generating, error };
 }

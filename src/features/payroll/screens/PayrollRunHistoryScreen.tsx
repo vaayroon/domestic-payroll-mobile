@@ -35,7 +35,7 @@ type LastReceipt = { readonly run: PayrollRun } & GeneratedReceipt;
 
 export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenProps) {
   const { runs, loading, error, refresh } = usePayrollRunHistory(employeeId);
-  const { generate, generating, error: generateError } = useReceiptGenerator();
+  const { generate, regenerateProtected, generating, error: generateError } = useReceiptGenerator();
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
   // `generating` is shared by every row; this says WHICH row started it so only
   // that row reads "Generando…" while all of them stay disabled.
@@ -92,6 +92,18 @@ export function PayrollRunHistoryScreen({ employeeId }: PayrollRunHistoryScreenP
             // Non-secret flag only: the viewer re-derives the password itself.
             ...(lastReceipt.encrypted ? { encrypted: '1' } : {}),
           },
+        });
+      }}
+      onEncrypt={() => {
+        if (lastReceipt === null) {
+          return;
+        }
+        const previous = lastReceipt;
+        // Replaces the record only on success; a failure leaves the plain one.
+        void regenerateProtected(previous).then((result) => {
+          if (result !== null) {
+            setLastReceipt({ run: previous.run, ...result });
+          }
         });
       }}
       onShare={() => void dispatch.shareReceipt()}

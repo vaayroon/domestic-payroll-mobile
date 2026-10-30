@@ -369,4 +369,98 @@ describe('useReceiptGenerator', () => {
       expect(generator.lastHtml).toContain('5 de marzo de 2026');
     });
   });
+
+  describe('regenerateProtected', () => {
+    const PLAIN_PREVIOUS = {
+      run: FAKE_RUN,
+      uri: 'file:///fake/cache/Print/plain-previous.pdf',
+      issuedOnIso: '2026-03-01',
+      encrypted: false,
+    } as const;
+
+    it('regenerates with a password and the original issue date, then discards the previous file', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.regenerateProtected(PLAIN_PREVIOUS);
+      });
+
+      expect(result).toEqual({
+        uri: 'file:///fake/cache/Print/recibo-1.pdf',
+        issuedOnIso: '2026-03-01',
+        encrypted: true,
+      });
+      expect(generator.lastPassword).toBe('00000000T');
+      expect(generator.lastHtml).toContain('1 de marzo de 2026');
+      expect(generator.discarded).toEqual([PLAIN_PREVIOUS.uri]);
+      expect(harness.current.error).toBeNull();
+    });
+
+    it('keeps the previous file when the regeneration fails', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      generator.nextError = new Error('boom');
+      const employee = makeEmployee({ nif: '00000000T' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.regenerateProtected(PLAIN_PREVIOUS);
+      });
+
+      expect(result).toBeNull();
+      expect(generator.discarded).toEqual([]);
+      expect(harness.current.error).toBe(ENCRYPT_FAILED_COPY);
+    });
+
+    it('keeps the previous file and never calls the generator when no password is available', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const harness = await renderUseReceiptGenerator(generator);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.regenerateProtected(PLAIN_PREVIOUS);
+      });
+
+      expect(result).toBeNull();
+      expect(generator.lastHtml).toBeNull();
+      expect(generator.discarded).toEqual([]);
+      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+    });
+
+    it('never discards the file it just produced', async () => {
+      const generator = new FakeReceiptPdfGenerator();
+      const employee = makeEmployee({ nif: '00000000T' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      await act(async () => {
+        await harness.current.regenerateProtected({
+          ...PLAIN_PREVIOUS,
+          uri: 'file:///fake/cache/Print/recibo-1.pdf',
+        });
+      });
+
+      expect(generator.discarded).toEqual([]);
+    });
+
+    it('still succeeds when discarding the previous file rejects', async () => {
+      const inner = new FakeReceiptPdfGenerator();
+      const generator: ReceiptPdfGenerator = {
+        generate: (html, options) => inner.generate(html, options),
+        discard: () => Promise.reject(new Error('disk')),
+      };
+      const employee = makeEmployee({ nif: '00000000T' });
+      const harness = await renderUseReceiptGenerator(generator, undefined, employee);
+
+      let result: GeneratedReceipt | null = null;
+      await act(async () => {
+        result = await harness.current.regenerateProtected(PLAIN_PREVIOUS);
+      });
+
+      expect(result).toMatchObject({ encrypted: true });
+      expect(harness.current.error).toBeNull();
+    });
+  });
 });

@@ -18,6 +18,7 @@ describe('receiptProtectionCopy', () => {
     expect(protectionCopy.PROTECTED_RECEIPT_HINT_COPY).toBe(
       'Recuerda indicar al empleado cómo abrir el recibo protegido.',
     );
+    expect(protectionCopy.ENCRYPT_RECEIPT_ACTION_LABEL).toBe('Cifrar');
   });
 
   it('never overclaims security in any exported string or generation error', () => {
@@ -27,7 +28,7 @@ describe('receiptProtectionCopy', () => {
       RECEIPT_ENCRYPTION_FAILED_ERROR,
     ];
 
-    expect(strings.length).toBeGreaterThanOrEqual(4);
+    expect(strings.length).toBeGreaterThanOrEqual(5);
     for (const copy of strings) {
       expect(copy).not.toMatch(FORBIDDEN);
     }
