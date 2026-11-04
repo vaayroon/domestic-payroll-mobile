@@ -17,6 +17,7 @@ import {
   SignaturePadProvider,
   type Repositories,
 } from '@/core';
+import { LanguageProvider, useTranslation } from '@/core/i18n';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   createDatabase,
@@ -66,6 +67,67 @@ function DatabaseRepositories({ children }: { children: ReactNode }) {
   return <RepositoryProvider repositories={repositories}>{children}</RepositoryProvider>;
 }
 
+/** Stack with localized titles; re-renders when the UI language changes. */
+function AppStack() {
+  const { t } = useTranslation();
+
+  return (
+    <Stack>
+      <Stack.Screen
+        name="index"
+        options={{
+          title: t(($) => $.app.titles.employees),
+          headerRight: () => (
+            <Link href="/settings/employer" testID="header-settings-link">
+              <Text className="text-emerald-400">{t(($) => $.app.settingsLink)}</Text>
+            </Link>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name="employees/new"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.newEmployee) }}
+      />
+      <Stack.Screen
+        name="employees/[id]/edit"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.editEmployee) }}
+      />
+      <Stack.Screen
+        name="payroll/new"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.newPayroll) }}
+      />
+      <Stack.Screen
+        name="payroll/history/[employeeId]"
+        options={{ title: t(($) => $.app.titles.payrollHistory) }}
+      />
+      <Stack.Screen
+        name="payroll/receipt/[employeeId]"
+        options={{ title: t(($) => $.app.titles.receipt) }}
+      />
+      <Stack.Screen
+        name="settings/employer"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.employerData) }}
+      />
+      <Stack.Screen
+        name="settings/reminder"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.reminder) }}
+      />
+      <Stack.Screen
+        name="settings/signature"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.signature) }}
+      />
+      <Stack.Screen
+        name="settings/receipt-file-name"
+        options={{ presentation: 'modal', title: t(($) => $.app.titles.receiptFileName) }}
+      />
+      <Stack.Screen
+        name="settings/language"
+        options={{ presentation: 'modal', title: t(($) => $.language.title) }}
+      />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -74,71 +136,25 @@ export default function RootLayout() {
     <KeyboardProvider>
       <SQLiteProvider databaseName={DATABASE_NAME} onInit={runMigrations}>
         <DatabaseRepositories>
-          <CurrentEmployerProvider>
-            <PdfServiceProvider generator={pdfGenerator}>
-              <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
-                <NotifyServiceProvider scheduler={notificationScheduler}>
-                  <SignaturePadProvider pad={SignaturePadView}>
-                    <PdfViewerProvider viewer={PdfViewerView}>
-                      <ReminderProvider>
-                        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                          <Stack>
-                            <Stack.Screen
-                              name="index"
-                              options={{
-                                title: 'Empleados',
-                                headerRight: () => (
-                                  <Link href="/settings/employer" testID="header-settings-link">
-                                    <Text className="text-emerald-400">Ajustes</Text>
-                                  </Link>
-                                ),
-                              }}
-                            />
-                            <Stack.Screen
-                              name="employees/new"
-                              options={{ presentation: 'modal', title: 'Nuevo empleado' }}
-                            />
-                            <Stack.Screen
-                              name="employees/[id]/edit"
-                              options={{ presentation: 'modal', title: 'Editar empleado' }}
-                            />
-                            <Stack.Screen
-                              name="payroll/new"
-                              options={{ presentation: 'modal', title: 'Nueva nómina' }}
-                            />
-                            <Stack.Screen
-                              name="payroll/history/[employeeId]"
-                              options={{ title: 'Historial de nóminas' }}
-                            />
-                            <Stack.Screen
-                              name="payroll/receipt/[employeeId]"
-                              options={{ title: 'Recibo de salarios' }}
-                            />
-                            <Stack.Screen
-                              name="settings/employer"
-                              options={{ presentation: 'modal', title: 'Datos del empleador' }}
-                            />
-                            <Stack.Screen
-                              name="settings/reminder"
-                              options={{ presentation: 'modal', title: 'Recordatorio mensual' }}
-                            />
-                            <Stack.Screen
-                              name="settings/signature"
-                              options={{ presentation: 'modal', title: 'Firma' }}
-                            />
-                            <Stack.Screen
-                              name="settings/receipt-file-name"
-                              options={{ presentation: 'modal', title: 'Nombre del archivo' }}
-                            />
-                          </Stack>
-                        </ThemeProvider>
-                      </ReminderProvider>
-                    </PdfViewerProvider>
-                  </SignaturePadProvider>
-                </NotifyServiceProvider>
-              </MailServiceProvider>
-            </PdfServiceProvider>
-          </CurrentEmployerProvider>
+          <LanguageProvider>
+            <CurrentEmployerProvider>
+              <PdfServiceProvider generator={pdfGenerator}>
+                <MailServiceProvider pdfSharer={pdfSharer} mailSender={mailSender}>
+                  <NotifyServiceProvider scheduler={notificationScheduler}>
+                    <SignaturePadProvider pad={SignaturePadView}>
+                      <PdfViewerProvider viewer={PdfViewerView}>
+                        <ReminderProvider>
+                          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                            <AppStack />
+                          </ThemeProvider>
+                        </ReminderProvider>
+                      </PdfViewerProvider>
+                    </SignaturePadProvider>
+                  </NotifyServiceProvider>
+                </MailServiceProvider>
+              </PdfServiceProvider>
+            </CurrentEmployerProvider>
+          </LanguageProvider>
         </DatabaseRepositories>
       </SQLiteProvider>
     </KeyboardProvider>

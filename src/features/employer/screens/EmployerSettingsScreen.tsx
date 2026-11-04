@@ -9,6 +9,7 @@ import { Link, useRouter } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { FormScrollView } from '@/core';
+import { useTranslation } from '@/core/i18n';
 
 import type { EmployerFormErrors, EmployerFormInput } from '../domain';
 import { useEmployerForm } from '../domain';
@@ -75,6 +76,7 @@ interface EmployerFormProps {
 }
 
 function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveError }: EmployerFormProps) {
+  const { t } = useTranslation();
   return (
     // Scrolls: five inputs plus three links no longer fit a small screen, and
     // the last ones must stay reachable above the keyboard.
@@ -171,6 +173,10 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
 
       <Link href="/settings/receipt-file-name" testID="employer-form-receipt-file-name-link" className="text-center">
         <Text className="text-emerald-400">Nombre del archivo del recibo</Text>
+      </Link>
+
+      <Link href="/settings/language" testID="employer-form-language-link" className="text-center">
+        <Text className="text-emerald-400">{t(($) => $.language.link)}</Text>
       </Link>
     </FormScrollView>
   );
