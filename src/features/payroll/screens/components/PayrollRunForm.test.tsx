@@ -65,7 +65,7 @@ describe('PayrollRunForm', () => {
   it('shows the year_not_loaded rates warning instead of the preview or the empty placeholder', async () => {
     const renderer = await renderForm({
       ...baseProps,
-      ratesWarning: 'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
+      ratesWarning: 'rates_not_loaded',
     });
 
     const warning = renderer.root.findByProps({ testID: 'payroll-run-form-rates-warning' });
@@ -134,7 +134,7 @@ describe('PayrollRunForm', () => {
   });
 
   it('shows the duplicate/error message when present', async () => {
-    const renderer = await renderForm({ ...baseProps, error: 'Ya existe una nómina para este periodo.' });
+    const renderer = await renderForm({ ...baseProps, error: { code: 'save_failed', detail: 'Ya existe una nómina para este periodo.' } });
 
     const errorNode = renderer.root.findByProps({ testID: 'payroll-run-form-error' });
     expect(errorNode.props.children).toBe('Ya existe una nómina para este periodo.');
@@ -208,7 +208,7 @@ describe('PayrollRunForm', () => {
     it('shows the range validation error when present', async () => {
       const renderer = await renderForm({
         ...baseProps,
-        rangeError: 'La fecha de inicio no puede ser posterior a la fecha de fin.',
+        rangeError: 'range_invalid',
       });
 
       expect(renderer.root.findByProps({ testID: 'payroll-run-form-range-error' }).props.children).toBe(

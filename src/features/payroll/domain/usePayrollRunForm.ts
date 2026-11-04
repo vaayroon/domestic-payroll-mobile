@@ -10,7 +10,7 @@
  * Year-not-loaded boundary (design ADR-2): `resolveRatesConfig` is called
  * HERE, at the form-hook boundary -- never inside the pure engine. When the
  * run period's year has no loaded `RatesConfig`, `preview` stays `null` and
- * `ratesWarning` carries the Spanish message; `submit()` refuses to compute
+ * `ratesWarning` carries the `'rates_not_loaded'` code; `submit()` refuses to compute
  * or persist anything for that period.
  *
  * Uses this feature's own `useActiveEmployees()` (payroll-owned employee
@@ -28,6 +28,22 @@ import type { Employee } from '@/types';
 import { calculatePayrollRun, resolveEffectivePeriod, type ExtraPayMode, type PayrollResult } from './engine';
 import { resolveRatesConfig } from './ssContribution';
 import { useActiveEmployees } from './useActiveEmployees';
+
+/**
+ * Why a submit was refused or failed. The screen maps the code with `t`;
+ * `save_failed` carries the repository's technical message untranslated.
+ */
+export type PayrollRunFormError =
+  | { readonly code: 'select_employee' }
+  | { readonly code: 'rates_not_loaded' }
+  | { readonly code: 'range_invalid' }
+  | {
+      readonly code: 'duplicate_run';
+      readonly employeeName: string;
+      readonly periodYear: number;
+      readonly periodMonth: number;
+    }
+  | { readonly code: 'save_failed'; readonly detail: string };
 
 export interface UsePayrollRunFormResult {
   readonly employees: Employee[];
@@ -51,18 +67,15 @@ export interface UsePayrollRunFormResult {
   readonly setPeriodStartDate: (date: string | null) => void;
   readonly periodEndDate: string | null;
   readonly setPeriodEndDate: (date: string | null) => void;
-  /** Spanish validation error when `periodStartDate > periodEndDate` (spec Scenario 9); `null` when the range is valid or incomplete. */
-  readonly rangeError: string | null;
+  /** `'range_invalid'` when `periodStartDate > periodEndDate` (spec Scenario 9); `null` when the range is valid or incomplete. */
+  readonly rangeError: 'range_invalid' | null;
   readonly preview: PayrollResult | null;
-  /** Spanish warning to show instead of a preview when the period year's SS rates are not loaded. */
-  readonly ratesWarning: string | null;
+  /** `'rates_not_loaded'` to show instead of a preview when the period year's SS rates are not loaded. */
+  readonly ratesWarning: 'rates_not_loaded' | null;
   readonly saving: boolean;
-  readonly error: string | null;
+  readonly error: PayrollRunFormError | null;
   readonly submit: () => Promise<boolean>;
 }
-
-const RATES_NOT_LOADED_MESSAGE =
-  'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.';
 
 /** UI-only default for a brand-new form; NOT read by the pure engine itself (CLAUDE.md §3/§5 purity applies to `calculatePayrollRun`, not to this screen-level default). */
 function currentPeriod(): { readonly year: number; readonly month: number } {
@@ -83,8 +96,6 @@ function isoForDay(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const RANGE_INVALID_MESSAGE = 'La fecha de inicio no puede ser posterior a la fecha de fin.';
-
 export function usePayrollRunForm(): UsePayrollRunFormResult {
   const { employees, loading: employeesLoading } = useActiveEmployees();
   const payrollRunRepository = usePayrollRunRepository();
@@ -96,7 +107,7 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
   const [periodStartDate, setPeriodStartDate] = useState<string | null>(null);
   const [periodEndDate, setPeriodEndDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PayrollRunFormError | null>(null);
 
   // Auto-select the first employee once the list loads, so the form is
   // usable without an extra tap in the common single/first-employee case.
@@ -137,10 +148,10 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
   // reaches `calculatePayrollRun`/`resolveEffectivePeriodFromRange` -- an
   // invalid range must never be passed to the derivation function.
   const rangeInvalid = periodStartDate !== null && periodEndDate !== null && periodStartDate > periodEndDate;
-  const rangeError = rangeInvalid ? RANGE_INVALID_MESSAGE : null;
+  const rangeError = rangeInvalid ? 'range_invalid' : null;
 
   const ratesResult = useMemo(() => resolveRatesConfig(periodYear), [periodYear]);
-  const ratesWarning = ratesResult.ok ? null : RATES_NOT_LOADED_MESSAGE;
+  const ratesWarning = ratesResult.ok ? null : 'rates_not_loaded';
 
   const preview = useMemo<PayrollResult | null>(() => {
     if (selectedEmployee === null || !ratesResult.ok || rangeInvalid) {
@@ -162,17 +173,17 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
 
   const submit = async (): Promise<boolean> => {
     if (selectedEmployee === null) {
-      setError('Selecciona un empleado.');
+      setError({ code: 'select_employee' });
       return false;
     }
 
     if (!ratesResult.ok) {
-      setError(RATES_NOT_LOADED_MESSAGE);
+      setError({ code: 'rates_not_loaded' });
       return false;
     }
 
     if (rangeInvalid) {
-      setError(RANGE_INVALID_MESSAGE);
+      setError({ code: 'range_invalid' });
       return false;
     }
 
@@ -184,7 +195,7 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
       // index (services/db) is the backstop against a same-tick double-tap.
       const existing = await payrollRunRepository.getByPeriod(selectedEmployee.id, periodYear, periodMonth);
       if (existing !== null) {
-        setError(`Ya existe una nómina para ${selectedEmployee.name} en ${periodMonth}/${periodYear}.`);
+        setError({ code: 'duplicate_run', employeeName: selectedEmployee.name, periodYear, periodMonth });
         return false;
       }
 
@@ -220,7 +231,7 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
       });
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError({ code: 'save_failed', detail: caught instanceof Error ? caught.message : String(caught) });
       return false;
     } finally {
       setSaving(false);

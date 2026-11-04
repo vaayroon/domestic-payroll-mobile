@@ -189,7 +189,12 @@ describe('usePayrollRunForm', () => {
 
     expect(success).toBe(false);
     expect(createSpy).not.toHaveBeenCalled();
-    expect(harness.current.error).toMatch(/Ya existe una nómina/);
+    expect(harness.current.error).toEqual({
+      code: 'duplicate_run',
+      employeeName: expect.any(String),
+      periodYear: expect.any(Number),
+      periodMonth: expect.any(Number),
+    });
   });
 
   it('previews net = extra for a zero-run-days month with non-zero semester extra (decision #674)', async () => {
@@ -287,7 +292,7 @@ describe('usePayrollRunForm', () => {
         harness.current.setPeriodEndDate('2026-06-10');
       });
 
-      expect(harness.current.rangeError).toBe('La fecha de inicio no puede ser posterior a la fecha de fin.');
+      expect(harness.current.rangeError).toBe('range_invalid');
       expect(harness.current.preview).toBeNull();
 
       let success = true;
@@ -297,11 +302,11 @@ describe('usePayrollRunForm', () => {
 
       expect(success).toBe(false);
       expect(createSpy).not.toHaveBeenCalled();
-      expect(harness.current.error).toBe('La fecha de inicio no puede ser posterior a la fecha de fin.');
+      expect(harness.current.error).toEqual({ code: 'range_invalid' });
     });
   });
 
-  it('year_not_loaded: preview stays null and a Spanish warning is set; submit refuses to persist (design ADR-2)', async () => {
+  it('year_not_loaded: preview stays null and a rates_not_loaded code is set; submit refuses to persist (design ADR-2)', async () => {
     const harness = await renderUsePayrollRunForm([FAKE_EMPLOYEE], new InMemoryPayrollRunRepository());
 
     // Force the run period into 2027, a year with no loaded RatesConfig.
@@ -312,9 +317,7 @@ describe('usePayrollRunForm', () => {
     }
 
     expect(harness.current.preview).toBeNull();
-    expect(harness.current.ratesWarning).toBe(
-      'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
-    );
+    expect(harness.current.ratesWarning).toBe('rates_not_loaded');
 
     let success = true;
     await act(async () => {
@@ -322,8 +325,6 @@ describe('usePayrollRunForm', () => {
     });
 
     expect(success).toBe(false);
-    expect(harness.current.error).toBe(
-      'No se han cargado las tarifas de cotización para este año. No se puede calcular la nómina.',
-    );
+    expect(harness.current.error).toEqual({ code: 'rates_not_loaded' });
   });
 });

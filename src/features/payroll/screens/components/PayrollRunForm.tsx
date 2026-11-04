@@ -15,17 +15,13 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { FormScrollView } from '@/core';
+import { formatMonthYear, useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
-import type { ExtraPayMode, PayrollResult } from '../../domain';
-import { formatSpanishMonthYear } from '../../formatSpanishDate';
+import type { ExtraPayMode, PayrollResult, PayrollRunFormError } from '../../domain';
 import { formatEuros } from '../formatEuros';
 
-const EXTRA_PAY_MODE_LABELS: Record<ExtraPayMode, string> = {
-  INCLUDE_IN_MONTH: 'Incluir en el mes (junio/diciembre)',
-  PRORATE: 'Prorratear cada mes',
-  EXCLUDE: 'Excluir',
-};
+const EXTRA_PAY_MODES: readonly ExtraPayMode[] = ['INCLUDE_IN_MONTH', 'PRORATE', 'EXCLUDE'];
 
 export interface PayrollRunFormProps {
   readonly employees: Employee[];
@@ -43,13 +39,13 @@ export interface PayrollRunFormProps {
   readonly onChangePeriodStartDate: (date: string | null) => void;
   readonly periodEndDate: string | null;
   readonly onChangePeriodEndDate: (date: string | null) => void;
-  /** Spanish validation error when the start date is after the end date. */
-  readonly rangeError: string | null;
+  /** Code (mapped with `t`) when the start date is after the end date. */
+  readonly rangeError: 'range_invalid' | null;
   readonly preview: PayrollResult | null;
-  /** Spanish warning shown instead of the preview when the period year's SS rates are not loaded. */
-  readonly ratesWarning: string | null;
+  /** Code (mapped with `t`) shown instead of the preview when the period year's SS rates are not loaded. */
+  readonly ratesWarning: 'rates_not_loaded' | null;
   readonly saving: boolean;
-  readonly error: string | null;
+  readonly error: PayrollRunFormError | null;
   readonly onSubmit: () => void;
 }
 
@@ -75,19 +71,46 @@ export function PayrollRunForm({
   error,
   onSubmit,
 }: PayrollRunFormProps) {
+  const { t } = useTranslation();
+
+  let errorText: string | null = null;
+  if (error !== null) {
+    switch (error.code) {
+      case 'duplicate_run':
+        errorText = t(($) => $.payroll.form.errors.duplicate_run, {
+          employee: error.employeeName,
+          month: error.periodMonth,
+          year: error.periodYear,
+        });
+        break;
+      case 'save_failed':
+        errorText = error.detail;
+        break;
+      case 'select_employee':
+        errorText = t(($) => $.payroll.form.errors.select_employee);
+        break;
+      case 'rates_not_loaded':
+        errorText = t(($) => $.payroll.form.errors.rates_not_loaded);
+        break;
+      case 'range_invalid':
+        errorText = t(($) => $.payroll.form.errors.range_invalid);
+        break;
+    }
+  }
+
   return (
     // Scrolls: the period range inputs and the preview push the submit button
     // below the keyboard on a small screen.
     <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
-        <Text className="mb-1 text-slate-300">Empleado</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.employee)}</Text>
         {employeesLoading ? (
           <Text testID="payroll-run-form-employees-loading" className="text-slate-400">
-            Cargando empleados…
+            {t(($) => $.payroll.form.employeesLoading)}
           </Text>
         ) : employees.length === 0 ? (
           <Text testID="payroll-run-form-employees-empty" className="text-slate-400">
-            No hay empleados activos. Añade uno primero.
+            {t(($) => $.payroll.form.employeesEmpty)}
           </Text>
         ) : (
           <View className="gap-2">
@@ -109,13 +132,13 @@ export function PayrollRunForm({
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Periodo</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.period)}</Text>
         <View className="flex-row items-center gap-3">
           <Pressable testID="payroll-run-form-period-prev" onPress={onDecrementMonth}>
             <Text className="text-lg font-semibold text-emerald-400">{'<'}</Text>
           </Pressable>
           <Text testID="payroll-run-form-period-label" className="text-white">
-            {formatSpanishMonthYear(periodYear, periodMonth)}
+            {formatMonthYear(t, periodYear, periodMonth)}
           </Text>
           <Pressable testID="payroll-run-form-period-next" onPress={onIncrementMonth}>
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>
@@ -124,42 +147,42 @@ export function PayrollRunForm({
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Rango de días trabajados</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.range)}</Text>
         <View className="flex-row gap-2">
           <View className="flex-1">
-            <Text className="mb-1 text-xs text-slate-400">Desde</Text>
+            <Text className="mb-1 text-xs text-slate-400">{t(($) => $.payroll.form.from)}</Text>
             <TextInput
               testID="payroll-run-form-period-start"
               className="rounded-md bg-slate-800 px-3 py-2 text-white"
               value={periodStartDate ?? ''}
               onChangeText={(text) => onChangePeriodStartDate(text.length > 0 ? text : null)}
-              placeholder="AAAA-MM-DD"
+              placeholder={t(($) => $.common.dateHint)}
               placeholderTextColor="#94a3b8"
             />
           </View>
           <View className="flex-1">
-            <Text className="mb-1 text-xs text-slate-400">Hasta</Text>
+            <Text className="mb-1 text-xs text-slate-400">{t(($) => $.payroll.form.to)}</Text>
             <TextInput
               testID="payroll-run-form-period-end"
               className="rounded-md bg-slate-800 px-3 py-2 text-white"
               value={periodEndDate ?? ''}
               onChangeText={(text) => onChangePeriodEndDate(text.length > 0 ? text : null)}
-              placeholder="AAAA-MM-DD"
+              placeholder={t(($) => $.common.dateHint)}
               placeholderTextColor="#94a3b8"
             />
           </View>
         </View>
         {rangeError !== null ? (
           <Text testID="payroll-run-form-range-error" className="mt-1 text-sm text-red-400">
-            {rangeError}
+            {t(($) => $.payroll.form.errors[rangeError])}
           </Text>
         ) : null}
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Pagas extra</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.extraPay)}</Text>
         <View className="gap-2">
-          {(Object.keys(EXTRA_PAY_MODE_LABELS) as ExtraPayMode[]).map((mode) => {
+          {EXTRA_PAY_MODES.map((mode) => {
             const selected = mode === extraPayMode;
             return (
               <Pressable
@@ -169,7 +192,7 @@ export function PayrollRunForm({
                 className={`rounded-md px-3 py-2 ${selected ? 'bg-emerald-800' : 'bg-slate-800'}`}
               >
                 <Text className={selected ? 'font-semibold text-emerald-300' : 'text-white'}>
-                  {EXTRA_PAY_MODE_LABELS[mode]}
+                  {t(($) => $.payroll.form.extraPayModes[mode])}
                 </Text>
               </Pressable>
             );
@@ -180,41 +203,41 @@ export function PayrollRunForm({
       <View testID="payroll-run-form-preview" className="gap-1 rounded-md bg-slate-800 p-3">
         {ratesWarning !== null ? (
           <Text testID="payroll-run-form-rates-warning" className="text-sm text-amber-400">
-            {ratesWarning}
+            {t(($) => $.payroll.form.errors[ratesWarning])}
           </Text>
         ) : preview === null ? (
           <Text testID="payroll-run-form-preview-empty" className="text-slate-400">
-            Selecciona un empleado para ver la vista previa.
+            {t(($) => $.payroll.form.previewEmpty)}
           </Text>
         ) : (
           <>
             <Text className="text-slate-300">
-              Bruto: <Text testID="payroll-run-form-preview-gross" className="text-white">{formatEuros(preview.grossCents)}</Text>
+              {t(($) => $.payroll.form.gross)} <Text testID="payroll-run-form-preview-gross" className="text-white">{formatEuros(preview.grossCents)}</Text>
             </Text>
             <Text className="text-slate-300">
-              SS: <Text testID="payroll-run-form-preview-ss" className="text-white">{formatEuros(preview.ssDeductionCents)}</Text>
+              {t(($) => $.payroll.form.ss)} <Text testID="payroll-run-form-preview-ss" className="text-white">{formatEuros(preview.ssDeductionCents)}</Text>
             </Text>
             <Text className="text-slate-300">
-              Neto: <Text testID="payroll-run-form-preview-net" className="text-white">{formatEuros(preview.netCents)}</Text>
+              {t(($) => $.payroll.form.net)} <Text testID="payroll-run-form-preview-net" className="text-white">{formatEuros(preview.netCents)}</Text>
             </Text>
             {preview.prorated ? (
               <Text testID="payroll-run-form-preview-prorated" className="text-sm text-amber-400">
-                Mes prorrateado.
+                {t(($) => $.payroll.form.prorated)}
               </Text>
             ) : null}
           </>
         )}
       </View>
 
-      {error !== null ? (
+      {errorText !== null ? (
         <Text testID="payroll-run-form-error" className="text-sm text-red-400">
-          {error}
+          {errorText}
         </Text>
       ) : null}
 
       <Pressable testID="payroll-run-form-submit" onPress={onSubmit} disabled={saving}>
         <Text className={`text-center font-semibold ${saving ? 'text-slate-500' : 'text-emerald-400'}`}>
-          {saving ? 'Guardando…' : 'Calcular y guardar nómina'}
+          {saving ? t(($) => $.payroll.form.saving) : t(($) => $.payroll.form.submit)}
         </Text>
       </Pressable>
     </FormScrollView>
