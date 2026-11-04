@@ -16,14 +16,17 @@
  * modules -- this is the one place in `core/` that depends on a feature
  * slice rather than the other way around. It does not create a cycle:
  * `features/reminder`'s domain/application layers depend on nothing in
- * `core/`, only `@/types`.
+ * `core/`, only `@/types`. Import those two sub-paths, never the
+ * `@/features/reminder` barrel: the barrel also re-exports the screens,
+ * which import `@/core` (enforced by `import/no-cycle`).
  */
 
 import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { parseReminderPreferences, reconcileReminder, REMINDER_PREFERENCES_KEY } from '@/features/reminder';
+import { reconcileReminder } from '@/features/reminder/application';
+import { parseReminderPreferences, REMINDER_PREFERENCES_KEY } from '@/features/reminder/domain';
 
 import { useNotificationScheduler } from './NotifyServiceProvider';
 import { useSettingsRepository } from './RepositoryProvider';

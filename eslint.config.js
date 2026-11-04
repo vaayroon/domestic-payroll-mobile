@@ -24,6 +24,10 @@ module.exports = defineConfig([
     // `src/app/_layout.tsx` legitimately imports `randomUUID`, so only the
     // functions that feed the encryption shim are restricted, by `importNames`.
     rules: {
+      // core/ and the feature slices import each other's barrels; a barrel that
+      // re-exports screens can close a loop back into @/core (it happened twice
+      // with ReminderProvider). Fail the lint instead of a runtime warning.
+      'import/no-cycle': 'error',
       'no-restricted-imports': [
         'error',
         {
