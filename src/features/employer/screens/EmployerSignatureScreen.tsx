@@ -20,24 +20,22 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { useSignaturePad } from '@/core';
+import { useTranslation } from '@/core/i18n';
 import type { SignaturePadControls, SignaturePadFailureCode } from '@/types';
 
 import { useEmployerSignature } from '../domain';
 
-const EMPTY_CANVAS_ERROR = 'Dibuja tu firma antes de guardar.';
-
-const FAILURE_MESSAGES: Record<SignaturePadFailureCode, string> = {
-  load_failed: 'No se pudo abrir el panel de firma.',
-  capture_failed: 'No se pudo leer la firma.',
-};
+/** Errors raised on the screen itself, next to the pad's own failure codes. */
+type LocalErrorCode = 'empty_canvas' | SignaturePadFailureCode;
 
 export function EmployerSignatureScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const SignaturePad = useSignaturePad();
   const { loading, savedPngBase64, save, clear, saving, saveError } = useEmployerSignature();
 
   const [controls, setControls] = useState<SignaturePadControls | null>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<LocalErrorCode | null>(null);
 
   const handleReady = (nextControls: SignaturePadControls) => {
     setControls(nextControls);
@@ -52,11 +50,11 @@ export function EmployerSignatureScreen() {
   };
 
   const handleEmpty = () => {
-    setLocalError(EMPTY_CANVAS_ERROR);
+    setLocalError('empty_canvas');
   };
 
   const handleFailure = (code: SignaturePadFailureCode) => {
-    setLocalError(FAILURE_MESSAGES[code]);
+    setLocalError(code);
   };
 
   const handleSave = () => {
@@ -76,26 +74,28 @@ export function EmployerSignatureScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900">
-        <Text className="text-slate-300">Cargando…</Text>
+        <Text className="text-slate-300">{t(($) => $.employer.signature.loading)}</Text>
       </View>
     );
   }
 
-  const displayError = localError ?? saveError;
+  const errorCode = localError ?? saveError;
 
   return (
     <View className="flex-1 gap-4 bg-slate-900 p-4">
       <View>
-        <Text className="mb-1 text-lg font-semibold text-white">Firma de la parte empleadora</Text>
+        <Text className="mb-1 text-lg font-semibold text-white">{t(($) => $.employer.signature.title)}</Text>
         <Text className="text-sm text-slate-400">
-          Dibuja tu firma una sola vez. Se añadirá automáticamente a cada recibo que generes.
+          {t(($) => $.employer.signature.description)}
         </Text>
       </View>
 
-      <Text className="text-xs text-slate-500">La firma se guarda solo en este dispositivo.</Text>
+      <Text className="text-xs text-slate-500">{t(($) => $.employer.signature.deviceOnly)}</Text>
 
       <Text testID="signature-settings-status" className="text-sm text-slate-300">
-        {savedPngBase64 !== null ? 'Firma guardada' : 'Sin firma guardada'}
+        {savedPngBase64 !== null
+          ? t(($) => $.employer.signature.status.saved)
+          : t(($) => $.employer.signature.status.none)}
       </Text>
 
       <SignaturePad
@@ -109,24 +109,24 @@ export function EmployerSignatureScreen() {
         onFailure={handleFailure}
       />
 
-      {displayError !== null ? (
+      {errorCode !== null ? (
         <Text testID="signature-settings-error" className="text-sm text-red-400">
-          {displayError}
+          {t(($) => $.employer.signature.errors[errorCode])}
         </Text>
       ) : null}
 
       <Pressable testID="signature-settings-save" onPress={handleSave} disabled={saving}>
         <Text className={`text-center font-semibold ${saving ? 'text-slate-500' : 'text-emerald-400'}`}>
-          {saving ? 'Guardando…' : 'Guardar firma'}
+          {saving ? t(($) => $.employer.signature.saving) : t(($) => $.employer.signature.save)}
         </Text>
       </Pressable>
 
       <Pressable testID="signature-settings-clear-canvas" onPress={handleClearCanvas}>
-        <Text className="text-center text-slate-300">Limpiar</Text>
+        <Text className="text-center text-slate-300">{t(($) => $.employer.signature.clear)}</Text>
       </Pressable>
 
       <Pressable testID="signature-settings-delete" onPress={handleDeleteSaved} disabled={saving}>
-        <Text className="text-center text-red-400">Borrar firma guardada</Text>
+        <Text className="text-center text-red-400">{t(($) => $.employer.signature.delete)}</Text>
       </Pressable>
     </View>
   );

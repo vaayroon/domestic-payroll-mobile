@@ -15,4 +15,5 @@ export {
   serializeLanguagePreference,
   UI_LANGUAGE_KEY,
 } from './languagePreference';
+export { getReminderCopy } from './reminderCopy';
 export { LanguageProvider, useLanguagePreference } from './LanguageProvider';

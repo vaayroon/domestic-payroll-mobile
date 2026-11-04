@@ -127,7 +127,7 @@ describe('useEmployerSignature', () => {
     });
 
     expect(ok).toBe(false);
-    expect(harness.current.saveError).toBe('No se pudo guardar la firma.');
+    expect(harness.current.saveError).toBe('save_failed');
     expect(harness.current.savedPngBase64).toBeNull();
     await expect(settings.get(EMPLOYER_SIGNATURE_KEY)).resolves.toBeNull();
     // Privacy: the fixed error message never contains the payload (CLAUDE.md §6).

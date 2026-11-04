@@ -71,6 +71,17 @@ export interface MailSender {
 /** Mirrors `expo-notifications`' own permission status values 1:1 as a domain union (never the library's own type), design ADR D1. */
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
+/** User-visible text of the scheduled reminder, resolved by the caller from the active UI language. */
+export interface ReminderNotificationContent {
+  readonly title: string;
+  readonly body: string;
+}
+
+/** Everything the reminder needs to say: the Android channel name plus the notification content. */
+export interface ReminderCopy extends ReminderNotificationContent {
+  readonly channelName: string;
+}
+
 /**
  * Schedules/cancels the single monthly payroll-reminder local notification.
  * One cohesive interface rather than split permission/channel/schedule
@@ -86,10 +97,10 @@ export interface NotificationScheduler {
   getPermissionStatus(): Promise<NotificationPermissionStatus>;
   /** Prompts the OS permission dialog (Android 13+ `POST_NOTIFICATIONS`). */
   requestPermission(): Promise<NotificationPermissionStatus>;
-  /** Idempotently ensures the Android notification channel exists. */
-  ensureChannel(): Promise<void>;
-  /** Cancels any existing reminder, then schedules a new one for `fireDate`. Returns the notification identifier. */
-  scheduleReminder(fireDate: Date): Promise<string>;
+  /** Idempotently ensures the Android notification channel exists, (re)naming it with `name`. */
+  ensureChannel(name: string): Promise<void>;
+  /** Cancels any existing reminder, then schedules a new one for `fireDate` with `content`. Returns the notification identifier. */
+  scheduleReminder(fireDate: Date, content: ReminderNotificationContent): Promise<string>;
   /** Cancels the reminder if one is scheduled; a no-op otherwise. */
   cancelReminder(): Promise<void>;
   /**
