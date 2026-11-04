@@ -45,7 +45,8 @@
           "enableBackgroundRemoteNotifications": false
         }
       ],
-      "@config-plugins/react-native-pdf"
+      "@config-plugins/react-native-pdf",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

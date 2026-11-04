@@ -28,6 +28,26 @@ module.exports = defineConfig([
       // re-exports screens can close a loop back into @/core (it happened twice
       // with ReminderProvider). Fail the lint instead of a runtime warning.
       'import/no-cycle': 'error',
+      // Receipt PDF, mail and file-name copy is Spanish-only regardless of the UI
+      // language. These modules must never be able to reach the i18n module.
+      // Test files are not targets here (they are not listed) and stay free.
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: [
+                './src/features/payroll/receipt',
+                './src/features/payroll/formatSpanishDate.ts',
+                './src/core/monthNames.ts',
+                './src/core/receiptFileName.ts',
+              ],
+              from: ['./src/core/i18n'],
+              message: 'Receipt/mail/legal copy is Spanish-only; do not import i18n.',
+            },
+          ],
+        },
+      ],
       'no-restricted-imports': [
         'error',
         {
@@ -83,9 +103,19 @@ module.exports = defineConfig([
               group: ['react-native-pdf', 'react-native-pdf/*', 'react-native-blob-util', 'react-native-blob-util/*'],
               message: 'react-native-pdf/react-native-blob-util are only allowed inside src/services/pdfviewer/. Depend on the PdfViewerProps contract in src/types instead.',
             },
+            {
+              group: ['i18next', 'i18next/*', 'react-i18next', 'react-i18next/*', 'expo-localization', 'expo-localization/*'],
+              message: 'i18next/react-i18next/expo-localization are only allowed inside src/core/i18n/. Import from @/core/i18n instead.',
+            },
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['src/core/i18n/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
   {
