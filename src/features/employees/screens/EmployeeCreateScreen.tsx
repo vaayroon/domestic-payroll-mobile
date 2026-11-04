@@ -5,12 +5,17 @@
 
 import { useRouter } from 'expo-router';
 
+import { useTranslation } from '@/core/i18n';
+
 import { useEmployeeForm } from '../domain';
 import { EmployeeForm } from './components/EmployeeForm';
 
 export function EmployeeCreateScreen() {
   const router = useRouter();
-  const { values, errors, setField, submit, saving, saveError } = useEmployeeForm({ kind: 'create' });
+  const { t } = useTranslation();
+  const { values, errors, setField, submit, saving, saveError } = useEmployeeForm({
+    kind: 'create',
+  });
 
   const handleSubmit = async () => {
     const success = await submit();
@@ -27,7 +32,7 @@ export function EmployeeCreateScreen() {
       onSubmit={() => void handleSubmit()}
       saving={saving}
       saveError={saveError}
-      submitLabel="Guardar"
+      submitLabel={t(($) => $.employees.form.submitCreate)}
     />
   );
 }

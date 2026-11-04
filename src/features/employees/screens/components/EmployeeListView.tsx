@@ -5,6 +5,7 @@
 
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
 import { EmployeeListItem } from './EmployeeListItem';
@@ -30,16 +31,20 @@ export function EmployeeListView({
   onNewPayrollRun,
   onViewHistory,
 }: EmployeeListViewProps) {
+  const { t } = useTranslation();
+
   return (
     <View className="flex-1 bg-slate-900">
       <View className="flex-row items-center justify-between p-4">
-        <Text className="text-xl font-bold text-white">Empleados</Text>
+        <Text className="text-xl font-bold text-white">{t(($) => $.employees.list.title)}</Text>
         <View className="flex-row gap-3">
           <Pressable testID="new-payroll-run-button" onPress={onNewPayrollRun}>
-            <Text className="font-semibold text-emerald-400">Nueva nómina</Text>
+            <Text className="font-semibold text-emerald-400">
+              {t(($) => $.employees.list.newPayrollRun)}
+            </Text>
           </Pressable>
           <Pressable testID="add-employee-button" onPress={onAdd}>
-            <Text className="font-semibold text-emerald-400">Añadir empleado</Text>
+            <Text className="font-semibold text-emerald-400">{t(($) => $.employees.list.add)}</Text>
           </Pressable>
         </View>
       </View>
@@ -52,18 +57,23 @@ export function EmployeeListView({
 
       {loading ? (
         <Text testID="employee-list-loading" className="px-4 text-slate-400">
-          Cargando…
+          {t(($) => $.employees.list.loading)}
         </Text>
       ) : employees.length === 0 ? (
         <Text testID="employee-list-empty" className="px-4 text-slate-400">
-          No hay empleados. Añade el primero.
+          {t(($) => $.employees.list.empty)}
         </Text>
       ) : (
         <FlatList
           data={employees}
           keyExtractor={(employee) => employee.id}
           renderItem={({ item }) => (
-            <EmployeeListItem employee={item} onEdit={onEdit} onDeactivate={onDeactivate} onViewHistory={onViewHistory} />
+            <EmployeeListItem
+              employee={item}
+              onEdit={onEdit}
+              onDeactivate={onDeactivate}
+              onViewHistory={onViewHistory}
+            />
           )}
         />
       )}
