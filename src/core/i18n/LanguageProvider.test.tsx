@@ -198,6 +198,44 @@ describe('LanguageProvider', () => {
     expect(await settings.get(UI_LANGUAGE_KEY)).toBe('');
   });
 
+  it('never reports a language that differs from the one t uses', async () => {
+    const renderer = await mount(new InMemorySettingsRepository());
+    const seen: string[] = [];
+    function Spy() {
+      const { t } = useTranslation();
+      const { language } = useLanguagePreference();
+      seen.push(`${language}:${t(($) => $.app.titles.employees)}`);
+      return null;
+    }
+    await act(async () => {
+      renderer.update(
+        <RepositoryProvider repositories={repositories(new InMemorySettingsRepository())}>
+          <LanguageProvider>
+            <Spy />
+          </LanguageProvider>
+        </RepositoryProvider>,
+      );
+    });
+    seen.length = 0;
+
+    await act(async () => {
+      await latest?.setPreference('en');
+    });
+
+    for (const entry of seen) {
+      expect(['es:Empleados', 'en:Employees']).toContain(entry);
+    }
+  });
+
+  it('still renders children when changeLanguage rejects during the initial load', async () => {
+    jest.spyOn(i18n, 'changeLanguage').mockRejectedValueOnce(new Error('boom'));
+
+    const renderer = await mount(new InMemorySettingsRepository());
+
+    expect(probeText(renderer)).toBe('Empleados');
+    expect(latest?.language).toBe('es');
+  });
+
   it('keeps the current language when the write fails', async () => {
     const settings: SettingsRepository = {
       get: async () => null,

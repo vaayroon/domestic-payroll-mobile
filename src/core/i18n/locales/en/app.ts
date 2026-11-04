@@ -3,6 +3,10 @@ import type { app as es } from '../es/app';
 
 export const app: Catalog<typeof es> = {
   settingsLink: 'Settings',
+  startup: {
+    loading: 'Loading…',
+    error: 'The app could not start. Please restart it.',
+  },
   titles: {
     employees: 'Employees',
     newEmployee: 'New employee',

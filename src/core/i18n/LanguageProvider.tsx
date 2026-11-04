@@ -11,18 +11,19 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocales } from 'expo-localization';
+import { useTranslation } from 'react-i18next';
 
 import { useSettingsRepository } from '../RepositoryProvider';
 import { i18n } from './i18n';
 import { parseLanguagePreference, serializeLanguagePreference, UI_LANGUAGE_KEY } from './languagePreference';
-import { resolveLanguage, type SupportedLanguage } from './resolveLanguage';
+import { FALLBACK_LANGUAGE, isSupportedLanguage, resolveLanguage, type SupportedLanguage } from './resolveLanguage';
 
 interface LanguagePreferenceValue {
   /** The stored override, or `null` when following the device. */
   readonly preference: SupportedLanguage | null;
   /** The language actually in use. */
   readonly language: SupportedLanguage;
-  /** Persists first, then updates state. Rejects when the write fails. */
+  /** Persists first, switches i18n, then updates state. Rejects when the write fails. */
   readonly setPreference: (preference: SupportedLanguage | null) => Promise<void>;
 }
 
@@ -51,7 +52,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       if (cancelled) {
         return;
       }
-      await i18n.changeLanguage(resolveLanguage(stored, localesRef.current));
+      try {
+        await i18n.changeLanguage(resolveLanguage(stored, localesRef.current));
+      } catch {
+        // Keep whatever language i18n currently has; never block the app.
+      }
       if (cancelled) {
         return;
       }
@@ -66,17 +71,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     };
   }, [settings]);
 
-  const language = resolveLanguage(preference, locales);
+  // The language reported to consumers is read from i18n itself (the hook
+  // re-renders on `languageChanged`), so it can never disagree with `t`.
+  const { i18n: activeI18n } = useTranslation();
+  const language = isSupportedLanguage(activeI18n.language) ? activeI18n.language : FALLBACK_LANGUAGE;
+  const desiredLanguage = resolveLanguage(preference, locales);
 
   useEffect(() => {
-    if (loaded && i18n.language !== language) {
-      void i18n.changeLanguage(language);
+    if (loaded && i18n.language !== desiredLanguage) {
+      void i18n.changeLanguage(desiredLanguage).catch(() => undefined);
     }
-  }, [loaded, language]);
+  }, [loaded, desiredLanguage]);
 
   const setPreference = useCallback(
     async (next: SupportedLanguage | null) => {
       await settings.set(UI_LANGUAGE_KEY, serializeLanguagePreference(next));
+      // Switch the language first, then commit the preference, so the context
+      // never reports a language that differs from the one `t` is using.
+      await i18n.changeLanguage(resolveLanguage(next, localesRef.current));
       setPreferenceState(next);
     },
     [settings],

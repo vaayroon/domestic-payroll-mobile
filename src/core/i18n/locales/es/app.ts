@@ -1,5 +1,9 @@
 export const app = {
   settingsLink: 'Ajustes',
+  startup: {
+    loading: 'Cargando…',
+    error: 'No se pudo iniciar la aplicación. Reinicia la app.',
+  },
   titles: {
     employees: 'Empleados',
     newEmployee: 'Nuevo empleado',

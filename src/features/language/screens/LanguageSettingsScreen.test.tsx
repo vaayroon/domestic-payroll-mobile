@@ -152,6 +152,31 @@ describe('LanguageSettingsScreen', () => {
     expect(texts(renderer)).toContain('No se pudo guardar el idioma. Inténtalo de nuevo.');
   });
 
+  it('ignores further taps while a write is in flight', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const set = jest.fn(async (key: string, value: string): Promise<AppSetting> => {
+      await gate;
+      return { key, value };
+    });
+    const settings: SettingsRepository = { get: async () => null, set };
+    const renderer = await renderScreen(settings);
+
+    await choose(renderer, 'en');
+    await choose(renderer, 'es');
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(option(renderer, 'es').props.disabled).toBe(true);
+
+    await act(async () => {
+      release();
+      await gate;
+    });
+    expect(option(renderer, 'es').props.disabled).toBe(false);
+    expect(isSelected(renderer, 'en')).toBe(true);
+  });
+
   it('shows the error in English when the UI is English', async () => {
     const settings: SettingsRepository = {
       get: async () => 'en',

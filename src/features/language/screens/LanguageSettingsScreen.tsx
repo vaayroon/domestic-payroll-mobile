@@ -4,7 +4,7 @@
  * write keeps the current language and shows an error mapped from a code.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { useLanguagePreference, useTranslation, type SupportedLanguage } from '@/core/i18n';
@@ -24,12 +24,24 @@ export function LanguageSettingsScreen() {
   const { preference, setPreference } = useLanguagePreference();
   const [errorCode, setErrorCode] = useState<LanguageErrorCode | null>(null);
 
+  const [saving, setSaving] = useState(false);
+  // Synchronous guard: state updates are async, so two quick taps could both pass.
+  const inFlight = useRef(false);
+
   const handleSelect = async (value: SupportedLanguage | null) => {
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
+    setSaving(true);
     setErrorCode(null);
     try {
       await setPreference(value);
     } catch {
       setErrorCode('save_failed');
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
     }
   };
 
@@ -43,7 +55,8 @@ export function LanguageSettingsScreen() {
             key={option.id}
             testID={`language-option-${option.id}`}
             accessibilityRole="radio"
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected, disabled: saving }}
+            disabled={saving}
             onPress={() => void handleSelect(option.value)}
             className="flex-row items-center justify-between rounded-md bg-slate-800 px-3 py-3"
           >

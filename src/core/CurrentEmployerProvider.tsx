@@ -24,6 +24,7 @@ import { Text, View } from 'react-native';
 
 import type { NewEmployer } from '@/types';
 
+import { useTranslation } from './i18n';
 import { useEmployerRepository } from './RepositoryProvider';
 
 const BOOTSTRAP_EMPLOYER: NewEmployer = { name: 'Empleador' };
@@ -33,6 +34,7 @@ const CurrentEmployerContext = createContext<string | null>(null);
 type BootstrapState = { status: 'loading' } | { status: 'ready'; employerId: string } | { status: 'error' };
 
 export function CurrentEmployerProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const employerRepository = useEmployerRepository();
   const [state, setState] = useState<BootstrapState>({ status: 'loading' });
 
@@ -65,7 +67,7 @@ export function CurrentEmployerProvider({ children }: { children: ReactNode }) {
   if (state.status === 'loading') {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900">
-        <Text className="text-slate-300">Cargando…</Text>
+        <Text className="text-slate-300">{t(($) => $.app.startup.loading)}</Text>
       </View>
     );
   }
@@ -73,7 +75,7 @@ export function CurrentEmployerProvider({ children }: { children: ReactNode }) {
   if (state.status === 'error') {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
-        <Text className="text-center text-red-400">No se pudo iniciar la aplicación. Reinicia la app.</Text>
+        <Text className="text-center text-red-400">{t(($) => $.app.startup.error)}</Text>
       </View>
     );
   }

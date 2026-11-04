@@ -19,6 +19,7 @@ import type {
   SettingsRepository,
 } from '@/types';
 
+import { i18n } from './i18n';
 import { CurrentEmployerProvider, useCurrentEmployerId } from './CurrentEmployerProvider';
 import { RepositoryProvider, type Repositories } from './RepositoryProvider';
 
@@ -156,5 +157,76 @@ describe('CurrentEmployerProvider', () => {
 
     const all = await repository.list();
     expect(all).toHaveLength(1);
+  });
+
+  describe('startup screens', () => {
+    function reposWith(employers: EmployerRepository): Repositories {
+      return {
+        employers,
+        employees: fakeEmployeeRepository,
+        payrollRuns: fakePayrollRunRepository,
+        settings: fakeSettingsRepository,
+      };
+    }
+
+    async function renderStartup(employers: EmployerRepository, settle: boolean): Promise<ReactTestRenderer> {
+      let renderer!: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <RepositoryProvider repositories={reposWith(employers)}>
+            <CurrentEmployerProvider>
+              <EmployerIdProbe />
+            </CurrentEmployerProvider>
+          </RepositoryProvider>,
+        );
+      });
+      if (settle) {
+        await act(async () => {
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+      }
+      return renderer;
+    }
+
+    function texts(renderer: ReactTestRenderer): unknown[] {
+      return renderer.root.findAllByType(Text).map((node) => node.props.children);
+    }
+
+    const failing: EmployerRepository = {
+      ...new InMemoryEmployerRepository(),
+      list: async () => {
+        throw new Error('db down');
+      },
+      getById: notImplemented('getById'),
+      create: notImplemented('create'),
+      update: notImplemented('update'),
+      remove: notImplemented('remove'),
+    };
+
+    const pending: EmployerRepository = {
+      list: () => new Promise<Employer[]>(() => undefined),
+      getById: notImplemented('getById'),
+      create: notImplemented('create'),
+      update: notImplemented('update'),
+      remove: notImplemented('remove'),
+    };
+
+    it('shows the Spanish loading and error copy by default', async () => {
+      const loading = await renderStartup(pending, false);
+      expect(texts(loading)).toContain('Cargando…');
+      const errored = await renderStartup(failing, true);
+      expect(texts(errored)).toContain('No se pudo iniciar la aplicación. Reinicia la app.');
+    });
+
+    it('shows the English loading and error copy when the language is English', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+      const loading = await renderStartup(pending, false);
+      expect(texts(loading)).toContain('Loading…');
+      const errored = await renderStartup(failing, true);
+      expect(texts(errored)).toContain('The app could not start. Please restart it.');
+    });
   });
 });
