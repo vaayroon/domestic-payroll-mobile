@@ -28,4 +28,47 @@ export const payroll = {
       duplicate_run: 'Ya existe una nómina para {{employee}} en {{month}}/{{year}}.',
     },
   },
+  history: {
+    title: 'Historial de nóminas',
+    loading: 'Cargando…',
+    empty: 'Aún no hay nóminas generadas para este empleado.',
+    generate: 'Generar recibo',
+    generating: 'Generando…',
+    generated: 'Recibo generado.',
+    open: 'Abrir recibo',
+    share: 'Compartir',
+    sendMail: 'Enviar por correo',
+    encrypt: 'Cifrar',
+    sent: 'Recibo enviado.',
+  },
+  protection: {
+    generatedProtected: 'Recibo generado y protegido con contraseña.',
+    hint: 'Recuerda indicar al empleado cómo abrir el recibo protegido.',
+    viewerFailure:
+      'No se pudo abrir el recibo protegido. Vuelve a generarlo desde el historial de nóminas.',
+  },
+  dispatch: {
+    shareDialogTitle: 'Compartir recibo',
+    mailUnavailable: 'No hay ninguna app de correo configurada en este dispositivo.',
+    runMissing: 'No se encontró la nómina de este recibo.',
+    errors: {
+      share_failed: 'No se pudo compartir el recibo.',
+      send_failed: 'No se pudo enviar el recibo.',
+    },
+  },
+  generate: {
+    errors: {
+      employee_not_found: 'No se encontró el empleado de esta nómina.',
+      employer_not_found: 'No se encontró el empleador.',
+      encryption_unavailable:
+        'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.',
+      encryption_failed: 'No se pudo generar el recibo protegido. Inténtalo de nuevo.',
+    },
+  },
+  viewer: {
+    failure: 'No se pudo mostrar el recibo. Vuelve a generarlo desde el historial de nóminas.',
+    pdfLabel: 'Recibo de salarios en PDF',
+    loadingLabel: 'Cargando recibo',
+    loading: 'Cargando recibo…',
+  },
 } as const;

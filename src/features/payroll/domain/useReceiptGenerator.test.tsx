@@ -78,9 +78,8 @@ const ONLY_DATE_FAKED = [
 ] as const;
 
 const PROTECTED_EMPLOYEE: Employee = makeEmployee({ nif: '00000000T', receiptEncryptionEnabled: true });
-const UNAVAILABLE_COPY =
-  'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.';
-const ENCRYPT_FAILED_COPY = 'No se pudo generar el recibo protegido. Inténtalo de nuevo.';
+const UNAVAILABLE_ERROR = { code: 'encryption_unavailable' };
+const ENCRYPT_FAILED_ERROR = { code: 'encryption_failed' };
 
 function HookHarness({ onResult }: { onResult: (result: UseReceiptGeneratorResult) => void }) {
   const result = useReceiptGenerator();
@@ -172,7 +171,7 @@ describe('useReceiptGenerator', () => {
     });
 
     expect(result).toBeNull();
-    expect(harness.current.error).toMatch(/No se encontró/);
+    expect(harness.current.error).toEqual({ code: 'employee_not_found' });
     expect(generator.lastHtml).toBeNull();
   });
 
@@ -262,7 +261,7 @@ describe('useReceiptGenerator', () => {
       });
 
       expect(result).toBeNull();
-      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+      expect(harness.current.error).toEqual(UNAVAILABLE_ERROR);
       expect(generator.lastHtml).toBeNull();
       expect(generator.lastPassword).toBeNull();
       expect(harness.current.generating).toBe(false);
@@ -281,7 +280,7 @@ describe('useReceiptGenerator', () => {
         await harness.current.generate(FAKE_RUN);
       });
 
-      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+      expect(harness.current.error).toEqual(UNAVAILABLE_ERROR);
       expect(generator.lastHtml).toBeNull();
     });
 
@@ -296,8 +295,8 @@ describe('useReceiptGenerator', () => {
       });
 
       expect(result).toBeNull();
-      expect(harness.current.error).toBe(ENCRYPT_FAILED_COPY);
-      expect(harness.current.error).not.toContain('00000000T');
+      expect(harness.current.error).toEqual(ENCRYPT_FAILED_ERROR);
+      expect(JSON.stringify(harness.current.error)).not.toContain('00000000T');
       expect(harness.current.generating).toBe(false);
     });
   });
@@ -326,7 +325,7 @@ describe('useReceiptGenerator', () => {
         await harness.current.generate(FAKE_RUN);
       });
 
-      expect(harness.current.error).toBe('print failed');
+      expect(harness.current.error).toEqual({ code: 'failed', detail: 'print failed' });
     });
 
     it('encrypts when the caller asks for it explicitly', async () => {
@@ -413,7 +412,7 @@ describe('useReceiptGenerator', () => {
 
       expect(result).toBeNull();
       expect(generator.discarded).toEqual([]);
-      expect(harness.current.error).toBe(ENCRYPT_FAILED_COPY);
+      expect(harness.current.error).toEqual(ENCRYPT_FAILED_ERROR);
     });
 
     it('keeps the previous file and never calls the generator when no password is available', async () => {
@@ -428,7 +427,7 @@ describe('useReceiptGenerator', () => {
       expect(result).toBeNull();
       expect(generator.lastHtml).toBeNull();
       expect(generator.discarded).toEqual([]);
-      expect(harness.current.error).toBe(UNAVAILABLE_COPY);
+      expect(harness.current.error).toEqual(UNAVAILABLE_ERROR);
     });
 
     it('never discards the file it just produced', async () => {

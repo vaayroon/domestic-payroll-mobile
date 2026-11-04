@@ -154,7 +154,7 @@ describe('PayrollRunHistoryView', () => {
   });
 
   it('shows the generate error message when present', async () => {
-    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], generateError: 'no se pudo generar' });
+    const renderer = await renderView({ ...baseProps, runs: [FAKE_RUN], generateError: { code: 'failed', detail: 'no se pudo generar' } });
 
     const errorNode = renderer.root.findByProps({ testID: 'payroll-run-history-generate-error' });
     expect(errorNode.props.children).toBe('no se pudo generar');
@@ -423,7 +423,7 @@ describe('PayrollRunHistoryView', () => {
       runs: [FAKE_RUN],
       lastUri: 'file:///fake/cache/Print/recibo-1.pdf',
       dispatchStatus: 'failed',
-      dispatchError: 'No se pudo enviar el recibo.',
+      dispatchError: 'send_failed',
     });
 
     const failed = renderer.root.findByProps({ testID: 'payroll-run-history-dispatch-failed' });

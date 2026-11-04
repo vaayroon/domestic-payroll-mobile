@@ -26,12 +26,29 @@ import { buildReceiptHtml, buildReceiptViewModel } from '../receipt';
 import { resolveRatesConfig } from './ssContribution';
 
 /**
- * Fixed copy for the encrypted path. The password and any library text are
- * never shown: a failed protected generation always maps to one of these.
+ * Why a generation failed. The screen maps the code with `t`. For the encrypted
+ * path the password and any library text are never exposed: a failed protected
+ * generation always maps to one of the fixed codes. `failed` carries the
+ * technical message of any other failure, untranslated.
  */
-export const RECEIPT_ENCRYPTION_UNAVAILABLE_ERROR =
-  'No se puede cifrar: este empleado no tiene NIF/NIE ni contraseña propia. Añádelo en su ficha.';
-export const RECEIPT_ENCRYPTION_FAILED_ERROR = 'No se pudo generar el recibo protegido. Inténtalo de nuevo.';
+export type ReceiptGenerationError =
+  | {
+      readonly code:
+        | 'employee_not_found'
+        | 'employer_not_found'
+        | 'encryption_unavailable'
+        | 'encryption_failed';
+    }
+  | { readonly code: 'failed'; readonly detail: string };
+
+type FixedErrorCode = Exclude<ReceiptGenerationError['code'], 'failed'>;
+
+/** Internal carrier so the flow can bail out with a fixed code from any depth of the try block. */
+class ReceiptGenerationFailure extends Error {
+  constructor(readonly code: FixedErrorCode) {
+    super(code);
+  }
+}
 
 export interface GenerateReceiptOptions {
   /**
@@ -61,7 +78,7 @@ export interface UseReceiptGeneratorResult {
     previous: { readonly run: PayrollRun } & GeneratedReceipt,
   ) => Promise<GeneratedReceipt | null>;
   readonly generating: boolean;
-  readonly error: string | null;
+  readonly error: ReceiptGenerationError | null;
 }
 
 export function useReceiptGenerator(): UseReceiptGeneratorResult {
@@ -72,7 +89,7 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
   const pdfGenerator = usePdfGenerator();
 
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReceiptGenerationError | null>(null);
 
   const generate = async (
     run: PayrollRun,
@@ -88,10 +105,10 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
         readReceiptFileNameFormat(settingsRepository),
       ]);
       if (employee === null) {
-        throw new Error('No se encontró el empleado de esta nómina.');
+        throw new ReceiptGenerationFailure('employee_not_found');
       }
       if (employer === null) {
-        throw new Error('No se encontró el empleador.');
+        throw new ReceiptGenerationFailure('employer_not_found');
       }
 
       // Fail closed BEFORE anything is printed: with encryption wanted and no
@@ -100,7 +117,7 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
       if (options.encrypt === true || employee.receiptEncryptionEnabled) {
         const resolved = resolveReceiptPassword(employee);
         if (!resolved.ok) {
-          throw new Error(RECEIPT_ENCRYPTION_UNAVAILABLE_ERROR);
+          throw new ReceiptGenerationFailure('encryption_unavailable');
         }
         password = resolved.password;
       }
@@ -144,10 +161,14 @@ export function useReceiptGenerator(): UseReceiptGeneratorResult {
         const { uri } = await pdfGenerator.generate(html, { ...nameOption, password });
         return { uri, issuedOnIso, encrypted: true };
       } catch {
-        throw new Error(RECEIPT_ENCRYPTION_FAILED_ERROR);
+        throw new ReceiptGenerationFailure('encryption_failed');
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(
+        caught instanceof ReceiptGenerationFailure
+          ? { code: caught.code }
+          : { code: 'failed', detail: caught instanceof Error ? caught.message : String(caught) },
+      );
       return null;
     } finally {
       setGenerating(false);

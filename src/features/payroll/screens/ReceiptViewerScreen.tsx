@@ -21,10 +21,11 @@ import {
   useReceiptRun,
   type RawReceiptViewerParams,
 } from '../domain';
-import { MAIL_UNAVAILABLE_HINT } from './components/receiptDispatchCopy';
-import { ReceiptViewerView, type ReceiptViewerPdfState } from './components/ReceiptViewerView';
-
-const RUN_MISSING_HINT = 'No se encontró la nómina de este recibo.';
+import {
+  ReceiptViewerView,
+  type ReceiptViewerMailHint,
+  type ReceiptViewerPdfState,
+} from './components/ReceiptViewerView';
 
 export interface ReceiptViewerScreenProps {
   readonly params: RawReceiptViewerParams;
@@ -58,11 +59,11 @@ export function ReceiptViewerScreen({ params }: ReceiptViewerScreenProps) {
   // No derivable password means the file cannot be opened: fail without mounting the viewer.
   const pdfState: ReceiptViewerPdfState = passwordState.status === 'unavailable' ? 'failed' : reportedState;
 
-  let mailHint: string | null = null;
+  let mailHint: ReceiptViewerMailHint | null = null;
   if (!dispatch.mailAvailable) {
-    mailHint = MAIL_UNAVAILABLE_HINT;
+    mailHint = 'mail_unavailable';
   } else if (runStatus === 'missing') {
-    mailHint = RUN_MISSING_HINT;
+    mailHint = 'run_missing';
   }
 
   return (
