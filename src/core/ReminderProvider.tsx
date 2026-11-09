@@ -23,7 +23,7 @@
  * which import `@/core` (enforced by `import/no-cycle`).
  */
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -41,21 +41,37 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
 
+  // Reconcile runs are chained so at most one touches the scheduler at a time.
+  // Without this, a run started under the old language (e.g. by a tap) could
+  // still be inside `reconcileReminder` when a language switch starts a new
+  // one, finish last, and leave the old-language copy scheduled. A run-id
+  // check alone cannot help: the stale run may already be past it.
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => {
     let cancelled = false;
 
-    async function reconcile() {
-      try {
-        const raw = await settings.get(REMINDER_PREFERENCES_KEY);
+    function reconcile(): Promise<void> {
+      const run = queueRef.current.then(async () => {
+        // A run queued by an effect that has since been torn down (language
+        // switch, new scheduler) is stale: the new effect queues its own run.
         if (cancelled) {
           return;
         }
-        const prefs = parseReminderPreferences(raw);
-        await reconcileReminder(scheduler, prefs, new Date(), getReminderCopy(t));
-      } catch {
-        // Reconciliation must never crash the app; the settings screen owns
-        // surfacing a denied-permission state to the user (design D5).
-      }
+        try {
+          const raw = await settings.get(REMINDER_PREFERENCES_KEY);
+          if (cancelled) {
+            return;
+          }
+          const prefs = parseReminderPreferences(raw);
+          await reconcileReminder(scheduler, prefs, new Date(), getReminderCopy(t));
+        } catch {
+          // Reconciliation must never crash the app; the settings screen owns
+          // surfacing a denied-permission state to the user (design D5).
+        }
+      });
+      queueRef.current = run;
+      return run;
     }
 
     void reconcile();
