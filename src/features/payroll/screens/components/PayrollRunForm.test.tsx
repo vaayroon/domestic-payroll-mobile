@@ -67,6 +67,15 @@ describe('PayrollRunForm', () => {
     expect(next.props.accessibilityRole).toBe('button');
   });
 
+  it('extends the period steppers touch area beyond the small glyphs', async () => {
+    const renderer = await renderForm(baseProps);
+
+    for (const testID of ['payroll-run-form-period-prev', 'payroll-run-form-period-next']) {
+      const hitSlop = renderer.root.findByProps({ testID }).props.hitSlop;
+      expect(hitSlop).toEqual({ top: 12, bottom: 12, left: 16, right: 16 });
+    }
+  });
+
   it('shows the empty-preview placeholder when there is no preview yet', async () => {
     const renderer = await renderForm(baseProps);
 

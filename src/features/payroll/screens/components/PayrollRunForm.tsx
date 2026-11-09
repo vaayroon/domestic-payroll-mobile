@@ -23,6 +23,13 @@ import { formatEuros } from '../formatEuros';
 
 const EXTRA_PAY_MODES: readonly ExtraPayMode[] = ['INCLUDE_IN_MONTH', 'PRORATE', 'EXCLUDE'];
 
+/**
+ * The '<' / '>' glyphs alone are about 8x25 dp. Extends the touch area to
+ * roughly 40x49 dp, close to the 48 dp Android minimum, without changing the
+ * layout. The month label in between is not pressable, so overlap is harmless.
+ */
+const PERIOD_STEPPER_HIT_SLOP = { top: 12, bottom: 12, left: 16, right: 16 } as const;
+
 export interface PayrollRunFormProps {
   readonly employees: Employee[];
   readonly employeesLoading: boolean;
@@ -138,6 +145,7 @@ export function PayrollRunForm({
             testID="payroll-run-form-period-prev"
             accessibilityRole="button"
             accessibilityLabel={t(($) => $.payroll.form.periodPrevious)}
+            hitSlop={PERIOD_STEPPER_HIT_SLOP}
             onPress={onDecrementMonth}
           >
             <Text className="text-lg font-semibold text-emerald-400">{'<'}</Text>
@@ -149,6 +157,7 @@ export function PayrollRunForm({
             testID="payroll-run-form-period-next"
             accessibilityRole="button"
             accessibilityLabel={t(($) => $.payroll.form.periodNext)}
+            hitSlop={PERIOD_STEPPER_HIT_SLOP}
             onPress={onIncrementMonth}
           >
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>
