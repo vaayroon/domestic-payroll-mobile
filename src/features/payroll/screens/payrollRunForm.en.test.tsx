@@ -106,6 +106,12 @@ describe('payroll run form localization (en)', () => {
     expect(
       renderer.root.findByProps({ testID: 'payroll-run-form-period-start' }).props.placeholder,
     ).toBe('YYYY-MM-DD');
+    expect(
+      renderer.root.findByProps({ testID: 'payroll-run-form-period-prev' }).props.accessibilityLabel,
+    ).toBe('Previous month');
+    expect(
+      renderer.root.findByProps({ testID: 'payroll-run-form-period-next' }).props.accessibilityLabel,
+    ).toBe('Next month');
   });
 
   it('maps form error codes to English', async () => {

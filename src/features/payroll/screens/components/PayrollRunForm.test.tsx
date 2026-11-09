@@ -56,6 +56,17 @@ describe('PayrollRunForm', () => {
     expect(scroll.findByProps({ testID: 'payroll-run-form-submit' })).toBeTruthy();
   });
 
+  it('labels the period previous/next buttons for screen readers', async () => {
+    const renderer = await renderForm(baseProps);
+
+    const prev = renderer.root.findByProps({ testID: 'payroll-run-form-period-prev' });
+    const next = renderer.root.findByProps({ testID: 'payroll-run-form-period-next' });
+    expect(prev.props.accessibilityLabel).toBe('Mes anterior');
+    expect(prev.props.accessibilityRole).toBe('button');
+    expect(next.props.accessibilityLabel).toBe('Mes siguiente');
+    expect(next.props.accessibilityRole).toBe('button');
+  });
+
   it('shows the empty-preview placeholder when there is no preview yet', async () => {
     const renderer = await renderForm(baseProps);
 

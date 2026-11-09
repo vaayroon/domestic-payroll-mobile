@@ -4,6 +4,8 @@ export const payroll = {
     employeesLoading: 'Cargando empleados…',
     employeesEmpty: 'No hay empleados activos. Añade uno primero.',
     period: 'Periodo',
+    periodPrevious: 'Mes anterior',
+    periodNext: 'Mes siguiente',
     range: 'Rango de días trabajados',
     from: 'Desde',
     to: 'Hasta',

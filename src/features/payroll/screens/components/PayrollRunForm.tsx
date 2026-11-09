@@ -134,13 +134,23 @@ export function PayrollRunForm({
       <View>
         <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.period)}</Text>
         <View className="flex-row items-center gap-3">
-          <Pressable testID="payroll-run-form-period-prev" onPress={onDecrementMonth}>
+          <Pressable
+            testID="payroll-run-form-period-prev"
+            accessibilityRole="button"
+            accessibilityLabel={t(($) => $.payroll.form.periodPrevious)}
+            onPress={onDecrementMonth}
+          >
             <Text className="text-lg font-semibold text-emerald-400">{'<'}</Text>
           </Pressable>
           <Text testID="payroll-run-form-period-label" className="text-white">
             {formatMonthYear(t, periodYear, periodMonth)}
           </Text>
-          <Pressable testID="payroll-run-form-period-next" onPress={onIncrementMonth}>
+          <Pressable
+            testID="payroll-run-form-period-next"
+            accessibilityRole="button"
+            accessibilityLabel={t(($) => $.payroll.form.periodNext)}
+            onPress={onIncrementMonth}
+          >
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>
           </Pressable>
         </View>
