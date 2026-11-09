@@ -8,6 +8,8 @@
 import { act, create } from 'react-test-renderer';
 
 import { NotifyServiceProvider } from '@/core/NotifyServiceProvider';
+import { ReminderReconcileQueueContext } from '@/core/ReminderReconcileQueue';
+import { createSerialQueue, type SerialQueue } from '@/core/serialQueue';
 import { RepositoryProvider, type Repositories } from '@/core/RepositoryProvider';
 import { FakeNotificationScheduler } from '@/services/notify/testing/fakes';
 import type { AppSetting, EmployeeRepository, EmployerRepository, PayrollRunRepository, SettingsRepository } from '@/types';
@@ -64,7 +66,11 @@ function FormHarness({ onResult }: { onResult: (result: UseReminderSettingsResul
   return null;
 }
 
-async function renderUseReminderSettings(settings: SettingsRepository, scheduler: FakeNotificationScheduler) {
+async function renderUseReminderSettings(
+  settings: SettingsRepository,
+  scheduler: FakeNotificationScheduler,
+  queue: SerialQueue = createSerialQueue(),
+) {
   const repositories: Repositories = {
     employers: fakeEmployerRepository,
     employees: fakeEmployeeRepository,
@@ -78,7 +84,9 @@ async function renderUseReminderSettings(settings: SettingsRepository, scheduler
     create(
       <RepositoryProvider repositories={repositories}>
         <NotifyServiceProvider scheduler={scheduler}>
-          <FormHarness onResult={(result) => (latest = result)} />
+          <ReminderReconcileQueueContext.Provider value={queue}>
+            <FormHarness onResult={(result) => (latest = result)} />
+          </ReminderReconcileQueueContext.Provider>
         </NotifyServiceProvider>
       </RepositoryProvider>,
     );
@@ -229,5 +237,65 @@ describe('useReminderSettings', () => {
 
     expect(success).toBe(false);
     expect(harness.current.saveError).toEqual({ code: 'save_failed', detail: 'disk full' });
+  });
+
+  it('waits for an in-flight provider reconcile before rescheduling on save', async () => {
+    const settings = new InMemorySettingsRepository();
+    const scheduler = new FakeNotificationScheduler();
+    scheduler.permissionStatus = 'granted';
+    const queue = createSerialQueue();
+    const harness = await renderUseReminderSettings(settings, scheduler, queue);
+
+    // Another reconcile (e.g. the provider's foreground run) holds the queue.
+    let releaseInFlight!: () => void;
+    const inFlight = queue(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseInFlight = resolve;
+        }),
+    );
+
+    await act(async () => {
+      harness.current.setEnabled(true);
+    });
+    let submitted!: Promise<boolean>;
+    await act(async () => {
+      submitted = harness.current.submit();
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    // Persisted already, but the schedule waits its turn.
+    expect(await settings.get('reminder.preferences')).not.toBeNull();
+    expect(scheduler.scheduleCallCount).toBe(0);
+
+    await act(async () => {
+      releaseInFlight();
+      await inFlight;
+      await submitted;
+    });
+
+    expect(scheduler.scheduleCallCount).toBe(1);
+    expect(harness.current.saveError).toBeNull();
+  });
+
+  it('still surfaces a reconcile failure as save_failed through the queue', async () => {
+    const settings = new InMemorySettingsRepository();
+    const scheduler = new FakeNotificationScheduler();
+    scheduler.permissionStatus = 'granted';
+    jest.spyOn(scheduler, 'scheduleReminder').mockRejectedValueOnce(new Error('alarm unavailable'));
+    const harness = await renderUseReminderSettings(settings, scheduler);
+
+    await act(async () => {
+      harness.current.setEnabled(true);
+    });
+    let success = true;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(false);
+    expect(harness.current.saveError).toEqual({ code: 'save_failed', detail: 'alarm unavailable' });
   });
 });

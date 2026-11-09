@@ -23,7 +23,7 @@
  * which import `@/core` (enforced by `import/no-cycle`).
  */
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { AppState, type AppStateStatus } from 'react-native';
 
@@ -32,7 +32,9 @@ import { parseReminderPreferences, REMINDER_PREFERENCES_KEY } from '@/features/r
 
 import { getReminderCopy, useTranslation } from './i18n';
 import { useNotificationScheduler } from './NotifyServiceProvider';
+import { ReminderReconcileQueueContext } from './ReminderReconcileQueue';
 import { useSettingsRepository } from './RepositoryProvider';
+import { createSerialQueue } from './serialQueue';
 
 export function ReminderProvider({ children }: { children: ReactNode }) {
   const scheduler = useNotificationScheduler();
@@ -41,18 +43,19 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
   const language = i18n.language;
 
-  // Reconcile runs are chained so at most one touches the scheduler at a time.
+  // Reconcile runs go through one serial queue, shared with the settings
+  // screen's save via context, so at most one touches the scheduler at a time.
   // Without this, a run started under the old language (e.g. by a tap) could
   // still be inside `reconcileReminder` when a language switch starts a new
   // one, finish last, and leave the old-language copy scheduled. A run-id
   // check alone cannot help: the stale run may already be past it.
-  const queueRef = useRef<Promise<void>>(Promise.resolve());
+  const [enqueue] = useState(createSerialQueue);
 
   useEffect(() => {
     let cancelled = false;
 
     function reconcile(): Promise<void> {
-      const run = queueRef.current.then(async () => {
+      return enqueue(async () => {
         // A run queued by an effect that has since been torn down (language
         // switch, new scheduler) is stale: the new effect queues its own run.
         if (cancelled) {
@@ -70,8 +73,6 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
           // surfacing a denied-permission state to the user (design D5).
         }
       });
-      queueRef.current = run;
-      return run;
     }
 
     void reconcile();
@@ -103,7 +104,11 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
     };
     // `language` re-runs the effect on a language switch, so the pending
     // notification and the channel name are rewritten in the new language.
-  }, [scheduler, settings, router, t, language]);
+  }, [enqueue, scheduler, settings, router, t, language]);
 
-  return <>{children}</>;
+  return (
+    <ReminderReconcileQueueContext.Provider value={enqueue}>
+      {children}
+    </ReminderReconcileQueueContext.Provider>
+  );
 }

@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 
 import { getReminderCopy, useTranslation } from '@/core/i18n';
 import { useNotificationScheduler } from '@/core/NotifyServiceProvider';
+import { useReminderReconcileQueue } from '@/core/ReminderReconcileQueue';
 import { useSettingsRepository } from '@/core/RepositoryProvider';
 
 import { reconcileReminder } from '../application/reconcileReminder';
@@ -55,6 +56,7 @@ function clamp(value: number, min: number, max: number): number {
 export function useReminderSettings(): UseReminderSettingsResult {
   const settings = useSettingsRepository();
   const scheduler = useNotificationScheduler();
+  const enqueueReconcile = useReminderReconcileQueue();
   const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
@@ -124,7 +126,9 @@ export function useReminderSettings(): UseReminderSettingsResult {
       }
 
       await settings.set(REMINDER_PREFERENCES_KEY, serialized);
-      await reconcileReminder(scheduler, values, new Date(), getReminderCopy(t));
+      // Through the shared queue: never overlaps a provider reconcile that may
+      // have read the preferences before this save persisted them.
+      await enqueueReconcile(() => reconcileReminder(scheduler, values, new Date(), getReminderCopy(t)));
       return true;
     } catch (caught) {
       setSaveError({ code: 'save_failed', detail: caught instanceof Error ? caught.message : String(caught) });
