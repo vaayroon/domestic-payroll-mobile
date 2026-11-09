@@ -90,10 +90,12 @@ describe('PayrollRunHistoryView', () => {
   });
 
   it('shows the error message when present', async () => {
-    const renderer = await renderView({ ...baseProps, error: 'boom' });
+    const renderer = await renderView({ ...baseProps, error: { code: 'read_failed', detail: 'boom' } });
 
     const errorNode = renderer.root.findByProps({ testID: 'payroll-run-history-error' });
     expect(errorNode.props.children).toBe('boom');
+    const messageNode = renderer.root.findByProps({ testID: 'payroll-run-history-error-message' });
+    expect(messageNode.props.children).toBe('No se pudo cargar el historial de nóminas.');
   });
 
   it('renders each run’s período and líquido', async () => {

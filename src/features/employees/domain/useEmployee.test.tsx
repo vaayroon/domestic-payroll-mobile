@@ -125,4 +125,25 @@ describe('useEmployee', () => {
 
     expect(last).toEqual({ employee: null, loading: false, error: null });
   });
+
+  it('exposes a read_failed code with the technical detail when the repository rejects', async () => {
+    const employeeRepository: EmployeeRepository = {
+      list: notImplemented('EmployeeRepository.list'),
+      getById: async () => {
+        throw new Error('disk read failure');
+      },
+      create: notImplemented('EmployeeRepository.create'),
+      update: notImplemented('EmployeeRepository.update'),
+      remove: notImplemented('EmployeeRepository.remove'),
+    };
+
+    const snapshots = await renderUseEmployee('employee-fake-target', employeeRepository);
+    const last = snapshots[snapshots.length - 1];
+
+    expect(last).toEqual({
+      employee: null,
+      loading: false,
+      error: { code: 'read_failed', detail: 'disk read failure' },
+    });
+  });
 });

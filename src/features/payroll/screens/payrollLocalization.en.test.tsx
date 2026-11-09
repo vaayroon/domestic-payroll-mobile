@@ -141,6 +141,20 @@ describe('payroll receipt localization (en)', () => {
     );
   });
 
+  it('maps the history read error code to English and keeps the detail as a secondary line', async () => {
+    const renderer = await render(
+      <PayrollRunHistoryView
+        {...historyProps}
+        error={{ code: 'read_failed', detail: 'disk I/O error' }}
+      />,
+    );
+
+    expect(child(renderer, 'payroll-run-history-error-message')).toBe(
+      'Could not load the payroll history.',
+    );
+    expect(child(renderer, 'payroll-run-history-error')).toBe('disk I/O error');
+  });
+
   it('renders the protected banner and generation error codes in English', async () => {
     const renderer = await render(
       <PayrollRunHistoryView

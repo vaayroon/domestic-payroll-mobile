@@ -135,4 +135,14 @@ describe('usePayrollRunHistory', () => {
 
     expect(harness.current.runs.map((run) => run.id)).toEqual([newer.id, older.id]);
   });
+
+  it('exposes a read_failed code with the technical detail when the read rejects', async () => {
+    const repository = new InMemoryPayrollRunRepository();
+    jest.spyOn(repository, 'listByEmployee').mockRejectedValue(new Error('disk read failure'));
+
+    const harness = await renderUsePayrollRunHistory(repository);
+
+    expect(harness.current.error).toEqual({ code: 'read_failed', detail: 'disk read failure' });
+    expect(harness.current.loading).toBe(false);
+  });
 });

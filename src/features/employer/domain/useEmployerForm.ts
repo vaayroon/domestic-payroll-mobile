@@ -22,6 +22,9 @@ export type EmployerLoadError =
   | { readonly code: 'not_found' }
   | { readonly code: 'read_failed'; readonly detail: string };
 
+/** Save failure; screens map `code` with `t`. `save_failed` carries the repository's technical message. */
+export type EmployerFormSaveError = { readonly code: 'save_failed'; readonly detail: string };
+
 export interface UseEmployerFormResult {
   readonly loading: boolean;
   readonly loadError: EmployerLoadError | null;
@@ -30,7 +33,7 @@ export interface UseEmployerFormResult {
   readonly setField: <K extends keyof EmployerFormInput>(field: K, value: EmployerFormInput[K]) => void;
   readonly submit: () => Promise<boolean>;
   readonly saving: boolean;
-  readonly saveError: string | null;
+  readonly saveError: EmployerFormSaveError | null;
 }
 
 const EMPTY_VALUES: EmployerFormInput = { name: '', nif: '', address: '', ccc: '', defaultLugar: '' };
@@ -44,7 +47,7 @@ export function useEmployerForm(): UseEmployerFormResult {
   const [values, setValues] = useState<EmployerFormInput>(EMPTY_VALUES);
   const [errors, setErrors] = useState<EmployerFormErrors>({});
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<EmployerFormSaveError | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +109,7 @@ export function useEmployerForm(): UseEmployerFormResult {
       await employerRepository.update(employerId, result.value);
       return true;
     } catch (caught) {
-      setSaveError(caught instanceof Error ? caught.message : String(caught));
+      setSaveError({ code: 'save_failed', detail: caught instanceof Error ? caught.message : String(caught) });
       return false;
     } finally {
       setSaving(false);

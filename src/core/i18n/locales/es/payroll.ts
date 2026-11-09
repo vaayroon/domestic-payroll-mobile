@@ -42,6 +42,9 @@ export const payroll = {
     sendMail: 'Enviar por correo',
     encrypt: 'Cifrar',
     sent: 'Recibo enviado.',
+    errors: {
+      read_failed: 'No se pudo cargar el historial de nóminas.',
+    },
   },
   protection: {
     generatedProtected: 'Recibo generado y protegido con contraseña.',

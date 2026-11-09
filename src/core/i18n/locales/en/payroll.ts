@@ -45,6 +45,9 @@ export const payroll: Catalog<typeof es> = {
     sendMail: 'Send by email',
     encrypt: 'Encrypt',
     sent: 'Payslip sent.',
+    errors: {
+      read_failed: 'Could not load the payroll history.',
+    },
   },
   protection: {
     generatedProtected: 'Payslip generated and protected with a password.',

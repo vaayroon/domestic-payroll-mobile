@@ -14,13 +14,16 @@ import { validateEmployeeForm, type EmployeeFormErrors, type EmployeeFormInput }
 
 export type EmployeeFormMode = { kind: 'create' } | { kind: 'edit'; employee: Employee };
 
+/** Save failure; screens map `code` with `t`. `save_failed` carries the repository's technical message untranslated. */
+export type EmployeeFormSaveError = { readonly code: 'save_failed'; readonly detail: string };
+
 export interface UseEmployeeFormResult {
   readonly values: EmployeeFormInput;
   readonly errors: EmployeeFormErrors;
   readonly setField: <K extends keyof EmployeeFormInput>(field: K, value: EmployeeFormInput[K]) => void;
   readonly submit: () => Promise<boolean>;
   readonly saving: boolean;
-  readonly saveError: string | null;
+  readonly saveError: EmployeeFormSaveError | null;
 }
 
 function seedValues(mode: EmployeeFormMode): EmployeeFormInput {
@@ -66,7 +69,7 @@ export function useEmployeeForm(mode: EmployeeFormMode): UseEmployeeFormResult {
   const [values, setValues] = useState<EmployeeFormInput>(() => seedValues(mode));
   const [errors, setErrors] = useState<EmployeeFormErrors>({});
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<EmployeeFormSaveError | null>(null);
 
   const setField = <K extends keyof EmployeeFormInput>(field: K, value: EmployeeFormInput[K]) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -89,7 +92,7 @@ export function useEmployeeForm(mode: EmployeeFormMode): UseEmployeeFormResult {
       }
       return true;
     } catch (caught) {
-      setSaveError(caught instanceof Error ? caught.message : String(caught));
+      setSaveError({ code: 'save_failed', detail: caught instanceof Error ? caught.message : String(caught) });
       return false;
     } finally {
       setSaving(false);

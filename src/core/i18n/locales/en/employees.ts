@@ -8,6 +8,9 @@ export const employees: Catalog<typeof es> = {
     add: 'Add employee',
     loading: 'Loading…',
     empty: 'No employees yet. Add the first one.',
+    errors: {
+      read_failed: 'Could not load the employees.',
+    },
     item: {
       history: 'History',
       edit: 'Edit',
@@ -17,6 +20,9 @@ export const employees: Catalog<typeof es> = {
   edit: {
     loading: 'Loading…',
     notFound: 'Employee not found.',
+    errors: {
+      read_failed: 'Could not load the employee.',
+    },
   },
   form: {
     submitCreate: 'Save',

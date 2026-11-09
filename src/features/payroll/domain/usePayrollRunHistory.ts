@@ -11,10 +11,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePayrollRunRepository } from '@/core';
 import type { PayrollRun } from '@/types';
 
+/** Load failure of the run history; screens map `code` with `t`. `read_failed` carries the repository's technical message untranslated. */
+export type PayrollRunHistoryError = { readonly code: 'read_failed'; readonly detail: string };
+
 export interface UsePayrollRunHistoryResult {
   readonly runs: PayrollRun[];
   readonly loading: boolean;
-  readonly error: string | null;
+  readonly error: PayrollRunHistoryError | null;
   readonly refresh: () => Promise<void>;
 }
 
@@ -36,7 +39,7 @@ export function usePayrollRunHistory(employeeId: string): UsePayrollRunHistoryRe
 
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PayrollRunHistoryError | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -45,7 +48,10 @@ export function usePayrollRunHistory(employeeId: string): UsePayrollRunHistoryRe
       setRuns(sortMostRecentFirst(all));
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError({
+        code: 'read_failed',
+        detail: caught instanceof Error ? caught.message : String(caught),
+      });
     } finally {
       setLoading(false);
     }

@@ -216,4 +216,18 @@ describe('useReminderSettings', () => {
     // Permission status is unknown, so no denied banner is claimed.
     expect(harness.current.permissionDenied).toBe(false);
   });
+
+  it('exposes a save_failed code with the technical detail when persisting rejects', async () => {
+    const settings = new InMemorySettingsRepository();
+    jest.spyOn(settings, 'set').mockRejectedValueOnce(new Error('disk full'));
+    const harness = await renderUseReminderSettings(settings, new FakeNotificationScheduler());
+
+    let success = true;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(false);
+    expect(harness.current.saveError).toEqual({ code: 'save_failed', detail: 'disk full' });
+  });
 });

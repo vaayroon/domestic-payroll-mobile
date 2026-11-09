@@ -8,12 +8,14 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
+import type { EmployeeListError } from '../../domain';
+
 import { EmployeeListItem } from './EmployeeListItem';
 
 export interface EmployeeListViewProps {
   readonly employees: Employee[];
   readonly loading: boolean;
-  readonly error: string | null;
+  readonly error: EmployeeListError | null;
   readonly onAdd: () => void;
   readonly onEdit: (id: string) => void;
   readonly onDeactivate: (id: string) => void;
@@ -50,9 +52,15 @@ export function EmployeeListView({
       </View>
 
       {error !== null ? (
-        <Text testID="employee-list-error" className="px-4 text-red-400">
-          {error}
-        </Text>
+        <View className="px-4">
+          <Text testID="employee-list-error-message" className="text-red-400">
+            {t(($) => $.employees.list.errors[error.code])}
+          </Text>
+          {/* Technical detail as a secondary line (untranslated). */}
+          <Text testID="employee-list-error" className="text-sm text-slate-400">
+            {error.detail}
+          </Text>
+        </View>
       ) : null}
 
       {loading ? (
