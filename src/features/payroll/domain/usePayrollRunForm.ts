@@ -27,7 +27,7 @@ import type { Employee } from '@/types';
 
 import { calculatePayrollRun, resolveEffectivePeriod, type ExtraPayMode, type PayrollResult } from './engine';
 import { resolveRatesConfig } from './ssContribution';
-import { useActiveEmployees } from './useActiveEmployees';
+import { useActiveEmployees, type ActiveEmployeesError } from './useActiveEmployees';
 
 /**
  * Why a submit was refused or failed. The screen maps the code with `t`;
@@ -48,6 +48,8 @@ export type PayrollRunFormError =
 export interface UsePayrollRunFormResult {
   readonly employees: Employee[];
   readonly employeesLoading: boolean;
+  /** The employee list could not be read; the form shows this instead of an empty list. */
+  readonly employeesError: ActiveEmployeesError | null;
   readonly selectedEmployeeId: string | null;
   readonly selectEmployee: (id: string) => void;
   readonly periodYear: number;
@@ -97,7 +99,7 @@ function isoForDay(year: number, month: number, day: number): string {
 }
 
 export function usePayrollRunForm(): UsePayrollRunFormResult {
-  const { employees, loading: employeesLoading } = useActiveEmployees();
+  const { employees, loading: employeesLoading, error: employeesError } = useActiveEmployees();
   const payrollRunRepository = usePayrollRunRepository();
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -241,6 +243,7 @@ export function usePayrollRunForm(): UsePayrollRunFormResult {
   return {
     employees,
     employeesLoading,
+    employeesError,
     selectedEmployeeId,
     selectEmployee: setSelectedEmployeeId,
     periodYear,

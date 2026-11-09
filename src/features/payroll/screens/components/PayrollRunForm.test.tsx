@@ -28,6 +28,7 @@ const FAKE_EMPLOYEE: Employee = makeEmployee({
 const baseProps: PayrollRunFormProps = {
   employees: [FAKE_EMPLOYEE],
   employeesLoading: false,
+  employeesError: null,
   selectedEmployeeId: FAKE_EMPLOYEE.id,
   onSelectEmployee: () => {},
   periodYear: 2026,
@@ -74,6 +75,20 @@ describe('PayrollRunForm', () => {
       const hitSlop = renderer.root.findByProps({ testID }).props.hitSlop;
       expect(hitSlop).toEqual({ top: 12, bottom: 12, left: 16, right: 16 });
     }
+  });
+
+  it('shows the employee read error instead of the "no active employees" hint', async () => {
+    const renderer = await renderForm({
+      ...baseProps,
+      employees: [],
+      employeesError: { code: 'read_failed', detail: 'disk I/O error' },
+    });
+
+    const message = renderer.root.findByProps({ testID: 'payroll-run-form-employees-error' });
+    const detail = renderer.root.findByProps({ testID: 'payroll-run-form-employees-error-detail' });
+    expect(message.props.children).toBe('No se pudieron cargar los empleados.');
+    expect(detail.props.children).toBe('disk I/O error');
+    expect(renderer.root.findAllByProps({ testID: 'payroll-run-form-employees-empty' })).toHaveLength(0);
   });
 
   it('shows the empty-preview placeholder when there is no preview yet', async () => {

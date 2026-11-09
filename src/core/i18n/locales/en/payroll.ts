@@ -6,6 +6,9 @@ export const payroll: Catalog<typeof es> = {
     employee: 'Employee',
     employeesLoading: 'Loading employees…',
     employeesEmpty: 'There are no active employees. Add one first.',
+    employeesErrors: {
+      read_failed: 'Could not load the employees.',
+    },
     period: 'Period',
     periodPrevious: 'Previous month',
     periodNext: 'Next month',

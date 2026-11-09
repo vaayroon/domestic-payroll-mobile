@@ -91,4 +91,15 @@ describe('useActiveEmployees', () => {
     expect(harness.current.loading).toBe(false);
     expect(harness.current.error).toBeNull();
   });
+
+  it('exposes a read_failed error with the technical detail when the list cannot be read', async () => {
+    const repository = new InMemoryEmployeeRepository([]);
+    jest.spyOn(repository, 'list').mockRejectedValue(new Error('disk I/O error'));
+
+    const harness = await renderUseActiveEmployees(repository);
+
+    expect(harness.current.error).toEqual({ code: 'read_failed', detail: 'disk I/O error' });
+    expect(harness.current.employees).toEqual([]);
+    expect(harness.current.loading).toBe(false);
+  });
 });

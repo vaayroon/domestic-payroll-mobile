@@ -3,6 +3,9 @@ export const payroll = {
     employee: 'Empleado',
     employeesLoading: 'Cargando empleados…',
     employeesEmpty: 'No hay empleados activos. Añade uno primero.',
+    employeesErrors: {
+      read_failed: 'No se pudieron cargar los empleados.',
+    },
     period: 'Periodo',
     periodPrevious: 'Mes anterior',
     periodNext: 'Mes siguiente',

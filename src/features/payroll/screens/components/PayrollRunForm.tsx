@@ -18,7 +18,7 @@ import { FormScrollView } from '@/core';
 import { formatMonthYear, useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
-import type { ExtraPayMode, PayrollResult, PayrollRunFormError } from '../../domain';
+import type { ActiveEmployeesError, ExtraPayMode, PayrollResult, PayrollRunFormError } from '../../domain';
 import { formatEuros } from '../formatEuros';
 
 const EXTRA_PAY_MODES: readonly ExtraPayMode[] = ['INCLUDE_IN_MONTH', 'PRORATE', 'EXCLUDE'];
@@ -33,6 +33,8 @@ const PERIOD_STEPPER_HIT_SLOP = { top: 12, bottom: 12, left: 16, right: 16 } as 
 export interface PayrollRunFormProps {
   readonly employees: Employee[];
   readonly employeesLoading: boolean;
+  /** Shown instead of the "no active employees" hint when the list could not be read. */
+  readonly employeesError: ActiveEmployeesError | null;
   readonly selectedEmployeeId: string | null;
   readonly onSelectEmployee: (id: string) => void;
   readonly periodYear: number;
@@ -59,6 +61,7 @@ export interface PayrollRunFormProps {
 export function PayrollRunForm({
   employees,
   employeesLoading,
+  employeesError,
   selectedEmployeeId,
   onSelectEmployee,
   periodYear,
@@ -115,6 +118,15 @@ export function PayrollRunForm({
           <Text testID="payroll-run-form-employees-loading" className="text-slate-400">
             {t(($) => $.payroll.form.employeesLoading)}
           </Text>
+        ) : employeesError !== null ? (
+          <View>
+            <Text testID="payroll-run-form-employees-error" className="text-red-400">
+              {t(($) => $.payroll.form.employeesErrors[employeesError.code])}
+            </Text>
+            <Text testID="payroll-run-form-employees-error-detail" className="text-sm text-slate-400">
+              {employeesError.detail}
+            </Text>
+          </View>
         ) : employees.length === 0 ? (
           <Text testID="payroll-run-form-employees-empty" className="text-slate-400">
             {t(($) => $.payroll.form.employeesEmpty)}

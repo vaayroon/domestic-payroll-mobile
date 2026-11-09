@@ -29,6 +29,7 @@ const PREVIEW: PayrollResult = {
 const formProps: PayrollRunFormProps = {
   employees: [FAKE_EMPLOYEE],
   employeesLoading: false,
+  employeesError: null,
   selectedEmployeeId: FAKE_EMPLOYEE.id,
   onSelectEmployee: () => {},
   periodYear: 2026,
@@ -107,11 +108,31 @@ describe('payroll run form localization (en)', () => {
       renderer.root.findByProps({ testID: 'payroll-run-form-period-start' }).props.placeholder,
     ).toBe('YYYY-MM-DD');
     expect(
-      renderer.root.findByProps({ testID: 'payroll-run-form-period-prev' }).props.accessibilityLabel,
+      renderer.root.findByProps({ testID: 'payroll-run-form-period-prev' }).props
+        .accessibilityLabel,
     ).toBe('Previous month');
     expect(
-      renderer.root.findByProps({ testID: 'payroll-run-form-period-next' }).props.accessibilityLabel,
+      renderer.root.findByProps({ testID: 'payroll-run-form-period-next' }).props
+        .accessibilityLabel,
     ).toBe('Next month');
+  });
+
+  it('maps the employee list read error to English instead of the empty hint', async () => {
+    const renderer = await render(
+      <PayrollRunForm
+        {...formProps}
+        employees={[]}
+        employeesError={{ code: 'read_failed', detail: 'disk I/O error' }}
+      />,
+    );
+
+    expect(child(renderer, 'payroll-run-form-employees-error')).toBe(
+      'Could not load the employees.',
+    );
+    expect(child(renderer, 'payroll-run-form-employees-error-detail')).toBe('disk I/O error');
+    expect(
+      renderer.root.findAllByProps({ testID: 'payroll-run-form-employees-empty' }),
+    ).toHaveLength(0);
   });
 
   it('maps form error codes to English', async () => {
