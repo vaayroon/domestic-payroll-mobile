@@ -29,6 +29,10 @@ describe('ExpoNotificationScheduler foreground handler', () => {
     const behavior = await handler.handleNotification({} as Notifications.Notification);
 
     expect(behavior).toEqual(FOREGROUND_PRESENTATION);
-    expect(behavior).toMatchObject({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false });
+    expect(behavior).toMatchObject({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+    });
   });
 });
