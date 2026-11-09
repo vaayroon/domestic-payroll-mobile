@@ -3,9 +3,11 @@
  * is covered by `useReminderSettings.test.tsx`; here the hook is stubbed.
  */
 
+import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
 import { FormScrollView } from '@/core';
+import { i18n } from '@/core/i18n';
 
 import type { UseReminderSettingsResult } from '../hooks/useReminderSettings';
 import { ReminderSettingsScreen } from './ReminderSettingsScreen';
@@ -15,7 +17,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn() }),
 }));
 
-const mockLoadedSettings: UseReminderSettingsResult = {
+let mockLoadedSettings: UseReminderSettingsResult = {
   loading: false,
   values: { enabled: true, dayOfMonth: 28, hour: 9, minute: 0 },
   setEnabled: () => {},
@@ -46,5 +48,38 @@ describe('ReminderSettingsScreen', () => {
 
     const scroll = renderer.root.findByType(FormScrollView);
     expect(scroll.findByProps({ testID: 'reminder-settings-submit' })).toBeTruthy();
+  });
+
+  describe('in English', () => {
+    const defaultSettings = mockLoadedSettings;
+
+    beforeEach(async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    });
+
+    afterEach(() => {
+      mockLoadedSettings = defaultSettings;
+    });
+
+    it('renders the screen copy in English', async () => {
+      mockLoadedSettings = { ...defaultSettings, permissionDenied: true, saveError: 'disk full' };
+
+      const renderer = await renderScreen();
+
+      const texts = renderer.root.findAllByType(Text).map((node) => String(node.props.children));
+      expect(texts).toEqual(
+        expect.arrayContaining([
+          'Monthly reminder',
+          'Reminder on',
+          'Day of the month',
+          'Time',
+          'Turn on notifications in the system settings to receive the reminder.',
+          'Could not save: disk full',
+          'Save',
+        ]),
+      );
+    });
   });
 });

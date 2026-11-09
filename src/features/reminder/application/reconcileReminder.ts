@@ -7,7 +7,7 @@
  * `FakeNotificationScheduler`.
  */
 
-import type { NotificationScheduler } from '@/types';
+import type { NotificationScheduler, ReminderCopy } from '@/types';
 
 import { computeNextFireDate } from '../domain/nextFireDate';
 import type { ReminderPreferences } from '../domain/preferences';
@@ -17,13 +17,15 @@ import type { ReminderPreferences } from '../domain/preferences';
  * - disabled -> cancel any existing reminder.
  * - enabled but permission not granted -> no-op (never crashes; the settings
  *   UI owns prompting/surfacing the denied state).
- * - enabled and granted -> ensure the Android channel exists, then schedule
- *   the next occurrence computed from `now`.
+ * - enabled and granted -> ensure the Android channel exists (named from
+ *   `copy`, so a language change renames it), then schedule the next
+ *   occurrence computed from `now` with the same localized `copy`.
  */
 export async function reconcileReminder(
   scheduler: NotificationScheduler,
   prefs: ReminderPreferences,
   now: Date,
+  copy: ReminderCopy,
 ): Promise<void> {
   if (!prefs.enabled) {
     await scheduler.cancelReminder();
@@ -35,7 +37,7 @@ export async function reconcileReminder(
     return;
   }
 
-  await scheduler.ensureChannel();
+  await scheduler.ensureChannel(copy.channelName);
   const fireDate = computeNextFireDate(now, prefs.dayOfMonth, prefs.hour, prefs.minute);
-  await scheduler.scheduleReminder(fireDate);
+  await scheduler.scheduleReminder(fireDate, { title: copy.title, body: copy.body });
 }

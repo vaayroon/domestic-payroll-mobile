@@ -140,7 +140,7 @@ describe('ReceiptViewerView', () => {
     const renderer = await renderView({
       ...baseProps,
       mailEnabled: false,
-      mailHint: 'No se encontró la nómina de este recibo.',
+      mailHint: 'run_missing',
     });
 
     expect(find(renderer, 'receipt-viewer-send').props.disabled).toBe(true);
@@ -175,7 +175,7 @@ describe('ReceiptViewerView', () => {
     const renderer = await renderView({
       ...baseProps,
       dispatchStatus: 'failed',
-      dispatchError: 'No se pudo compartir el recibo.',
+      dispatchError: 'share_failed',
     });
 
     expect(find(renderer, 'receipt-viewer-dispatch-failed').props.children).toBe(

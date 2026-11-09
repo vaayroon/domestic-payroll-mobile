@@ -8,6 +8,7 @@
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
 import { useEmployee, useEmployeeForm } from '../domain';
@@ -18,12 +19,13 @@ export interface EmployeeEditScreenProps {
 }
 
 export function EmployeeEditScreen({ employeeId }: EmployeeEditScreenProps) {
+  const { t } = useTranslation();
   const { employee, loading, error } = useEmployee(employeeId);
 
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900">
-        <Text className="text-slate-300">Cargando…</Text>
+        <Text className="text-slate-300">{t(($) => $.employees.edit.loading)}</Text>
       </View>
     );
   }
@@ -39,7 +41,7 @@ export function EmployeeEditScreen({ employeeId }: EmployeeEditScreenProps) {
   if (employee === null) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
-        <Text className="text-center text-slate-300">Empleado no encontrado.</Text>
+        <Text className="text-center text-slate-300">{t(($) => $.employees.edit.notFound)}</Text>
       </View>
     );
   }
@@ -49,7 +51,11 @@ export function EmployeeEditScreen({ employeeId }: EmployeeEditScreenProps) {
 
 function EmployeeEditForm({ employee }: { employee: Employee }) {
   const router = useRouter();
-  const { values, errors, setField, submit, saving, saveError } = useEmployeeForm({ kind: 'edit', employee });
+  const { t } = useTranslation();
+  const { values, errors, setField, submit, saving, saveError } = useEmployeeForm({
+    kind: 'edit',
+    employee,
+  });
 
   const handleSubmit = async () => {
     const success = await submit();
@@ -66,7 +72,7 @@ function EmployeeEditForm({ employee }: { employee: Employee }) {
       onSubmit={() => void handleSubmit()}
       saving={saving}
       saveError={saveError}
-      submitLabel="Guardar cambios"
+      submitLabel={t(($) => $.employees.form.submitEdit)}
     />
   );
 }

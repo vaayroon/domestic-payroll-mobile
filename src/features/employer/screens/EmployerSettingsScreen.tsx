@@ -1,7 +1,7 @@
 /**
  * Presentational settings screen: owns `useEmployerForm` (load + edit-only
  * submit) and renders Nombre/NIF/Domicilio/CCC. Maps the domain's error
- * codes to Spanish messages here — the domain layer (`validateEmployerForm`)
+ * codes to localized messages here — the domain layer (`validateEmployerForm`)
  * emits codes only, never UI copy (mirrors `EmployeeForm.tsx`).
  */
 
@@ -9,25 +9,14 @@ import { Link, useRouter } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { FormScrollView } from '@/core';
+import { useTranslation } from '@/core/i18n';
 
 import type { EmployerFormErrors, EmployerFormInput } from '../domain';
 import { useEmployerForm } from '../domain';
 
-const NAME_ERROR_MESSAGES: Record<NonNullable<EmployerFormErrors['name']>, string> = {
-  required: 'El nombre es obligatorio.',
-};
-
-const NIF_ERROR_MESSAGES: Record<NonNullable<EmployerFormErrors['nif']>, string> = {
-  invalid_format: 'NIF/NIE con formato no válido.',
-  invalid_checksum: 'La letra de control del NIF/NIE no es correcta.',
-};
-
-const CCC_ERROR_MESSAGES: Record<NonNullable<EmployerFormErrors['ccc']>, string> = {
-  invalid_format: 'El nº de cuenta de cotización debe tener 11 o 12 dígitos.',
-};
-
 export function EmployerSettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { loading, loadError, values, errors, setField, submit, saving, saveError } = useEmployerForm();
 
   const handleSubmit = async () => {
@@ -40,7 +29,7 @@ export function EmployerSettingsScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900">
-        <Text className="text-slate-300">Cargando…</Text>
+        <Text className="text-slate-300">{t(($) => $.employer.settings.loading)}</Text>
       </View>
     );
   }
@@ -48,7 +37,9 @@ export function EmployerSettingsScreen() {
   if (loadError !== null) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
-        <Text className="text-center text-red-400">{loadError}</Text>
+        <Text className="text-center text-red-400">
+          {loadError.code === 'not_found' ? t(($) => $.employer.errors.load.not_found) : loadError.detail}
+        </Text>
       </View>
     );
   }
@@ -75,102 +66,111 @@ interface EmployerFormProps {
 }
 
 function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveError }: EmployerFormProps) {
+  const { t } = useTranslation();
+  const nameError = errors.name;
+  const nifError = errors.nif;
+  const cccError = errors.ccc;
+
   return (
     // Scrolls: five inputs plus three links no longer fit a small screen, and
     // the last ones must stay reachable above the keyboard.
     <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
-        <Text className="mb-1 text-slate-300">Nombre</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.employer.settings.labels.name)}</Text>
         <TextInput
           testID="employer-form-name"
           className="rounded-md bg-slate-800 px-3 py-2 text-white"
           value={values.name}
           onChangeText={(text) => onChangeField('name', text)}
-          placeholder="Nombre del empleador"
+          placeholder={t(($) => $.employer.settings.placeholders.name)}
           placeholderTextColor="#94a3b8"
         />
-        {errors.name !== undefined ? (
-          <Text className="mt-1 text-sm text-red-400">{NAME_ERROR_MESSAGES[errors.name]}</Text>
+        {nameError !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{t(($) => $.employer.errors.name[nameError])}</Text>
         ) : null}
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">NIF/NIE (opcional)</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.employer.settings.labels.nif)}</Text>
         <TextInput
           testID="employer-form-nif"
           className="rounded-md bg-slate-800 px-3 py-2 text-white"
           value={values.nif}
           onChangeText={(text) => onChangeField('nif', text)}
-          placeholder="NIF/NIE"
+          placeholder={t(($) => $.employer.settings.placeholders.nif)}
           placeholderTextColor="#94a3b8"
         />
-        {errors.nif !== undefined ? (
-          <Text className="mt-1 text-sm text-red-400">{NIF_ERROR_MESSAGES[errors.nif]}</Text>
+        {nifError !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{t(($) => $.employer.errors.nif[nifError])}</Text>
         ) : null}
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Domicilio (opcional)</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.employer.settings.labels.address)}</Text>
         <TextInput
           testID="employer-form-address"
           className="rounded-md bg-slate-800 px-3 py-2 text-white"
           value={values.address}
           onChangeText={(text) => onChangeField('address', text)}
-          placeholder="Domicilio"
+          placeholder={t(($) => $.employer.settings.placeholders.address)}
           placeholderTextColor="#94a3b8"
         />
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Nº cuenta cotización (opcional)</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.employer.settings.labels.ccc)}</Text>
         <TextInput
           testID="employer-form-ccc"
           className="rounded-md bg-slate-800 px-3 py-2 text-white"
           value={values.ccc}
           onChangeText={(text) => onChangeField('ccc', text)}
-          placeholder="Nº S.S. / CCC"
+          placeholder={t(($) => $.employer.settings.placeholders.ccc)}
           placeholderTextColor="#94a3b8"
           keyboardType="number-pad"
         />
-        {errors.ccc !== undefined ? (
-          <Text className="mt-1 text-sm text-red-400">{CCC_ERROR_MESSAGES[errors.ccc]}</Text>
+        {cccError !== undefined ? (
+          <Text className="mt-1 text-sm text-red-400">{t(($) => $.employer.errors.ccc[cccError])}</Text>
         ) : null}
       </View>
 
       <View>
-        <Text className="mb-1 text-slate-300">Lugar de emisión (opcional)</Text>
+        <Text className="mb-1 text-slate-300">{t(($) => $.employer.settings.labels.defaultLugar)}</Text>
         <TextInput
           testID="employer-form-default-lugar"
           className="rounded-md bg-slate-800 px-3 py-2 text-white"
           value={values.defaultLugar}
           onChangeText={(text) => onChangeField('defaultLugar', text)}
-          placeholder="Ciudad donde se emiten los recibos"
+          placeholder={t(($) => $.employer.settings.placeholders.defaultLugar)}
           placeholderTextColor="#94a3b8"
         />
       </View>
 
       {saveError !== null ? (
         <Text testID="employer-form-save-error" className="text-sm text-red-400">
-          No se pudo guardar: {saveError}
+          {t(($) => $.employer.settings.saveFailed, { detail: saveError })}
         </Text>
       ) : null}
 
       <Pressable testID="employer-form-submit" onPress={onSubmit} disabled={saving}>
         <Text className={`text-center font-semibold ${saving ? 'text-slate-500' : 'text-emerald-400'}`}>
-          {saving ? 'Guardando…' : 'Guardar cambios'}
+          {saving ? t(($) => $.employer.settings.saving) : t(($) => $.employer.settings.submit)}
         </Text>
       </Pressable>
 
       <Link href="/settings/reminder" testID="employer-form-reminder-link" className="text-center">
-        <Text className="text-emerald-400">Recordatorio mensual</Text>
+        <Text className="text-emerald-400">{t(($) => $.employer.settings.links.reminder)}</Text>
       </Link>
 
       <Link href="/settings/signature" testID="employer-form-signature-link" className="text-center">
-        <Text className="text-emerald-400">Firma de la parte empleadora</Text>
+        <Text className="text-emerald-400">{t(($) => $.employer.settings.links.signature)}</Text>
       </Link>
 
       <Link href="/settings/receipt-file-name" testID="employer-form-receipt-file-name-link" className="text-center">
-        <Text className="text-emerald-400">Nombre del archivo del recibo</Text>
+        <Text className="text-emerald-400">{t(($) => $.employer.settings.links.receiptFileName)}</Text>
+      </Link>
+
+      <Link href="/settings/language" testID="employer-form-language-link" className="text-center">
+        <Text className="text-emerald-400">{t(($) => $.language.link)}</Text>
       </Link>
     </FormScrollView>
   );

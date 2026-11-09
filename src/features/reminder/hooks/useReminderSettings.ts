@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { getReminderCopy, useTranslation } from '@/core/i18n';
 import { useNotificationScheduler } from '@/core/NotifyServiceProvider';
 import { useSettingsRepository } from '@/core/RepositoryProvider';
 
@@ -51,6 +52,7 @@ function clamp(value: number, min: number, max: number): number {
 export function useReminderSettings(): UseReminderSettingsResult {
   const settings = useSettingsRepository();
   const scheduler = useNotificationScheduler();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [values, setValues] = useState<ReminderPreferences>(DEFAULT_REMINDER_PREFERENCES);
@@ -119,7 +121,7 @@ export function useReminderSettings(): UseReminderSettingsResult {
       }
 
       await settings.set(REMINDER_PREFERENCES_KEY, serialized);
-      await reconcileReminder(scheduler, values, new Date());
+      await reconcileReminder(scheduler, values, new Date(), getReminderCopy(t));
       return true;
     } catch (caught) {
       setSaveError(caught instanceof Error ? caught.message : String(caught));

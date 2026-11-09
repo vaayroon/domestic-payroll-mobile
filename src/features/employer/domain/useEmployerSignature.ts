@@ -4,7 +4,7 @@
  * `@/core`, exposes the current saved payload, and lets the capture screen
  * save a freshly-drawn signature or clear an existing one.
  *
- * `saveError` is assigned ONLY from a fixed Spanish string literal, NEVER
+ * `saveError` is assigned ONLY from the fixed `'save_failed'` code, NEVER
  * from `caught` -- a deliberate departure from the
  * `caught instanceof Error ? caught.message : String(caught)` idiom used at
  * `useEmployerForm.ts`/`useReminderSettings.ts`. That idiom is safe only
@@ -27,8 +27,8 @@ import {
   serializeEmployerSignature,
 } from '@/core/employerSignature';
 
-/** Fixed Spanish copy -- the only string `saveError` is ever assigned from. */
-const SAVE_ERROR_MESSAGE = 'No se pudo guardar la firma.';
+/** Error code the screen maps to localized copy; the only value `saveError` is ever assigned. */
+export type EmployerSignatureSaveError = 'save_failed';
 
 export interface UseEmployerSignatureResult {
   readonly loading: boolean;
@@ -36,8 +36,8 @@ export interface UseEmployerSignatureResult {
   readonly save: (pngBase64: string) => Promise<boolean>;
   readonly clear: () => Promise<boolean>;
   readonly saving: boolean;
-  /** FIXED Spanish copy only -- never a caught error's text. */
-  readonly saveError: string | null;
+  /** A fixed code only -- never a caught error's text. */
+  readonly saveError: EmployerSignatureSaveError | null;
 }
 
 export function useEmployerSignature(): UseEmployerSignatureResult {
@@ -46,7 +46,7 @@ export function useEmployerSignature(): UseEmployerSignatureResult {
   const [loading, setLoading] = useState(true);
   const [savedPngBase64, setSavedPngBase64] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<EmployerSignatureSaveError | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +93,7 @@ export function useEmployerSignature(): UseEmployerSignatureResult {
       setSavedPngBase64(pngBase64);
       return true;
     } catch {
-      setSaveError(SAVE_ERROR_MESSAGE);
+      setSaveError('save_failed');
       return false;
     } finally {
       setSaving(false);

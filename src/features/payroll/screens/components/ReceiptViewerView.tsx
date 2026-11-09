@@ -15,9 +15,9 @@
 import { Pressable, Text, View } from 'react-native';
 
 import type { PdfViewerComponent } from '@/core';
+import { useTranslation } from '@/core/i18n';
 
-import type { DispatchStatus } from '../../domain';
-import { PROTECTED_RECEIPT_FAILURE_COPY } from './receiptProtectionCopy';
+import type { DispatchStatus, ReceiptDispatchError } from '../../domain';
 
 export type ReceiptViewerPdfState = 'loading' | 'loaded' | 'failed';
 
@@ -37,13 +37,13 @@ export interface ReceiptViewerViewProps {
   readonly onSendMail: () => void;
   readonly shareEnabled: boolean;
   readonly mailEnabled: boolean;
-  readonly mailHint: string | null;
+  readonly mailHint: ReceiptViewerMailHint | null;
   readonly dispatchStatus: DispatchStatus;
-  readonly dispatchError: string | null;
+  readonly dispatchError: ReceiptDispatchError | null;
 }
 
-const FAILURE_COPY =
-  'No se pudo mostrar el recibo. Vuelve a generarlo desde el historial de nóminas.';
+/** Why the mail action is unavailable; the view maps the code with `t`. */
+export type ReceiptViewerMailHint = 'mail_unavailable' | 'run_missing';
 
 export function ReceiptViewerView({
   PdfViewer,
@@ -62,11 +62,15 @@ export function ReceiptViewerView({
   dispatchStatus,
   dispatchError,
 }: ReceiptViewerViewProps) {
+  const { t } = useTranslation();
+
   if (uri === null || pdfState === 'failed') {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
         <Text testID="receipt-viewer-failed" className="text-center text-red-400">
-          {protectedReceipt ? PROTECTED_RECEIPT_FAILURE_COPY : FAILURE_COPY}
+          {protectedReceipt
+            ? t(($) => $.payroll.protection.viewerFailure)
+            : t(($) => $.payroll.viewer.failure)}
         </Text>
       </View>
     );
@@ -79,7 +83,7 @@ export function ReceiptViewerView({
 
   return (
     <View className="flex-1 bg-slate-900">
-      <View className="flex-1" accessibilityLabel="Recibo de salarios en PDF">
+      <View className="flex-1" accessibilityLabel={t(($) => $.payroll.viewer.pdfLabel)}>
         {awaitingPassword ? null : (
           <PdfViewer
             testID="receipt-viewer-pdf"
@@ -92,10 +96,10 @@ export function ReceiptViewerView({
         {loading ? (
           <View
             className="absolute inset-0 items-center justify-center bg-slate-900"
-            accessibilityLabel="Cargando recibo"
+            accessibilityLabel={t(($) => $.payroll.viewer.loadingLabel)}
           >
             <Text testID="receipt-viewer-loading" className="text-slate-400">
-              Cargando recibo…
+              {t(($) => $.payroll.viewer.loading)}
             </Text>
           </View>
         ) : null}
@@ -112,7 +116,7 @@ export function ReceiptViewerView({
             <Text
               className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
             >
-              Compartir
+              {t(($) => $.payroll.history.share)}
             </Text>
           </Pressable>
           <Pressable
@@ -124,23 +128,25 @@ export function ReceiptViewerView({
             <Text
               className={`font-semibold ${mailDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
             >
-              Enviar por correo
+              {t(($) => $.payroll.history.sendMail)}
             </Text>
           </Pressable>
         </View>
         {mailHint !== null ? (
           <Text testID="receipt-viewer-mail-hint" className="mt-1 text-slate-400">
-            {mailHint}
+            {mailHint === 'run_missing'
+              ? t(($) => $.payroll.dispatch.runMissing)
+              : t(($) => $.payroll.dispatch.mailUnavailable)}
           </Text>
         ) : null}
         {dispatchStatus === 'sent' ? (
           <Text testID="receipt-viewer-dispatch-sent" className="mt-1 text-emerald-400">
-            Recibo enviado.
+            {t(($) => $.payroll.history.sent)}
           </Text>
         ) : null}
         {dispatchStatus === 'failed' && dispatchError !== null ? (
           <Text testID="receipt-viewer-dispatch-failed" className="mt-1 text-red-400">
-            {dispatchError}
+            {t(($) => $.payroll.dispatch.errors[dispatchError])}
           </Text>
         ) : null}
       </View>

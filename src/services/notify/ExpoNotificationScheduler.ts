@@ -20,7 +20,7 @@
 
 import * as Notifications from 'expo-notifications';
 
-import type { NotificationPermissionStatus, NotificationScheduler } from '@/types';
+import type { NotificationPermissionStatus, NotificationScheduler, ReminderNotificationContent } from '@/types';
 
 /** Fixed, well-known identifier -- there is only ever one reminder scheduled at a time. */
 const REMINDER_IDENTIFIER = 'monthly-payroll-reminder';
@@ -51,20 +51,20 @@ export class ExpoNotificationScheduler implements NotificationScheduler {
     return toPermissionStatus(response.status);
   }
 
-  async ensureChannel(): Promise<void> {
+  async ensureChannel(name: string): Promise<void> {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: 'Recordatorio de nómina',
+      name,
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
 
-  async scheduleReminder(fireDate: Date): Promise<string> {
+  async scheduleReminder(fireDate: Date, content: ReminderNotificationContent): Promise<string> {
     await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER);
     return Notifications.scheduleNotificationAsync({
       identifier: REMINDER_IDENTIFIER,
       content: {
-        title: 'Recordatorio de nómina',
-        body: 'Es hora de generar la nómina de este mes.',
+        title: content.title,
+        body: content.body,
         data: { url: '/payroll/new' },
       },
       trigger: {

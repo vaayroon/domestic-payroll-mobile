@@ -19,11 +19,15 @@ import {
   usePdfSharer,
   type ReceiptPasswordSource,
 } from '@/core';
+import { useTranslation } from '@/core/i18n';
 import type { Employee, PayrollRun } from '@/types';
 
 import { buildReceiptMailContent } from '../receipt';
 
 export type DispatchStatus = 'idle' | 'sharing' | 'sending' | 'sent' | 'cancelled' | 'failed';
+
+/** Code the screen maps with `t`; never a caught error's text. */
+export type ReceiptDispatchError = 'share_failed' | 'send_failed';
 
 export interface UseReceiptDispatchResult {
   readonly shareReceipt: () => Promise<void>;
@@ -31,10 +35,8 @@ export interface UseReceiptDispatchResult {
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
   readonly status: DispatchStatus;
-  readonly error: string | null;
+  readonly error: ReceiptDispatchError | null;
 }
-
-const SHARE_DIALOG_TITLE = 'Compartir recibo';
 
 /**
  * Which wording the mail needs for an encrypted file. If the password can no
@@ -58,11 +60,12 @@ export function useReceiptDispatch(
   const employeeRepository = useEmployeeRepository();
   const pdfSharer = usePdfSharer();
   const mailSender = useMailSender();
+  const { t } = useTranslation();
 
   const [sharingAvailable, setSharingAvailable] = useState(false);
   const [mailAvailable, setMailAvailable] = useState(false);
   const [status, setStatus] = useState<DispatchStatus>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReceiptDispatchError | null>(null);
 
   // The status describes ONE file. When the file behind the banner changes
   // (a new generation, or "Cifrar" swapping the plain file for a protected
@@ -107,11 +110,11 @@ export function useReceiptDispatch(
     setStatus('sharing');
     setError(null);
     try {
-      await pdfSharer.share(uri, { dialogTitle: SHARE_DIALOG_TITLE });
+      await pdfSharer.share(uri, { dialogTitle: t(($) => $.payroll.dispatch.shareDialogTitle) });
       setStatus('idle');
     } catch {
       setStatus('failed');
-      setError('No se pudo compartir el recibo.');
+      setError('share_failed');
     }
   };
 
@@ -124,7 +127,7 @@ export function useReceiptDispatch(
     try {
       const employee = await employeeRepository.getById(run.employeeId);
       if (employee === null) {
-        throw new Error('No se encontró el empleado de esta nómina.');
+        throw new Error('employee not found');
       }
       const { subject, body } = buildReceiptMailContent(run, employee, encrypted ? passwordSourceOf(employee) : null);
       const result = await mailSender.send({ subject, body, attachmentUris: [uri] });
@@ -140,7 +143,7 @@ export function useReceiptDispatch(
       }
     } catch {
       setStatus('failed');
-      setError('No se pudo enviar el recibo.');
+      setError('send_failed');
     }
   };
 

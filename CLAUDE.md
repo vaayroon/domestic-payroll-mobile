@@ -79,6 +79,25 @@ renders a screen from `src/features/*/screens`, it never contains business logic
   `KeyboardAvoidingView` mis-sized its padding on device). ESLint blocks importing `ScrollView` or
   `KeyboardAvoidingView` from `react-native`; lists without inputs keep using `FlatList`.
 
+## 4b. Internationalization (UI chrome)
+
+The UI chrome is localized in Spanish (`es`, source of truth and fallback) and English (`en`).
+
+- Access i18n only through `@/core/i18n` (`useTranslation`, `i18n`, helpers). `i18next`,
+  `react-i18next` and `expo-localization` are blocked by ESLint outside `src/core/i18n/`. The
+  `@/core` barrel deliberately does NOT re-export i18n.
+- Catalogs live in `src/core/i18n/locales/{es,en}/<area>.ts`. `es` is declared `as const` and `en`
+  is typed `Catalog<typeof es>`, so missing or extra keys fail `tsc`. A parity test also checks key
+  sets, empty values and `{{var}}` placeholders. Use the selector API: `t(($) => $.common.dateHint)`.
+- Hooks expose error codes; screens map them with `t`. Do not put Spanish literals in hooks.
+- Money and number formatting stays `es-ES` (`1.234,56 €`) in both languages.
+- **Receipt exclusion**: the receipt PDF, mail subject/body and PDF file name are always Spanish,
+  whatever the UI language. `src/features/payroll/receipt/`, `formatSpanishDate.ts`,
+  `src/core/monthNames.ts` and `src/core/receiptFileName.ts` must never import `core/i18n`
+  (enforced by `import/no-restricted-paths`). Persisted data is never translated.
+- Tests run with the device pinned to `es` (`jest.setup.ts`); switch with `i18n.changeLanguage('en')`
+  inside a test. `jest.setup-after-env.ts` resets to `es` after each test.
+
 ## 5. Domain rules (payroll)
 
 Net salary is computed per employee from values stored on-device:

@@ -6,7 +6,7 @@
  * `submit` (the screen's "Guardar"), so leaving the screen discards it.
  * Modelled on `useEmployerSignature` / `useReminderSettings`.
  *
- * `saveError` is assigned ONLY from a fixed Spanish string, never from the
+ * `saveError` is assigned ONLY from a fixed code, never from the
  * caught value, so a failure can never put library text into the UI. A failing
  * initial read degrades to "unset" (the random name) instead of blocking the
  * screen: the user can still pick and save a format.
@@ -22,8 +22,8 @@ import {
 import { useSettingsRepository } from '@/core/RepositoryProvider';
 import type { ReceiptFileNameFormatId } from '@/types';
 
-/** Fixed Spanish copy: the only string `saveError` is ever assigned from. */
-const SAVE_ERROR_MESSAGE = 'No se pudo guardar el ajuste.';
+/** Error code the screen maps to localized copy; the only value `saveError` is ever assigned. */
+export type ReceiptFileNameSaveError = 'save_failed';
 
 export interface UseReceiptFileNameSettingResult {
   readonly loading: boolean;
@@ -33,8 +33,8 @@ export interface UseReceiptFileNameSettingResult {
   /** Persists the staged value. Resolves `true` on success, `false` on failure. */
   readonly submit: () => Promise<boolean>;
   readonly saving: boolean;
-  /** FIXED Spanish copy only, never a caught error's text. */
-  readonly saveError: string | null;
+  /** A fixed code only, never a caught error's text. */
+  readonly saveError: ReceiptFileNameSaveError | null;
 }
 
 export function useReceiptFileNameSetting(): UseReceiptFileNameSettingResult {
@@ -43,7 +43,7 @@ export function useReceiptFileNameSetting(): UseReceiptFileNameSettingResult {
   const [loading, setLoading] = useState(true);
   const [value, setValue] = useState<ReceiptFileNameFormatId | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<ReceiptFileNameSaveError | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +84,7 @@ export function useReceiptFileNameSetting(): UseReceiptFileNameSettingResult {
       await settings.set(RECEIPT_FILE_NAME_FORMAT_KEY, serializeReceiptFileNameFormat(value));
       return true;
     } catch {
-      setSaveError(SAVE_ERROR_MESSAGE);
+      setSaveError('save_failed');
       return false;
     } finally {
       setSaving(false);

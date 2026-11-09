@@ -1,7 +1,7 @@
 /**
  * Presentational (props-only) list/loading/error/empty view for the
  * per-employee payroll run history (design ADR-5/ADR-9). Each row shows
- * período (`formatSpanishMonthYear`) + líquido a percibir (`formatEuros`);
+ * período (`formatMonthYear`) + líquido a percibir (`formatEuros`);
  * selecting a row's "Generar recibo" action fires `onGenerate`. Once
  * `lastUri` is set, the success banner exposes three actions, in order:
  * "Abrir recibo" (navigates to the in-app viewer; always enabled, it does not
@@ -16,17 +16,11 @@
 
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { formatMonthYear, useTranslation } from '@/core/i18n';
 import type { PayrollRun } from '@/types';
 
-import type { DispatchStatus } from '../../domain';
-import { formatSpanishMonthYear } from '../../formatSpanishDate';
+import type { DispatchStatus, ReceiptDispatchError, ReceiptGenerationError } from '../../domain';
 import { formatEuros } from '../formatEuros';
-import { MAIL_UNAVAILABLE_HINT } from './receiptDispatchCopy';
-import {
-  ENCRYPT_RECEIPT_ACTION_LABEL,
-  PROTECTED_RECEIPT_HINT_COPY,
-  PROTECTED_RECEIPT_SUCCESS_COPY,
-} from './receiptProtectionCopy';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
@@ -36,7 +30,7 @@ export interface PayrollRunHistoryViewProps {
   readonly generating: boolean;
   /** The run whose row started the generation; only that row reads "Generando…". */
   readonly generatingRunId: string | null;
-  readonly generateError: string | null;
+  readonly generateError: ReceiptGenerationError | null;
   readonly lastUri: string | null;
   /** The file behind `lastUri` is password-protected (in-memory state, never persisted). */
   readonly lastEncrypted: boolean;
@@ -49,7 +43,7 @@ export interface PayrollRunHistoryViewProps {
   readonly sharingAvailable: boolean;
   readonly mailAvailable: boolean;
   readonly dispatchStatus: DispatchStatus;
-  readonly dispatchError: string | null;
+  readonly dispatchError: ReceiptDispatchError | null;
 }
 
 export function PayrollRunHistoryView({
@@ -71,6 +65,7 @@ export function PayrollRunHistoryView({
   dispatchStatus,
   dispatchError,
 }: PayrollRunHistoryViewProps) {
+  const { t } = useTranslation();
   // Same rule as `ReceiptViewerView`: no second dispatch while one is running.
   const busy = dispatchStatus === 'sharing' || dispatchStatus === 'sending';
   const shareDisabled = busy || !sharingAvailable;
@@ -82,7 +77,7 @@ export function PayrollRunHistoryView({
   return (
     <View className="flex-1 bg-slate-900">
       <View className="p-4">
-        <Text className="text-xl font-bold text-white">Historial de nóminas</Text>
+        <Text className="text-xl font-bold text-white">{t(($) => $.payroll.history.title)}</Text>
       </View>
 
       {error !== null ? (
@@ -93,18 +88,20 @@ export function PayrollRunHistoryView({
 
       {generateError !== null ? (
         <Text testID="payroll-run-history-generate-error" className="px-4 text-red-400">
-          {generateError}
+          {generateError.code === 'failed'
+            ? generateError.detail
+            : t(($) => $.payroll.generate.errors[generateError.code])}
         </Text>
       ) : null}
 
       {lastUri !== null ? (
         <View className="px-4 pb-2">
           <Text testID="payroll-run-history-success" className="text-emerald-400">
-            {lastEncrypted ? PROTECTED_RECEIPT_SUCCESS_COPY : 'Recibo generado.'}
+            {lastEncrypted ? t(($) => $.payroll.protection.generatedProtected) : t(($) => $.payroll.history.generated)}
           </Text>
           {lastEncrypted ? (
             <Text testID="payroll-run-history-protected-hint" className="mt-1 text-slate-400">
-              {PROTECTED_RECEIPT_HINT_COPY}
+              {t(($) => $.payroll.protection.hint)}
             </Text>
           ) : null}
           <View className="mt-2 flex-row flex-wrap gap-4">
@@ -113,7 +110,7 @@ export function PayrollRunHistoryView({
               accessibilityRole="button"
               onPress={onOpen}
             >
-              <Text className="font-semibold text-emerald-400">Abrir recibo</Text>
+              <Text className="font-semibold text-emerald-400">{t(($) => $.payroll.history.open)}</Text>
             </Pressable>
             <Pressable
               testID="payroll-run-history-share"
@@ -124,7 +121,7 @@ export function PayrollRunHistoryView({
               <Text
                 className={`font-semibold ${shareDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
               >
-                Compartir
+                {t(($) => $.payroll.history.share)}
               </Text>
             </Pressable>
             <Pressable
@@ -136,7 +133,7 @@ export function PayrollRunHistoryView({
               <Text
                 className={`font-semibold ${sendDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
               >
-                Enviar por correo
+                {t(($) => $.payroll.history.sendMail)}
               </Text>
             </Pressable>
             {!lastEncrypted ? (
@@ -149,24 +146,24 @@ export function PayrollRunHistoryView({
                 <Text
                   className={`font-semibold ${encryptDisabled ? 'text-slate-500' : 'text-emerald-400'}`}
                 >
-                  {ENCRYPT_RECEIPT_ACTION_LABEL}
+                  {t(($) => $.payroll.history.encrypt)}
                 </Text>
               </Pressable>
             ) : null}
           </View>
           {!mailAvailable ? (
             <Text testID="payroll-run-history-mail-unavailable" className="mt-1 text-slate-400">
-              {MAIL_UNAVAILABLE_HINT}
+              {t(($) => $.payroll.dispatch.mailUnavailable)}
             </Text>
           ) : null}
           {dispatchStatus === 'sent' ? (
             <Text testID="payroll-run-history-dispatch-sent" className="mt-1 text-emerald-400">
-              Recibo enviado.
+              {t(($) => $.payroll.history.sent)}
             </Text>
           ) : null}
           {dispatchStatus === 'failed' && dispatchError !== null ? (
             <Text testID="payroll-run-history-dispatch-failed" className="mt-1 text-red-400">
-              {dispatchError}
+              {t(($) => $.payroll.dispatch.errors[dispatchError])}
             </Text>
           ) : null}
         </View>
@@ -174,11 +171,11 @@ export function PayrollRunHistoryView({
 
       {loading ? (
         <Text testID="payroll-run-history-loading" className="px-4 text-slate-400">
-          Cargando…
+          {t(($) => $.payroll.history.loading)}
         </Text>
       ) : runs.length === 0 ? (
         <Text testID="payroll-run-history-empty" className="px-4 text-slate-400">
-          Aún no hay nóminas generadas para este empleado.
+          {t(($) => $.payroll.history.empty)}
         </Text>
       ) : (
         <FlatList
@@ -188,7 +185,7 @@ export function PayrollRunHistoryView({
             <View className="flex-row items-center justify-between border-b border-slate-700 px-4 py-3">
               <View className="flex-1">
                 <Text className="text-base font-semibold text-white">
-                  {formatSpanishMonthYear(item.periodYear, item.periodMonth)}
+                  {formatMonthYear(t, item.periodYear, item.periodMonth)}
                 </Text>
                 <Text className="text-sm text-slate-400">{formatEuros(item.netCents)}</Text>
               </View>
@@ -201,7 +198,9 @@ export function PayrollRunHistoryView({
                 <Text
                   className={`font-semibold ${generating ? 'text-slate-500' : 'text-emerald-400'}`}
                 >
-                  {generating && generatingRunId === item.id ? 'Generando…' : 'Generar recibo'}
+                  {generating && generatingRunId === item.id
+                    ? t(($) => $.payroll.history.generating)
+                    : t(($) => $.payroll.history.generate)}
                 </Text>
               </Pressable>
             </View>

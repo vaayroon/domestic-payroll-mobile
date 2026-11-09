@@ -1,7 +1,7 @@
 /**
  * Presentational settings screen: owns `useReminderSettings` (load + save)
  * and renders the enable toggle, day-of-month and time entry, and the
- * permission-denied banner. All user-facing copy is Spanish (spec UI-3).
+ * permission-denied banner. All user-facing copy comes from the i18n catalogs.
  * Day/hour/minute use plain numeric `TextInput`s (mirrors the CCC field in
  * `EmployerSettingsScreen`) rather than a native picker component -- no new
  * UI dependency is warranted for three bounded integers.
@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { FormScrollView } from '@/core';
+import { useTranslation } from '@/core/i18n';
 
 import { useReminderSettings } from '../hooks';
 
@@ -20,6 +21,7 @@ function pad2(value: number): string {
 
 export function ReminderSettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { loading, values, setEnabled, setDayOfMonth, setHour, setMinute, submit, saving, saveError, permissionDenied } =
     useReminderSettings();
 
@@ -33,7 +35,7 @@ export function ReminderSettingsScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900">
-        <Text className="text-slate-300">Cargando…</Text>
+        <Text className="text-slate-300">{t(($) => $.reminder.screen.loading)}</Text>
       </View>
     );
   }
@@ -42,9 +44,9 @@ export function ReminderSettingsScreen() {
     // Scrolls so the save button stays reachable above the numeric keyboard.
     <FormScrollView contentContainerClassName="gap-4 p-4">
       <View>
-        <Text className="mb-1 text-lg font-semibold text-white">Recordatorio mensual</Text>
+        <Text className="mb-1 text-lg font-semibold text-white">{t(($) => $.reminder.screen.title)}</Text>
         <Text className="text-sm text-slate-400">
-          Recibe un aviso cada mes para generar la nómina de tus empleados de hogar.
+          {t(($) => $.reminder.screen.description)}
         </Text>
       </View>
 
@@ -54,14 +56,14 @@ export function ReminderSettingsScreen() {
         className={`rounded-md px-3 py-2 ${values.enabled ? 'bg-emerald-800' : 'bg-slate-800'}`}
       >
         <Text className={values.enabled ? 'font-semibold text-emerald-300' : 'text-white'}>
-          {values.enabled ? 'Recordatorio activado' : 'Activar recordatorio'}
+          {values.enabled ? t(($) => $.reminder.screen.toggleOn) : t(($) => $.reminder.screen.toggleOff)}
         </Text>
       </Pressable>
 
       {values.enabled ? (
         <>
           <View>
-            <Text className="mb-1 text-slate-300">Día del mes</Text>
+            <Text className="mb-1 text-slate-300">{t(($) => $.reminder.screen.dayOfMonth)}</Text>
             <TextInput
               testID="reminder-settings-day"
               className="rounded-md bg-slate-800 px-3 py-2 text-white"
@@ -74,7 +76,7 @@ export function ReminderSettingsScreen() {
           </View>
 
           <View>
-            <Text className="mb-1 text-slate-300">Hora</Text>
+            <Text className="mb-1 text-slate-300">{t(($) => $.reminder.screen.time)}</Text>
             <View className="flex-row items-center gap-2">
               <TextInput
                 testID="reminder-settings-hour"
@@ -102,19 +104,19 @@ export function ReminderSettingsScreen() {
 
       {permissionDenied ? (
         <Text testID="reminder-settings-denied-banner" className="text-sm text-amber-400">
-          Activa las notificaciones en los ajustes del sistema para recibir el recordatorio.
+          {t(($) => $.reminder.screen.deniedBanner)}
         </Text>
       ) : null}
 
       {saveError !== null ? (
         <Text testID="reminder-settings-save-error" className="text-sm text-red-400">
-          No se pudo guardar: {saveError}
+          {t(($) => $.reminder.screen.saveFailed, { detail: saveError })}
         </Text>
       ) : null}
 
       <Pressable testID="reminder-settings-submit" onPress={() => void handleSubmit()} disabled={saving}>
         <Text className={`text-center font-semibold ${saving ? 'text-slate-500' : 'text-emerald-400'}`}>
-          {saving ? 'Guardando…' : 'Guardar'}
+          {saving ? t(($) => $.reminder.screen.saving) : t(($) => $.reminder.screen.submit)}
         </Text>
       </Pressable>
     </FormScrollView>

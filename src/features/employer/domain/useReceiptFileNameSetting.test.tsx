@@ -239,7 +239,7 @@ describe('useReceiptFileNameSetting', () => {
       });
 
       expect(saved).toBe(false);
-      expect(harness.current.saveError).toBe('No se pudo guardar el ajuste.');
+      expect(harness.current.saveError).toBe('save_failed');
       expect(harness.current.saving).toBe(false);
     });
 
@@ -257,7 +257,7 @@ describe('useReceiptFileNameSetting', () => {
       await act(async () => {
         await harness.current.submit();
       });
-      expect(harness.current.saveError).toBe('No se pudo guardar el ajuste.');
+      expect(harness.current.saveError).toBe('save_failed');
 
       fail = false;
       await act(async () => {

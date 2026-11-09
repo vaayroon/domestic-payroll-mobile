@@ -14,9 +14,17 @@ import { useCurrentEmployerId, useEmployerRepository } from '@/core';
 
 import { validateEmployerForm, type EmployerFormErrors, type EmployerFormInput } from './validateEmployerForm';
 
+/**
+ * Why the employer profile could not be shown. `not_found` is a code the screen
+ * maps with `t`; `read_failed` carries the repository's technical message.
+ */
+export type EmployerLoadError =
+  | { readonly code: 'not_found' }
+  | { readonly code: 'read_failed'; readonly detail: string };
+
 export interface UseEmployerFormResult {
   readonly loading: boolean;
-  readonly loadError: string | null;
+  readonly loadError: EmployerLoadError | null;
   readonly values: EmployerFormInput;
   readonly errors: EmployerFormErrors;
   readonly setField: <K extends keyof EmployerFormInput>(field: K, value: EmployerFormInput[K]) => void;
@@ -32,7 +40,7 @@ export function useEmployerForm(): UseEmployerFormResult {
   const employerId = useCurrentEmployerId();
 
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<EmployerLoadError | null>(null);
   const [values, setValues] = useState<EmployerFormInput>(EMPTY_VALUES);
   const [errors, setErrors] = useState<EmployerFormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -51,7 +59,7 @@ export function useEmployerForm(): UseEmployerFormResult {
         if (employer === null) {
           // Defensive only: `CurrentEmployerProvider` guarantees the
           // bootstrap row exists before this hook can render.
-          setLoadError('No se encontró el perfil del empleador.');
+          setLoadError({ code: 'not_found' });
         } else {
           setValues({
             name: employer.name,
@@ -66,7 +74,7 @@ export function useEmployerForm(): UseEmployerFormResult {
         if (cancelled) {
           return;
         }
-        setLoadError(caught instanceof Error ? caught.message : String(caught));
+        setLoadError({ code: 'read_failed', detail: caught instanceof Error ? caught.message : String(caught) });
       } finally {
         if (!cancelled) {
           setLoading(false);

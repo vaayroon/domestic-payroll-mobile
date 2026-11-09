@@ -6,7 +6,7 @@
  * instead, through `NotifyServiceProvider`.
  */
 
-import type { NotificationPermissionStatus, NotificationScheduler } from '@/types';
+import type { NotificationPermissionStatus, NotificationScheduler, ReminderNotificationContent } from '@/types';
 
 export class FakeNotificationScheduler implements NotificationScheduler {
   /** Controls what `getPermissionStatus()`/`requestPermission()` resolve to. */
@@ -14,6 +14,10 @@ export class FakeNotificationScheduler implements NotificationScheduler {
 
   /** True once `ensureChannel()` has been called at least once. */
   channelEnsured = false;
+  /** The `name` passed to the most recent `ensureChannel` call, for assertions. */
+  lastChannelName: string | null = null;
+  /** The `content` passed to the most recent `scheduleReminder` call, for assertions. */
+  lastContent: ReminderNotificationContent | null = null;
   /** The `fireDate` passed to the most recent `scheduleReminder` call, for assertions. */
   lastFireDate: Date | null = null;
   /** True once `cancelReminder()` has been called at least once. */
@@ -34,13 +38,15 @@ export class FakeNotificationScheduler implements NotificationScheduler {
     return this.permissionStatus;
   }
 
-  async ensureChannel(): Promise<void> {
+  async ensureChannel(name: string): Promise<void> {
     this.channelEnsured = true;
+    this.lastChannelName = name;
   }
 
-  async scheduleReminder(fireDate: Date): Promise<string> {
+  async scheduleReminder(fireDate: Date, content: ReminderNotificationContent): Promise<string> {
     this.cancelled = true; // scheduleReminder always cancels-then-schedules (design D1).
     this.lastFireDate = fireDate;
+    this.lastContent = content;
     this.scheduleCallCount += 1;
     this.nextId += 1;
     return `fake-reminder-${this.nextId}`;

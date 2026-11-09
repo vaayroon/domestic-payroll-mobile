@@ -164,7 +164,7 @@ describe('useReceiptDispatch', () => {
     });
 
     expect(harness.current.status).toBe('failed');
-    expect(harness.current.error).toBe('No se pudo compartir el recibo.');
+    expect(harness.current.error).toBe('share_failed');
   });
 
   it('sends the built subject/body with the pdf attached when mail succeeds', async () => {
@@ -245,7 +245,7 @@ describe('useReceiptDispatch', () => {
     });
 
     expect(harness.current.status).toBe('failed');
-    expect(harness.current.error).toBe('No se pudo enviar el recibo.');
+    expect(harness.current.error).toBe('send_failed');
   });
 
   it('surfaces mailAvailable=false when MailSender.isAvailable() resolves false', async () => {

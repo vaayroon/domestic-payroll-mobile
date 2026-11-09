@@ -15,6 +15,7 @@
 import { Text } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 
+import { i18n } from '@/core/i18n';
 import { NotifyServiceProvider, RepositoryProvider, type Repositories } from '@/core';
 import { serializeReminderPreferences, type ReminderPreferences } from '@/features/reminder';
 import { FakeNotificationScheduler } from '@/services/notify/testing/fakes';
@@ -60,12 +61,14 @@ const fakePayrollRunRepository: PayrollRunRepository = {
 const ENABLED_PREFS: ReminderPreferences = { enabled: true, dayOfMonth: 5, hour: 9, minute: 0 };
 
 /** Renders `ReminderProvider` with a granted, enabled scheduler and flushes its mount-time reconcile. */
-async function renderProvider(): Promise<{ renderer: ReactTestRenderer; scheduler: FakeNotificationScheduler }> {
+async function renderProvider(
+  prefs: ReminderPreferences = ENABLED_PREFS,
+): Promise<{ renderer: ReactTestRenderer; scheduler: FakeNotificationScheduler }> {
   const scheduler = new FakeNotificationScheduler();
   scheduler.permissionStatus = 'granted';
 
   const settingsRepository: SettingsRepository = {
-    get: async () => serializeReminderPreferences(ENABLED_PREFS),
+    get: async () => serializeReminderPreferences(prefs),
     set: notImplemented('SettingsRepository.set'),
   };
   const repositories: Repositories = {
@@ -130,5 +133,64 @@ describe('ReminderProvider', () => {
     await renderProvider();
 
     expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  describe('notification copy follows the UI language', () => {
+    it('schedules Spanish copy when the UI is Spanish', async () => {
+      const { scheduler } = await renderProvider();
+
+      expect(scheduler.lastChannelName).toBe('Recordatorio de nómina');
+      expect(scheduler.lastContent).toEqual({
+        title: 'Recordatorio de nómina',
+        body: 'Es hora de generar la nómina de este mes.',
+      });
+    });
+
+    it('schedules English copy when the UI is English', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+
+      const { scheduler } = await renderProvider();
+
+      expect(scheduler.lastChannelName).toBe('Payroll reminder');
+      expect(scheduler.lastContent).toEqual({
+        title: 'Payroll reminder',
+        body: "It's time to run this month's payroll.",
+      });
+    });
+
+    it('reschedules with English copy and renames the channel when the language switches ES -> EN', async () => {
+      const { scheduler } = await renderProvider();
+      const callsBefore = scheduler.scheduleCallCount;
+
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(scheduler.scheduleCallCount).toBe(callsBefore + 1);
+      expect(scheduler.lastChannelName).toBe('Payroll reminder');
+      expect(scheduler.lastContent?.title).toBe('Payroll reminder');
+    });
+
+    it('schedules nothing on a language switch while the reminder is disabled', async () => {
+      const { scheduler } = await renderProvider({ ...ENABLED_PREFS, enabled: false });
+
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(scheduler.scheduleCallCount).toBe(0);
+      expect(scheduler.lastContent).toBeNull();
+    });
   });
 });

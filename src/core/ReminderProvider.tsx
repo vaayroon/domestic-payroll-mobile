@@ -10,7 +10,9 @@
  * TN-1/TN-2; cold-start is device-QA-verified, TN-3). All triggers funnel
  * through the SAME `reconcileReminder` helper so "what should currently be
  * scheduled" is decided in exactly one place -- the settings-save hook
- * (a later work unit) reuses it too.
+ * reuses it too. The copy (channel name, title, body) is resolved from the
+ * active UI language and passed in; a language change re-runs the
+ * reconcile so the schedule follows it.
  *
  * Deliberately imports `@/features/reminder`'s pure domain/application
  * modules -- this is the one place in `core/` that depends on a feature
@@ -28,6 +30,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { reconcileReminder } from '@/features/reminder/application';
 import { parseReminderPreferences, REMINDER_PREFERENCES_KEY } from '@/features/reminder/domain';
 
+import { getReminderCopy, useTranslation } from './i18n';
 import { useNotificationScheduler } from './NotifyServiceProvider';
 import { useSettingsRepository } from './RepositoryProvider';
 
@@ -35,6 +38,8 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
   const scheduler = useNotificationScheduler();
   const settings = useSettingsRepository();
   const router = useRouter();
+  const { t, i18n } = useTranslation();
+  const language = i18n.language;
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +51,7 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
           return;
         }
         const prefs = parseReminderPreferences(raw);
-        await reconcileReminder(scheduler, prefs, new Date());
+        await reconcileReminder(scheduler, prefs, new Date(), getReminderCopy(t));
       } catch {
         // Reconciliation must never crash the app; the settings screen owns
         // surfacing a denied-permission state to the user (design D5).
@@ -80,7 +85,9 @@ export function ReminderProvider({ children }: { children: ReactNode }) {
       unsubscribeTap();
       appStateSubscription.remove();
     };
-  }, [scheduler, settings, router]);
+    // `language` re-runs the effect on a language switch, so the pending
+    // notification and the channel name are rewritten in the new language.
+  }, [scheduler, settings, router, t, language]);
 
   return <>{children}</>;
 }
