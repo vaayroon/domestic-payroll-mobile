@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider } from '@react-navigation/native';
 import { randomUUID } from 'expo-crypto';
 import { Link, Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { Text } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -12,13 +13,13 @@ import {
   NotifyServiceProvider,
   PdfServiceProvider,
   PdfViewerProvider,
+  appNavigationTheme,
   ReminderProvider,
   RepositoryProvider,
   SignaturePadProvider,
   type Repositories,
 } from '@/core';
 import { LanguageProvider, useTranslation } from '@/core/i18n';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   createDatabase,
   DATABASE_NAME,
@@ -129,8 +130,6 @@ function AppStack() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     // Keyboard Controller tracks the keyboard for `FormScrollView`.
     <KeyboardProvider>
@@ -144,7 +143,9 @@ export default function RootLayout() {
                     <SignaturePadProvider pad={SignaturePadView}>
                       <PdfViewerProvider viewer={PdfViewerView}>
                         <ReminderProvider>
-                          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                          {/* Single dark theme whatever the device appearance: see `navigationTheme.ts`. */}
+                          <ThemeProvider value={appNavigationTheme}>
+                            <StatusBar style="light" />
                             <AppStack />
                           </ThemeProvider>
                         </ReminderProvider>
