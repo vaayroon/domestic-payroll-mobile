@@ -1,0 +1,18 @@
+Homeslip ayuda a un empleador particular en España a gestionar la nómina de sus empleados de hogar bajo el Régimen Especial de Empleados de Hogar.
+
+Qué hace
+- Calcula el salario neto mensual: salario bruto menos la cotización a la Seguridad Social del empleado.
+- Prorratea los meses incompletos según los días naturales trabajados.
+- Gestiona las pagas extra de junio y diciembre, pagadas o prorrateadas.
+- Genera el "Recibo Individual de Salarios" en PDF.
+- Envía el recibo con tu app de correo o el menú de compartir.
+- Te recuerda cada mes que toca hacer la nómina.
+- Admite varios empleados.
+
+Tus datos permanecen en tu dispositivo
+Homeslip funciona totalmente sin conexión. No tiene cuenta, servidor, analítica ni telemetría. Todo lo que introduces permanece en tu dispositivo.
+
+Aplicación no oficial
+Homeslip es una aplicación no oficial y no está afiliada a la Seguridad Social ni a la TGSS. Comprueba siempre los resultados con las fuentes oficiales antes de fiarte de ellos.
+
+Código abierto bajo GPL-3.0-or-later.
