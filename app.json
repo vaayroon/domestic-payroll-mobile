@@ -7,9 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "homeslip",
     "userInterfaceStyle": "dark",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "package": "io.github.vaayroon.homeslip",
       "adaptiveIcon": {
