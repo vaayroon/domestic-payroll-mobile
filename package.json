@@ -2,6 +2,7 @@
   "name": "domestic-payroll-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "license": "GPL-3.0-or-later",
   "dependencies": {
     "@cantoo/pdf-lib": "2.11.1",
     "@config-plugins/react-native-pdf": "12.0.0",
