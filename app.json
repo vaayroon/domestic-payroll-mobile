@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "domestic-payroll-mobile",
-    "slug": "domestic-payroll-mobile",
+    "name": "Homeslip",
+    "slug": "homeslip",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "domesticpayrollmobile",
-    "userInterfaceStyle": "automatic",
+    "scheme": "homeslip",
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "package": "com.domesticpayroll.mobile",
+      "package": "io.github.vaayroon.homeslip",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
