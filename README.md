@@ -1,4 +1,4 @@
-# domestic-payroll-mobile
+# Homeslip
 
 A **local-first Android app** for managing payrolls of household employees under the Spanish
 **Special Regime for Household Employees** (_Régimen Especial de Empleados de Hogar_).
@@ -17,14 +17,14 @@ third-party upload.
 
 ## Tech stack
 
-| Concern          | Choice                                             |
-| ---------------- | -------------------------------------------------- |
-| Framework        | React Native + **Expo** (managed workflow)         |
-| Language         | **TypeScript** (strict mode, no `any`)             |
-| Styling          | **NativeWind v4** (Tailwind CSS for React Native)  |
-| Persistence      | **expo-sqlite** (offline-first)                    |
+| Concern                    | Choice                                                              |
+| -------------------------- | ------------------------------------------------------------------- |
+| Framework                  | React Native + **Expo** (managed workflow)                          |
+| Language                   | **TypeScript** (strict mode, no `any`)                              |
+| Styling                    | **NativeWind v4** (Tailwind CSS for React Native)                   |
+| Persistence                | **expo-sqlite** (offline-first)                                     |
 | PDF / mail / notifications | expo-print · expo-mail-composer / expo-sharing · expo-notifications |
-| Package manager  | **pnpm** (only) · Node **v24.14.1** via `fnm`      |
+| Package manager            | **pnpm** (only) · Node **v24.14.1** via `fnm`                       |
 
 ## Architecture
 
@@ -52,7 +52,7 @@ Requires [`fnm`](https://github.com/Schniz/fnm) with Node **v24.14.1** and
 ```bash
 pnpm install     # install dependencies
 pnpm start       # start the Expo dev server
-pnpm android     # open on an Android device/emulator via Expo Go
+pnpm start --dev-client   # start Metro for the installed development build
 ```
 
 Other scripts:

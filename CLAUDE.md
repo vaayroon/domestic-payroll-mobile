@@ -52,7 +52,7 @@ src/
 └── types/           # Strict shared type declarations
 ```
 
-Routes live in `src/app/` (the Expo Router root — SDK 57's default template location, kept as-is
+Routes live in `src/app/` (the Expo Router root — SDK 54's default template location, kept as-is
 rather than moved to a repo-root `app/`). Route files are thin wrappers only: a route imports and
 renders a screen from `src/features/*/screens`, it never contains business logic itself.
 

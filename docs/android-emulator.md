@@ -98,8 +98,8 @@ project uses Continuous Native Generation, so `app.json` and config plugins are 
 pnpm start --dev-client
 adb -s "$SERIAL" reverse tcp:8081 tcp:8081
 adb -s "$SERIAL" shell am start -a android.intent.action.VIEW \
-  -d 'exp+domestic-payroll-mobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081' \
-  com.domesticpayroll.mobile
+  -d 'exp+homeslip://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081' \
+  io.github.vaayroon.homeslip
 ```
 
 The first launch shows the Expo developer menu sheet. Close it with `KEYCODE_BACK`; tapping
@@ -144,3 +144,7 @@ adb -s "$SERIAL" logcat -s ReactNativeJS:V
 ```
 
 Use only fake data in the emulator (see the privacy rules in `CLAUDE.md`).
+
+> **Rename note:** the app id changed from the template value to `io.github.vaayroon.homeslip`.
+> Android treats it as a different app: uninstall the old development build, install a fresh
+> one, and re-enter any local data (the old on-device database does not migrate).
