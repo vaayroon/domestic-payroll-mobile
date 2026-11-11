@@ -3,8 +3,15 @@
 A **local-first Android app** for managing payrolls of household employees under the Spanish
 **Special Regime for Household Employees** (_Régimen Especial de Empleados de Hogar_).
 
-The app runs fully offline. All data lives on-device — there is no backend, no analytics, and no
-third-party upload.
+> **Unofficial app.** Homeslip is unofficial and not affiliated with the Seguridad Social or the
+> TGSS. Always check results against the official sources.
+
+## What it is, and what it is not
+
+- It **is** a private employer's tool: compute the monthly net salary, produce the receipt PDF and
+  send it to the employee.
+- It is **not** an official filing tool. It does not talk to the Seguridad Social, does not submit
+  contributions and does not replace professional advice.
 
 ## Features
 
@@ -50,8 +57,7 @@ Requires [`fnm`](https://github.com/Schniz/fnm) with Node **v24.14.1** and
 [`pnpm`](https://pnpm.io/). This project uses **pnpm only** — do not use `npm` or `yarn`.
 
 ```bash
-pnpm install     # install dependencies
-pnpm start       # start the Expo dev server
+pnpm install              # install dependencies
 pnpm start --dev-client   # start Metro for the installed development build
 ```
 
@@ -63,14 +69,25 @@ pnpm lint                # lint
 pnpm test                # unit tests (payroll math has priority coverage)
 ```
 
-> **Note:** the app is being scaffolded — the commands above become available as the project is
-> built out. See [CLAUDE.md](CLAUDE.md) for the full engineering contract.
+Branding assets are generated from `branding/` (`pnpm brand:export`, `pnpm brand:check`). See
+[CLAUDE.md](CLAUDE.md) for the full engineering contract.
+
+## Install
+
+Releases are published on GitHub Releases and can be tracked with
+[Obtainium](https://obtainium.imranr.dev/). _Coming with the release pipeline: no signed release
+exists yet._
 
 ## Privacy
 
-This app stores real personal data (names, NIF/NIE, NAF, address, salary). That data **never**
-leaves the device and is **never committed to this repository**. Any sample data in source, tests,
-or docs uses obviously-fake placeholders.
+Homeslip works fully offline: no network access is required, there is no telemetry and no
+analytics, and all data stays on the device. The app stores personal data (names, NIF/NIE, NAF,
+address, salary) that **never** leaves the device and is **never committed to this repository**.
+
+## Screenshots policy
+
+Any screenshot in this repository or in the store listing uses fake data only. Real identifiers,
+names and addresses are never shown.
 
 ## License
 
