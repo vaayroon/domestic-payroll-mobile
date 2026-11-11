@@ -74,9 +74,8 @@ Branding assets are generated from `branding/` (`pnpm brand:export`, `pnpm brand
 
 ## Install
 
-Releases are published on GitHub Releases and can be tracked with
-[Obtainium](https://obtainium.imranr.dev/). _Coming with the release pipeline: no signed release
-exists yet._
+No release is available yet. Signed APKs will be published on GitHub Releases, and you will be
+able to track them with [Obtainium](https://obtainium.imranr.dev/) to get updates automatically.
 
 ## Privacy
 
