@@ -29,6 +29,20 @@ export class FakeNotificationScheduler implements NotificationScheduler {
 
   private nextId = 0;
   private tapListeners: (() => void)[] = [];
+  private nextScheduleGate: Promise<void> | null = null;
+
+  /**
+   * Test helper: makes the NEXT `scheduleReminder` call wait until the
+   * returned `release` function is called, before it records anything. Lets a
+   * test hold one reconcile in flight while another one starts.
+   */
+  holdNextSchedule(): () => void {
+    let release!: () => void;
+    this.nextScheduleGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return release;
+  }
 
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
     return this.permissionStatus;
@@ -44,6 +58,11 @@ export class FakeNotificationScheduler implements NotificationScheduler {
   }
 
   async scheduleReminder(fireDate: Date, content: ReminderNotificationContent): Promise<string> {
+    const gate = this.nextScheduleGate;
+    if (gate !== null) {
+      this.nextScheduleGate = null;
+      await gate;
+    }
     this.cancelled = true; // scheduleReminder always cancels-then-schedules (design D1).
     this.lastFireDate = fireDate;
     this.lastContent = content;

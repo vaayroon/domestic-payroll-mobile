@@ -18,10 +18,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useCurrentEmployerId, useEmployeeRepository } from '@/core';
 import type { Employee } from '@/types';
 
+/** Read failure; screens map `code` with `t` and may show `detail` (untranslated) as a secondary line. */
+export type ActiveEmployeesError = { readonly code: 'read_failed'; readonly detail: string };
+
 export interface UseActiveEmployeesResult {
   readonly employees: Employee[];
   readonly loading: boolean;
-  readonly error: string | null;
+  readonly error: ActiveEmployeesError | null;
 }
 
 export function useActiveEmployees(): UseActiveEmployeesResult {
@@ -30,7 +33,7 @@ export function useActiveEmployees(): UseActiveEmployeesResult {
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ActiveEmployeesError | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -39,7 +42,10 @@ export function useActiveEmployees(): UseActiveEmployeesResult {
       setEmployees(all.filter((employee) => employee.active));
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError({
+        code: 'read_failed',
+        detail: caught instanceof Error ? caught.message : String(caught),
+      });
     } finally {
       setLoading(false);
     }

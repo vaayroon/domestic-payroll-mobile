@@ -71,6 +71,28 @@ describe('employees slice in English', () => {
     );
   });
 
+  it('maps the list read error code to English and keeps the detail as a secondary line', async () => {
+    const renderer = await render(
+      <EmployeeListView
+        employees={[]}
+        loading={false}
+        error={{ code: 'read_failed', detail: 'disk I/O error' }}
+        onAdd={() => {}}
+        onEdit={() => {}}
+        onDeactivate={() => {}}
+        onNewPayrollRun={() => {}}
+        onViewHistory={() => {}}
+      />,
+    );
+
+    expect(
+      renderer.root.findByProps({ testID: 'employee-list-error-message' }).props.children,
+    ).toBe('Could not load the employees.');
+    expect(renderer.root.findByProps({ testID: 'employee-list-error' }).props.children).toBe(
+      'disk I/O error',
+    );
+  });
+
   it('renders the row actions in English', async () => {
     const renderer = await render(
       <EmployeeListItem
@@ -128,7 +150,7 @@ describe('employees slice in English', () => {
         onChangeField={() => {}}
         onSubmit={() => {}}
         saving={false}
-        saveError="disk full"
+        saveError={{ code: 'save_failed', detail: 'disk full' }}
         submitLabel="Save"
       />,
     );

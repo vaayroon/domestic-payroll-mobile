@@ -110,7 +110,7 @@ export function ReminderSettingsScreen() {
 
       {saveError !== null ? (
         <Text testID="reminder-settings-save-error" className="text-sm text-red-400">
-          {t(($) => $.reminder.screen.saveFailed, { detail: saveError })}
+          {t(($) => $.reminder.screen.saveFailed, { detail: saveError.detail })}
         </Text>
       ) : null}
 

@@ -64,7 +64,11 @@ describe('ReminderSettingsScreen', () => {
     });
 
     it('renders the screen copy in English', async () => {
-      mockLoadedSettings = { ...defaultSettings, permissionDenied: true, saveError: 'disk full' };
+      mockLoadedSettings = {
+        ...defaultSettings,
+        permissionDenied: true,
+        saveError: { code: 'save_failed', detail: 'disk full' },
+      };
 
       const renderer = await renderScreen();
 

@@ -15,7 +15,7 @@ import {
 import { useTranslation } from '@/core/i18n';
 import type { EmployeeReceiptFileNameFormat } from '@/types';
 
-import type { EmployeeFormErrors, EmployeeFormInput } from '../../domain';
+import type { EmployeeFormErrors, EmployeeFormInput, EmployeeFormSaveError } from '../../domain';
 
 interface ReceiptFileNameOption {
   /** Suffix of the option's testID. */
@@ -47,7 +47,7 @@ export interface EmployeeFormProps {
   ) => void;
   readonly onSubmit: () => void;
   readonly saving: boolean;
-  readonly saveError: string | null;
+  readonly saveError: EmployeeFormSaveError | null;
   readonly submitLabel: string;
 }
 
@@ -326,7 +326,7 @@ export function EmployeeForm({
 
       {saveError !== null ? (
         <Text testID="employee-form-save-error" className="text-sm text-red-400">
-          {t(($) => $.employees.form.saveFailed, { detail: saveError })}
+          {t(($) => $.employees.form.saveFailed, { detail: saveError.detail })}
         </Text>
       ) : null}
 

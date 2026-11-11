@@ -6,7 +6,12 @@ export const payroll: Catalog<typeof es> = {
     employee: 'Employee',
     employeesLoading: 'Loading employees…',
     employeesEmpty: 'There are no active employees. Add one first.',
+    employeesErrors: {
+      read_failed: 'Could not load the employees.',
+    },
     period: 'Period',
+    periodPrevious: 'Previous month',
+    periodNext: 'Next month',
     range: 'Days worked range',
     from: 'From',
     to: 'To',
@@ -43,6 +48,9 @@ export const payroll: Catalog<typeof es> = {
     sendMail: 'Send by email',
     encrypt: 'Encrypt',
     sent: 'Payslip sent.',
+    errors: {
+      read_failed: 'Could not load the payroll history.',
+    },
   },
   protection: {
     generatedProtected: 'Payslip generated and protected with a password.',

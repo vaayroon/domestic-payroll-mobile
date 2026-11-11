@@ -38,7 +38,33 @@ function toPermissionStatus(status: Notifications.PermissionStatus): Notificatio
   }
 }
 
+/**
+ * How a notification that arrives while the app is in the foreground is
+ * presented. Without a handler `expo-notifications` silently drops it, so the
+ * reminder only showed up once the app was backgrounded. Shown in the tray
+ * (`shouldShowList`) and as a banner where the channel importance allows one;
+ * no sound or badge, matching the channel's quiet default.
+ */
+export const FOREGROUND_PRESENTATION: Notifications.NotificationBehavior = {
+  shouldShowBanner: true,
+  shouldShowList: true,
+  shouldPlaySound: false,
+  shouldSetBadge: false,
+};
+
 export class ExpoNotificationScheduler implements NotificationScheduler {
+  /**
+   * Installs the foreground handler. Construct the scheduler once, at module
+   * scope of the composition root, so the handler is in place before any
+   * notification can arrive; the handler is process-wide, so constructing a
+   * second scheduler just re-installs the same behaviour.
+   */
+  constructor() {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => FOREGROUND_PRESENTATION,
+    });
+  }
+
   async getPermissionStatus(): Promise<NotificationPermissionStatus> {
     const response = await Notifications.getPermissionsAsync();
     return toPermissionStatus(response.status);

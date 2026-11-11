@@ -3,7 +3,12 @@ export const payroll = {
     employee: 'Empleado',
     employeesLoading: 'Cargando empleados…',
     employeesEmpty: 'No hay empleados activos. Añade uno primero.',
+    employeesErrors: {
+      read_failed: 'No se pudieron cargar los empleados.',
+    },
     period: 'Periodo',
+    periodPrevious: 'Mes anterior',
+    periodNext: 'Mes siguiente',
     range: 'Rango de días trabajados',
     from: 'Desde',
     to: 'Hasta',
@@ -40,6 +45,9 @@ export const payroll = {
     sendMail: 'Enviar por correo',
     encrypt: 'Cifrar',
     sent: 'Recibo enviado.',
+    errors: {
+      read_failed: 'No se pudo cargar el historial de nóminas.',
+    },
   },
   protection: {
     generatedProtected: 'Recibo generado y protegido con contraseña.',

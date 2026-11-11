@@ -40,6 +40,7 @@ export const employer: Catalog<typeof es> = {
     },
     load: {
       not_found: 'The employer profile was not found.',
+      read_failed: 'Could not load the employer profile.',
     },
   },
   signature: {

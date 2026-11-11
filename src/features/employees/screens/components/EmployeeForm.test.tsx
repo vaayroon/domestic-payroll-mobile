@@ -376,7 +376,7 @@ describe('EmployeeForm', () => {
   });
 
   it('shows the save error banner when present', async () => {
-    const renderer = await renderForm({ ...baseProps, saveError: 'disk full' });
+    const renderer = await renderForm({ ...baseProps, saveError: { code: 'save_failed', detail: 'disk full' } });
 
     const banner = renderer.root.findByProps({ testID: 'employee-form-save-error' });
     expect(String(banner.props.children)).toContain('disk full');

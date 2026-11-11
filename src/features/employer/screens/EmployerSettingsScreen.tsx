@@ -11,7 +11,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { FormScrollView } from '@/core';
 import { useTranslation } from '@/core/i18n';
 
-import type { EmployerFormErrors, EmployerFormInput } from '../domain';
+import type { EmployerFormErrors, EmployerFormInput, EmployerFormSaveError } from '../domain';
 import { useEmployerForm } from '../domain';
 
 export function EmployerSettingsScreen() {
@@ -37,9 +37,14 @@ export function EmployerSettingsScreen() {
   if (loadError !== null) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
-        <Text className="text-center text-red-400">
-          {loadError.code === 'not_found' ? t(($) => $.employer.errors.load.not_found) : loadError.detail}
+        <Text testID="employer-settings-load-error" className="text-center text-red-400">
+          {t(($) => $.employer.errors.load[loadError.code])}
         </Text>
+        {loadError.code === 'read_failed' ? (
+          <Text testID="employer-settings-load-error-detail" className="mt-1 text-center text-sm text-slate-400">
+            {loadError.detail}
+          </Text>
+        ) : null}
       </View>
     );
   }
@@ -62,7 +67,7 @@ interface EmployerFormProps {
   readonly onChangeField: <K extends keyof EmployerFormInput>(field: K, value: EmployerFormInput[K]) => void;
   readonly onSubmit: () => void;
   readonly saving: boolean;
-  readonly saveError: string | null;
+  readonly saveError: EmployerFormSaveError | null;
 }
 
 function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveError }: EmployerFormProps) {
@@ -147,7 +152,7 @@ function EmployerForm({ values, errors, onChangeField, onSubmit, saving, saveErr
 
       {saveError !== null ? (
         <Text testID="employer-form-save-error" className="text-sm text-red-400">
-          {t(($) => $.employer.settings.saveFailed, { detail: saveError })}
+          {t(($) => $.employer.settings.saveFailed, { detail: saveError.detail })}
         </Text>
       ) : null}
 

@@ -33,7 +33,15 @@ export function EmployeeEditScreen({ employeeId }: EmployeeEditScreenProps) {
   if (error !== null) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-900 p-4">
-        <Text className="text-center text-red-400">{error}</Text>
+        <Text testID="employee-edit-error-message" className="text-center text-red-400">
+          {t(($) => $.employees.edit.errors[error.code])}
+        </Text>
+        <Text
+          testID="employee-edit-error-detail"
+          className="mt-1 text-center text-sm text-slate-400"
+        >
+          {error.detail}
+        </Text>
       </View>
     );
   }

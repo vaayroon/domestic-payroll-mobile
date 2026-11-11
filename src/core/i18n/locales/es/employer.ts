@@ -37,6 +37,7 @@ export const employer = {
     },
     load: {
       not_found: 'No se encontró el perfil del empleador.',
+      read_failed: 'No se pudo cargar el perfil del empleador.',
     },
   },
   signature: {

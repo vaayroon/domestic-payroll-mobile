@@ -18,14 +18,23 @@ import { FormScrollView } from '@/core';
 import { formatMonthYear, useTranslation } from '@/core/i18n';
 import type { Employee } from '@/types';
 
-import type { ExtraPayMode, PayrollResult, PayrollRunFormError } from '../../domain';
+import type { ActiveEmployeesError, ExtraPayMode, PayrollResult, PayrollRunFormError } from '../../domain';
 import { formatEuros } from '../formatEuros';
 
 const EXTRA_PAY_MODES: readonly ExtraPayMode[] = ['INCLUDE_IN_MONTH', 'PRORATE', 'EXCLUDE'];
 
+/**
+ * The '<' / '>' glyphs alone are about 8x25 dp. Extends the touch area to
+ * roughly 40x49 dp, close to the 48 dp Android minimum, without changing the
+ * layout. The month label in between is not pressable, so overlap is harmless.
+ */
+const PERIOD_STEPPER_HIT_SLOP = { top: 12, bottom: 12, left: 16, right: 16 } as const;
+
 export interface PayrollRunFormProps {
   readonly employees: Employee[];
   readonly employeesLoading: boolean;
+  /** Shown instead of the "no active employees" hint when the list could not be read. */
+  readonly employeesError: ActiveEmployeesError | null;
   readonly selectedEmployeeId: string | null;
   readonly onSelectEmployee: (id: string) => void;
   readonly periodYear: number;
@@ -52,6 +61,7 @@ export interface PayrollRunFormProps {
 export function PayrollRunForm({
   employees,
   employeesLoading,
+  employeesError,
   selectedEmployeeId,
   onSelectEmployee,
   periodYear,
@@ -108,6 +118,15 @@ export function PayrollRunForm({
           <Text testID="payroll-run-form-employees-loading" className="text-slate-400">
             {t(($) => $.payroll.form.employeesLoading)}
           </Text>
+        ) : employeesError !== null ? (
+          <View>
+            <Text testID="payroll-run-form-employees-error" className="text-red-400">
+              {t(($) => $.payroll.form.employeesErrors[employeesError.code])}
+            </Text>
+            <Text testID="payroll-run-form-employees-error-detail" className="text-sm text-slate-400">
+              {employeesError.detail}
+            </Text>
+          </View>
         ) : employees.length === 0 ? (
           <Text testID="payroll-run-form-employees-empty" className="text-slate-400">
             {t(($) => $.payroll.form.employeesEmpty)}
@@ -134,13 +153,25 @@ export function PayrollRunForm({
       <View>
         <Text className="mb-1 text-slate-300">{t(($) => $.payroll.form.period)}</Text>
         <View className="flex-row items-center gap-3">
-          <Pressable testID="payroll-run-form-period-prev" onPress={onDecrementMonth}>
+          <Pressable
+            testID="payroll-run-form-period-prev"
+            accessibilityRole="button"
+            accessibilityLabel={t(($) => $.payroll.form.periodPrevious)}
+            hitSlop={PERIOD_STEPPER_HIT_SLOP}
+            onPress={onDecrementMonth}
+          >
             <Text className="text-lg font-semibold text-emerald-400">{'<'}</Text>
           </Pressable>
           <Text testID="payroll-run-form-period-label" className="text-white">
             {formatMonthYear(t, periodYear, periodMonth)}
           </Text>
-          <Pressable testID="payroll-run-form-period-next" onPress={onIncrementMonth}>
+          <Pressable
+            testID="payroll-run-form-period-next"
+            accessibilityRole="button"
+            accessibilityLabel={t(($) => $.payroll.form.periodNext)}
+            hitSlop={PERIOD_STEPPER_HIT_SLOP}
+            onPress={onIncrementMonth}
+          >
             <Text className="text-lg font-semibold text-emerald-400">{'>'}</Text>
           </Pressable>
         </View>

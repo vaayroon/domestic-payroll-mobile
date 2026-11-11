@@ -55,7 +55,7 @@ describe('EmployeeListView', () => {
     const renderer = await renderListView({
       employees: [],
       loading: false,
-      error: 'boom',
+      error: { code: 'read_failed', detail: 'boom' },
       onAdd: () => {},
       onEdit: () => {},
       onDeactivate: () => {},
@@ -65,6 +65,8 @@ describe('EmployeeListView', () => {
 
     const error = renderer.root.findByProps({ testID: 'employee-list-error' });
     expect(error.props.children).toBe('boom');
+    const message = renderer.root.findByProps({ testID: 'employee-list-error-message' });
+    expect(message.props.children).toBe('No se pudieron cargar los empleados.');
   });
 
   it('fires onNewPayrollRun when the "Nueva nómina" button is pressed', async () => {

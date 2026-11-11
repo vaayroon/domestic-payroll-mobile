@@ -196,7 +196,7 @@ describe('useEmployerForm', () => {
     });
 
     expect(success).toBe(false);
-    expect(harness.current.saveError).toBe('disk full');
+    expect(harness.current.saveError).toEqual({ code: 'save_failed', detail: 'disk full' });
     expect(harness.current.saving).toBe(false);
   });
 });

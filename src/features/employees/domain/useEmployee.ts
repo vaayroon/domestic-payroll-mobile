@@ -7,10 +7,13 @@ import { useEffect, useState } from 'react';
 import { useEmployeeRepository } from '@/core';
 import type { Employee } from '@/types';
 
+/** Load failure of the single-employee loader; screens map `code` with `t`. `read_failed` carries the repository's technical message untranslated. */
+export type EmployeeLoadError = { readonly code: 'read_failed'; readonly detail: string };
+
 export interface UseEmployeeResult {
   readonly employee: Employee | null;
   readonly loading: boolean;
-  readonly error: string | null;
+  readonly error: EmployeeLoadError | null;
 }
 
 export function useEmployee(id: string): UseEmployeeResult {
@@ -18,7 +21,7 @@ export function useEmployee(id: string): UseEmployeeResult {
 
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<EmployeeLoadError | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +39,10 @@ export function useEmployee(id: string): UseEmployeeResult {
         if (cancelled) {
           return;
         }
-        setError(caught instanceof Error ? caught.message : String(caught));
+        setError({
+          code: 'read_failed',
+          detail: caught instanceof Error ? caught.message : String(caught),
+        });
       } finally {
         if (!cancelled) {
           setLoading(false);

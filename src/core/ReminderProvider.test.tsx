@@ -58,6 +58,13 @@ const fakePayrollRunRepository: PayrollRunRepository = {
   remove: notImplemented('PayrollRunRepository.remove'),
 };
 
+/** Lets queued promise callbacks (settings read, reconcile steps) run to completion. */
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 10; i += 1) {
+    await Promise.resolve();
+  }
+}
+
 const ENABLED_PREFS: ReminderPreferences = { enabled: true, dayOfMonth: 5, hour: 9, minute: 0 };
 
 /** Renders `ReminderProvider` with a granted, enabled scheduler and flushes its mount-time reconcile. */
@@ -176,6 +183,33 @@ describe('ReminderProvider', () => {
       expect(scheduler.scheduleCallCount).toBe(callsBefore + 1);
       expect(scheduler.lastChannelName).toBe('Payroll reminder');
       expect(scheduler.lastContent?.title).toBe('Payroll reminder');
+    });
+
+    it('ends on the new-language copy when an old-language reconcile is still in flight at the switch', async () => {
+      const { scheduler } = await renderProvider();
+
+      // A tap starts a Spanish reconcile; hold it inside `scheduleReminder`.
+      const releaseSpanishSchedule = scheduler.holdNextSchedule();
+      await act(async () => {
+        scheduler.simulateTap();
+        await flushMicrotasks();
+      });
+
+      // Switch to English while the Spanish run is still pending.
+      await act(async () => {
+        await i18n.changeLanguage('en');
+        await flushMicrotasks();
+      });
+
+      // The Spanish run finishes last in wall-clock terms...
+      await act(async () => {
+        releaseSpanishSchedule();
+        await flushMicrotasks();
+      });
+
+      // ...but the schedule must still end in English.
+      expect(scheduler.lastContent?.title).toBe('Payroll reminder');
+      expect(scheduler.lastChannelName).toBe('Payroll reminder');
     });
 
     it('schedules nothing on a language switch while the reminder is disabled', async () => {

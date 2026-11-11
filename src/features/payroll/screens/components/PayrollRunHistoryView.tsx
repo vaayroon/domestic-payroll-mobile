@@ -19,13 +19,13 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { formatMonthYear, useTranslation } from '@/core/i18n';
 import type { PayrollRun } from '@/types';
 
-import type { DispatchStatus, ReceiptDispatchError, ReceiptGenerationError } from '../../domain';
+import type { DispatchStatus, PayrollRunHistoryError, ReceiptDispatchError, ReceiptGenerationError } from '../../domain';
 import { formatEuros } from '../formatEuros';
 
 export interface PayrollRunHistoryViewProps {
   readonly runs: PayrollRun[];
   readonly loading: boolean;
-  readonly error: string | null;
+  readonly error: PayrollRunHistoryError | null;
   /** A generation is running: every "Generar recibo" row is disabled. */
   readonly generating: boolean;
   /** The run whose row started the generation; only that row reads "Generando…". */
@@ -81,9 +81,15 @@ export function PayrollRunHistoryView({
       </View>
 
       {error !== null ? (
-        <Text testID="payroll-run-history-error" className="px-4 text-red-400">
-          {error}
-        </Text>
+        <View className="px-4">
+          <Text testID="payroll-run-history-error-message" className="text-red-400">
+            {t(($) => $.payroll.history.errors[error.code])}
+          </Text>
+          {/* Technical detail as a secondary line (untranslated). */}
+          <Text testID="payroll-run-history-error" className="text-sm text-slate-400">
+            {error.detail}
+          </Text>
+        </View>
       ) : null}
 
       {generateError !== null ? (

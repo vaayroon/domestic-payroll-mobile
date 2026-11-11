@@ -125,4 +125,14 @@ describe('useEmployees', () => {
     const stored = await repository.getById(target.id);
     expect(stored?.active).toBe(false);
   });
+
+  it('exposes a read_failed code with the technical detail when the list read rejects', async () => {
+    const repository = new InMemoryEmployeeRepository([]);
+    jest.spyOn(repository, 'list').mockRejectedValue(new Error('disk read failure'));
+
+    const harness = await renderUseEmployees(repository);
+
+    expect(harness.current.error).toEqual({ code: 'read_failed', detail: 'disk read failure' });
+    expect(harness.current.loading).toBe(false);
+  });
 });

@@ -5,6 +5,9 @@ export const employees = {
     add: 'Añadir empleado',
     loading: 'Cargando…',
     empty: 'No hay empleados. Añade el primero.',
+    errors: {
+      read_failed: 'No se pudieron cargar los empleados.',
+    },
     item: {
       history: 'Historial',
       edit: 'Editar',
@@ -14,6 +17,9 @@ export const employees = {
   edit: {
     loading: 'Cargando…',
     notFound: 'Empleado no encontrado.',
+    errors: {
+      read_failed: 'No se pudo cargar el empleado.',
+    },
   },
   form: {
     submitCreate: 'Guardar',

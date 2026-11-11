@@ -577,4 +577,24 @@ describe('useEmployeeForm', () => {
       expect(updateSpy).not.toHaveBeenCalled();
     });
   });
+
+  it('exposes a save_failed code with the technical detail when the repository rejects', async () => {
+    const repository = new InMemoryEmployeeRepository([]);
+    jest.spyOn(repository, 'create').mockRejectedValueOnce(new Error('disk full'));
+    const harness = await renderUseEmployeeForm({ kind: 'create' }, repository);
+
+    await act(async () => {
+      harness.current.setField('name', 'Empleado Nuevo');
+      harness.current.setField('baseGross', '900');
+    });
+
+    let success = true;
+    await act(async () => {
+      success = await harness.current.submit();
+    });
+
+    expect(success).toBe(false);
+    expect(harness.current.saveError).toEqual({ code: 'save_failed', detail: 'disk full' });
+    expect(harness.current.saving).toBe(false);
+  });
 });

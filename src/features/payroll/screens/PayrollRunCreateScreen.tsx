@@ -13,6 +13,7 @@ export function PayrollRunCreateScreen() {
   const {
     employees,
     employeesLoading,
+    employeesError,
     selectedEmployeeId,
     selectEmployee,
     periodYear,
@@ -44,6 +45,7 @@ export function PayrollRunCreateScreen() {
     <PayrollRunForm
       employees={employees}
       employeesLoading={employeesLoading}
+      employeesError={employeesError}
       selectedEmployeeId={selectedEmployeeId}
       onSelectEmployee={selectEmployee}
       periodYear={periodYear}
