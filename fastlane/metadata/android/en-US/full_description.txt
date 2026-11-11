@@ -1,0 +1,18 @@
+Homeslip helps a private employer in Spain manage the payroll of household employees under the Special Regime for Household Employees (Régimen Especial de Empleados de Hogar).
+
+What it does
+- Computes the monthly net salary: gross salary minus the employee Social Security contribution.
+- Prorates partial months on exact calendar days worked.
+- Handles the June and December extra payments, either paid out or prorated.
+- Generates a "Recibo Individual de Salarios" as a PDF.
+- Sends the receipt through your mail app or the share sheet.
+- Reminds you every month to run the payroll.
+- Supports several employees.
+
+Your data stays on your device
+Homeslip works fully offline. It has no account, no backend, no analytics and no telemetry. Everything you enter stays on your device.
+
+Unofficial app
+Homeslip is an unofficial app and is not affiliated with the Seguridad Social or the TGSS. Always check the results against the official sources before relying on them.
+
+Open source under GPL-3.0-or-later.

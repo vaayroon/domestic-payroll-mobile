@@ -1,21 +1,17 @@
 {
   "expo": {
-    "name": "domestic-payroll-mobile",
-    "slug": "domestic-payroll-mobile",
+    "name": "Homeslip",
+    "slug": "homeslip",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "domesticpayrollmobile",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
+    "scheme": "homeslip",
+    "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.domesticpayroll.mobile",
+      "package": "io.github.vaayroon.homeslip",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -29,9 +25,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0F172A",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200
         }
       ],
       "expo-sqlite",
@@ -55,7 +51,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "fe3dc175-56cf-4e1e-b782-a56e344cfa2d"
+        "projectId": "f43eabf7-0f9b-40e6-b62b-4b473ecee30e"
       }
     },
     "owner": "vaayroons-team"

@@ -1,10 +1,17 @@
-# domestic-payroll-mobile
+# Homeslip
 
 A **local-first Android app** for managing payrolls of household employees under the Spanish
 **Special Regime for Household Employees** (_Régimen Especial de Empleados de Hogar_).
 
-The app runs fully offline. All data lives on-device — there is no backend, no analytics, and no
-third-party upload.
+> **Unofficial app.** Homeslip is unofficial and not affiliated with the Seguridad Social or the
+> TGSS. Always check results against the official sources.
+
+## What it is, and what it is not
+
+- It **is** a private employer's tool: compute the monthly net salary, produce the receipt PDF and
+  send it to the employee.
+- It is **not** an official filing tool. It does not talk to the Seguridad Social, does not submit
+  contributions and does not replace professional advice.
 
 ## Features
 
@@ -17,14 +24,14 @@ third-party upload.
 
 ## Tech stack
 
-| Concern          | Choice                                             |
-| ---------------- | -------------------------------------------------- |
-| Framework        | React Native + **Expo** (managed workflow)         |
-| Language         | **TypeScript** (strict mode, no `any`)             |
-| Styling          | **NativeWind v4** (Tailwind CSS for React Native)  |
-| Persistence      | **expo-sqlite** (offline-first)                    |
+| Concern                    | Choice                                                              |
+| -------------------------- | ------------------------------------------------------------------- |
+| Framework                  | React Native + **Expo** (managed workflow)                          |
+| Language                   | **TypeScript** (strict mode, no `any`)                              |
+| Styling                    | **NativeWind v4** (Tailwind CSS for React Native)                   |
+| Persistence                | **expo-sqlite** (offline-first)                                     |
 | PDF / mail / notifications | expo-print · expo-mail-composer / expo-sharing · expo-notifications |
-| Package manager  | **pnpm** (only) · Node **v24.14.1** via `fnm`      |
+| Package manager            | **pnpm** (only) · Node **v24.14.1** via `fnm`                       |
 
 ## Architecture
 
@@ -50,9 +57,8 @@ Requires [`fnm`](https://github.com/Schniz/fnm) with Node **v24.14.1** and
 [`pnpm`](https://pnpm.io/). This project uses **pnpm only** — do not use `npm` or `yarn`.
 
 ```bash
-pnpm install     # install dependencies
-pnpm start       # start the Expo dev server
-pnpm android     # open on an Android device/emulator via Expo Go
+pnpm install              # install dependencies
+pnpm start --dev-client   # start Metro for the installed development build
 ```
 
 Other scripts:
@@ -63,14 +69,24 @@ pnpm lint                # lint
 pnpm test                # unit tests (payroll math has priority coverage)
 ```
 
-> **Note:** the app is being scaffolded — the commands above become available as the project is
-> built out. See [CLAUDE.md](CLAUDE.md) for the full engineering contract.
+Branding assets are generated from `branding/` (`pnpm brand:export`, `pnpm brand:check`). See
+[CLAUDE.md](CLAUDE.md) for the full engineering contract.
+
+## Install
+
+No release is available yet. Signed APKs will be published on GitHub Releases, and you will be
+able to track them with [Obtainium](https://obtainium.imranr.dev/) to get updates automatically.
 
 ## Privacy
 
-This app stores real personal data (names, NIF/NIE, NAF, address, salary). That data **never**
-leaves the device and is **never committed to this repository**. Any sample data in source, tests,
-or docs uses obviously-fake placeholders.
+Homeslip works fully offline: no network access is required, there is no telemetry and no
+analytics, and all data stays on the device. The app stores personal data (names, NIF/NIE, NAF,
+address, salary) that **never** leaves the device and is **never committed to this repository**.
+
+## Screenshots policy
+
+Any screenshot in this repository or in the store listing uses fake data only. Real identifiers,
+names and addresses are never shown.
 
 ## License
 
