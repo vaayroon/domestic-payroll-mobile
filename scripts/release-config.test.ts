@@ -29,4 +29,11 @@ describe('release configuration', () => {
       false,
     );
   });
+
+  it('has no machine-specific *-local EAS build profile', () => {
+    const eas = readJson('eas.json');
+    expect(isRecord(eas) && isRecord(eas.build)).toBe(true);
+    const profiles = Object.keys((eas as { build: Record<string, unknown> }).build);
+    expect(profiles.filter((name) => name.endsWith('-local'))).toEqual([]);
+  });
 });
