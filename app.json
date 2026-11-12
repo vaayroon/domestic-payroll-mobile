@@ -2,7 +2,6 @@
   "expo": {
     "name": "Homeslip",
     "slug": "homeslip",
-    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "homeslip",
