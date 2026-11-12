@@ -125,8 +125,8 @@ This app stores real personal data: names, **NIF/NIE, NAF (social security numbe
 - **Never commit real PII to git.** No real NIF/NIE/NAF/addresses in source, docs, fixtures, or
   commit messages. Use obviously-fake placeholders for **those** values in any committed
   sample/fixture. This rule is about identifiers, not about monetary amounts — see §5.
-- The real seed profile (employer + first employee) lives in the user's **local engram memory**
-  and, when scaffolded, in a **git-ignored** local seed module + the on-device SQLite DB.
+- Real employer/employee data is entered through onboarding and lives only in the on-device SQLite
+  DB. There are no seed modules in the repo; `.gitignore` still lists `seed.local.ts` as a safety net.
 - Personal data stays on-device. No analytics, no telemetry, no third-party upload.
 
 ## 7. Commands (once scaffolded)

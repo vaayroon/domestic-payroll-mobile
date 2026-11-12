@@ -75,8 +75,14 @@ software rendering. It still boots and runs the app.
 
 Option A: the APK from the local EAS build (same binary the phone uses).
 
+Point the build at your own SDK and JDK through environment variables (the values below are
+examples; use the paths of your machine):
+
 ```bash
-pnpm dlx eas-cli build -p android --profile development-local --local
+export ANDROID_HOME="$HOME/Android/Sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export JAVA_HOME=/path/to/your/jdk
+pnpm dlx eas-cli build -p android --profile development --local
 adb -s "$SERIAL" install -r build-<timestamp>.apk
 ```
 

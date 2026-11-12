@@ -74,8 +74,27 @@ Branding assets are generated from `branding/` (`pnpm brand:export`, `pnpm brand
 
 ## Install
 
-No release is available yet. Signed APKs will be published on GitHub Releases, and you will be
-able to track them with [Obtainium](https://obtainium.imranr.dev/) to get updates automatically.
+Homeslip is distributed as a signed APK on
+[GitHub Releases](https://github.com/vaayroon/domestic-payroll-mobile/releases). It targets
+**arm64-v8a** devices only (virtually all phones since 2017); x86 and 32-bit ARM devices are not
+supported.
+
+### Obtainium (recommended, updates automatically)
+
+1. Install [Obtainium](https://obtainium.imranr.dev/).
+2. Add an app with the source URL `https://github.com/vaayroon/domestic-payroll-mobile`.
+3. Set the APK filter (regular expression) to `arm64-v8a\.apk$`.
+4. Install. Obtainium detects new versions from GitHub Releases and offers the update.
+
+### Manual download
+
+1. Download `homeslip-<version>-arm64-v8a.apk` and `SHA256SUMS` from the latest release.
+2. Check the checksum: `sha256sum -c SHA256SUMS`.
+3. Optional: verify the build provenance with the GitHub CLI:
+   `gh attestation verify homeslip-<version>-arm64-v8a.apk --repo vaayroon/domestic-payroll-mobile`.
+4. Open the APK on the device and allow installs from the source you used.
+
+Maintainers: see [docs/releasing.md](docs/releasing.md).
 
 ## Privacy
 
