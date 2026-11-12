@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 import appJson from './app.json';
 import { versionCodeFromSemver } from './plugins/versionCode';
+import { withReleaseSigning } from './plugins/withReleaseSigning';
 
 function readPackageVersion(projectRoot: string): string {
   const raw: unknown = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
@@ -30,11 +31,11 @@ export default ({ config, projectRoot }: ConfigContext): ExpoConfig => {
     throw new Error('app.json must declare "name" and "slug".');
   }
   const version = readPackageVersion(projectRoot);
-  return {
+  return withReleaseSigning({
     ...base,
     name: base.name,
     slug: base.slug,
     version,
     android: { ...base.android, versionCode: versionCodeFromSemver(version) },
-  };
+  });
 };
