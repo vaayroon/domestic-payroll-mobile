@@ -535,7 +535,7 @@ web-build/
 # gentle ai
 /.atl
 
-# Local dev seed (Foundation slice) — real employer/employee data goes here at
-# runtime; NEVER commit it. See src/services/db/seed.local.ts and seed.example.ts.
+# Safety net: the dev seed modules were removed (onboarding is the only data entry
+# path). This entry stays so a leftover local file with real data is never committed.
 /src/services/db/seed.local.ts
 
