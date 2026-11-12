@@ -94,7 +94,8 @@ release and is never rotated**. Losing it means users must uninstall and reinsta
 
 Run the build without publishing anything:
 
-1. Open Actions, then **Build APK**, then **Run workflow**, and pick the branch (default `main`).
+1. Open Actions, then **Build APK**, then **Run workflow** on `main`. The
+   `release` environment only allows `main`, so a dispatch from any other branch is blocked.
 2. Approve the `release` environment.
 3. Download the `homeslip-apk` artifact (kept 7 days) and check it:
 
