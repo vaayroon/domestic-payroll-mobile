@@ -41,8 +41,9 @@ android {
 }
 
 // Fail closed: a release build never falls back to the debug keystore.
+// EAS builds (EAS_BUILD is set) manage their own signing credentials.
 gradle.taskGraph.whenReady { graph ->
-    if (graph.allTasks.any { it.name.contains('Release') }) {
+    if (!System.getenv('EAS_BUILD') && graph.allTasks.any { it.name.contains('Release') }) {
         def missing = homeslipSigningEnv.findAll { !System.getenv(it) }
         if (!missing.isEmpty()) {
             throw new GradleException(
