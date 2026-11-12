@@ -15,12 +15,9 @@ on:
         description: Attest the APK and upload it to the release
         type: boolean
         required: true
+  # Dry run: builds the dispatched commit (the release environment only allows main)
+  # and never publishes. There is no ref input, so no other code runs with the secrets.
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Branch, tag or SHA to build (dry run, never publishes)
-        type: string
-        default: main
 
 permissions: {}
 
@@ -41,7 +38,7 @@ jobs:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || inputs.ref }}
+          ref: ${{ inputs.tag || github.sha }}
           persist-credentials: false
 
       - name: Read and check version
